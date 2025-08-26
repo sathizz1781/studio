@@ -95,9 +95,12 @@ export function WeighbridgeForm() {
 
   useEffect(() => {
     if (isClient) {
-        setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
-        const now = new Date();
-        setDateTime(now.toLocaleString('en-IN', { hour12: true }));
+        // This check ensures code only runs on the client
+        const generateInitialData = () => {
+            setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
+            setDateTime(new Date().toLocaleString('en-IN', { hour12: true }));
+        };
+        generateInitialData();
     }
   }, [isClient]);
 
