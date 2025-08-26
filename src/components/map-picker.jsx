@@ -154,5 +154,3 @@ const MapPicker = ({ form, initialPosition }) => {
 };
 
 export default MapPicker;
-
-    
