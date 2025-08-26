@@ -36,6 +36,13 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin, Share2 } from "lucide-react";
+import dynamic from "next/dynamic";
+import "./leaflet.css";
+
+const MapPicker = dynamic(() => import("@/components/map-picker"), { 
+    ssr: false,
+    loading: () => <div className="h-full w-full flex items-center justify-center bg-muted"><Loader2 className="h-8 w-8 animate-spin" /></div>
+});
 
 const customerSchema = z.object({
   contactPerson: z.string().min(1, "Contact person is required"),
@@ -217,9 +224,14 @@ export default function CustomerPage() {
       (customer.whatsappNumber && customer.whatsappNumber.includes(searchTerm))
   );
   
-  const { formState: { isSubmitting }, watch } = form;
+  const { formState: { isSubmitting }, watch, setValue } = form;
   const watchedLatitude = watch("latitude");
   const watchedLongitude = watch("longitude");
+  
+  const handleLocationSelect = useCallback(({ lat, lng }) => {
+        setValue("latitude", lat, { shouldValidate: true });
+        setValue("longitude", lng, { shouldValidate: true });
+    }, [setValue]);
 
   return (
     <div className="container mx-auto py-4">
@@ -387,9 +399,8 @@ export default function CustomerPage() {
                       </FormItem>
                     )}
                   />
-
-                  <div className="space-y-2 pt-4">
-                    <Label>Location Coordinates (Optional)</Label>
+                   <div className="space-y-2 pt-4">
+                    <Label>Set Location</Label>
                      <div className="grid grid-cols-2 gap-4">
                         <FormField
                             control={form.control}
@@ -412,8 +423,12 @@ export default function CustomerPage() {
                             )}
                         />
                     </div>
-                     <div className="h-48 mt-2">
-                        <GoogleMapView latitude={watchedLatitude} longitude={watchedLongitude} />
+                     <div className="h-64 mt-2">
+                        <MapPicker 
+                           latitude={watchedLatitude} 
+                           longitude={watchedLongitude}
+                           onLocationSelect={handleLocationSelect}
+                        />
                     </div>
                   </div>
               </div>
@@ -434,5 +449,3 @@ export default function CustomerPage() {
     </div>
   );
 }
-
-    
