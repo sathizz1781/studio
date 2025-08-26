@@ -45,10 +45,7 @@ export default function CustomersPage() {
 
   const handleAddCustomer = async (values) => {
     try {
-      // Use a more robust way to generate a customer ID on the backend if possible
-      const customerData = {
-        ...values,
-      };
+      const customerData = { ...values };
       
       const response = await fetch("https://bend-mqjz.onrender.com/api/user/createuser", {
         method: 'POST',
@@ -62,7 +59,6 @@ export default function CustomersPage() {
       
       const result = await response.json();
       
-      // Use the returned user which should have the final customerId
       setCustomers(prev => [result.user, ...prev]);
 
       toast({

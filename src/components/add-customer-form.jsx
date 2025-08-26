@@ -10,7 +10,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import dynamic from 'next/dynamic';
 
+const MapPicker = dynamic(() => import('@/components/map-picker'), { 
+  ssr: false,
+  loading: () => <div className="h-[400px] w-full bg-muted flex items-center justify-center rounded-md"><Loader2 className="h-8 w-8 animate-spin"/></div>
+});
 
 const formSchema = z.object({
   companyName: z.string().min(1, "Company name is required."),
@@ -18,7 +23,8 @@ const formSchema = z.object({
   gstNo: z.string().min(1, "GST number is required."),
   whatsappNumber: z.string().regex(/^\d{10,15}$/, "Please enter a valid WhatsApp number.").optional().or(z.literal('')),
   email: z.string().email("Please enter a valid email address.").optional().or(z.literal('')),
-  locationUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
+  latitude: z.coerce.number({ required_error: "Please select a location on the map." }),
+  longitude: z.coerce.number({ required_error: "Please select a location on the map." }),
 });
 
 export function AddCustomerForm({ onAddCustomer }) {
@@ -32,7 +38,8 @@ export function AddCustomerForm({ onAddCustomer }) {
       gstNo: "",
       whatsappNumber: "",
       email: "",
-      locationUrl: "",
+      latitude: 11.3410, // Default to Erode, Tamil Nadu
+      longitude: 77.7172,
     },
   });
 
@@ -45,11 +52,16 @@ export function AddCustomerForm({ onAddCustomer }) {
     setIsSubmitting(false);
   }
 
+  const handleLocationChange = ({ lat, lng }) => {
+    form.setValue('latitude', lat);
+    form.setValue('longitude', lng);
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Add a New Customer</CardTitle>
-        <CardDescription>Fill out the form to create a new customer entry.</CardDescription>
+        <CardDescription>Fill out the form and select a location on the map.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -120,19 +132,44 @@ export function AddCustomerForm({ onAddCustomer }) {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="locationUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location URL (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., https://maps.app.goo.gl/..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            </div>
+            
+            <div className="space-y-4">
+              <FormLabel>Location</FormLabel>
+              <div className="rounded-md border h-[400px]">
+                <MapPicker 
+                  center={[form.getValues('latitude'), form.getValues('longitude')]}
+                  onLocationChange={handleLocationChange} 
+                />
+              </div>
+               <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="latitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Latitude</FormLabel>
+                      <FormControl>
+                        <Input type="number" readOnly {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="longitude"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Longitude</FormLabel>
+                      <FormControl>
+                        <Input type="number" readOnly {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <Button type="submit" disabled={isSubmitting}>

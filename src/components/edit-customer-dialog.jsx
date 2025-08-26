@@ -10,7 +10,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
-import Link from "next/link";
+import dynamic from 'next/dynamic';
+
+const MapPicker = dynamic(() => import('@/components/map-picker'), {
+  ssr: false,
+  loading: () => <div className="h-[400px] w-full bg-muted flex items-center justify-center rounded-md"><Loader2 className="h-8 w-8 animate-spin" /></div>
+});
 
 
 const formSchema = z.object({
@@ -19,12 +24,14 @@ const formSchema = z.object({
   gstNo: z.string().min(1, "GST number is required."),
   whatsappNumber: z.string().regex(/^\d{10,15}$/, "Please enter a valid WhatsApp number.").optional().or(z.literal('')),
   email: z.string().email("Please enter a valid email address.").optional().or(z.literal('')),
-  locationUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
+  latitude: z.coerce.number({ required_error: "Please select a location on the map." }),
+  longitude: z.coerce.number({ required_error: "Please select a location on the map." }),
 });
 
 
 export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustomer }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -34,7 +41,8 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
       gstNo: "",
       whatsappNumber: "",
       email: "",
-      locationUrl: "",
+      latitude: 0,
+      longitude: 0,
     },
   });
   
@@ -46,17 +54,26 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
         gstNo: customer.gstNo || "",
         whatsappNumber: customer.whatsappNumber || "",
         email: customer.email || "",
-        locationUrl: customer.locationUrl || "",
+        latitude: customer.latitude || 11.3410,
+        longitude: customer.longitude || 77.7172,
       });
+      setIsEditingLocation(false);
     }
   }, [customer, form, isOpen]);
 
+  const handleLocationChange = ({ lat, lng }) => {
+    form.setValue('latitude', lat);
+    form.setValue('longitude', lng);
+  };
 
   async function onSubmit(values) {
     setIsSubmitting(true);
     await onUpdateCustomer(values);
     setIsSubmitting(false);
   }
+
+  const lat = form.watch('latitude');
+  const lng = form.watch('longitude');
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -133,32 +150,64 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
                     </FormItem>
                     )}
                 />
-                <FormField
-                    control={form.control}
-                    name="locationUrl"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Location URL (Optional)</FormLabel>
-                        <FormControl>
-                        <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
             </div>
             
-            {customer?.locationUrl && (
-                <div className="space-y-2 rounded-lg border p-4">
-                    <h3 className="text-base font-medium">Customer Location</h3>
-                    <Button variant="link" asChild className="p-0 h-auto">
-                        <Link href={customer.locationUrl} target="_blank" rel="noopener noreferrer">
-                            View on Google Maps
-                        </Link>
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <FormLabel>Location</FormLabel>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setIsEditingLocation(!isEditingLocation)}>
+                       {isEditingLocation ? "View Map" : "Edit Location"}
                     </Button>
                 </div>
-            )}
-
+                
+                {isEditingLocation ? (
+                    <div className="rounded-md border h-[400px]">
+                        <MapPicker 
+                            center={[lat, lng]}
+                            onLocationChange={handleLocationChange}
+                        />
+                    </div>
+                ) : (
+                    <div className="rounded-md border h-[400px] w-full overflow-hidden">
+                        <iframe
+                            width="100%"
+                            height="100%"
+                            style={{ border: 0 }}
+                            loading="lazy"
+                            allowFullScreen
+                            src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${lat},${lng}`}>
+                        </iframe>
+                    </div>
+                )}
+                 <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="latitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Latitude</FormLabel>
+                        <FormControl>
+                          <Input type="number" readOnly={!isEditingLocation} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="longitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Longitude</FormLabel>
+                        <FormControl>
+                          <Input type="number" readOnly={!isEditingLocation} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+            </div>
 
             <DialogFooter>
                 <DialogClose asChild>
