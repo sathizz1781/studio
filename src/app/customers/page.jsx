@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState, useMemo, useCallback } from "react";
@@ -47,8 +48,25 @@ import {
   Phone,
   Building,
   FileText,
+  Link as LinkIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+
+const customerSchema = z.object({
+  companyName: z.string().min(1, "Company name is required"),
+  contactPerson: z.string().min(1, "Contact person is required"),
+  gstNo: z.string().min(1, "GST number is required"),
+  whatsappNumber: z.string().regex(/^\d{10,15}$/, "Enter a valid number"),
+  email: z.string().email("Enter a valid email address"),
+  latitude: z
+    .number({ invalid_type_error: "Latitude is required." })
+    .min(-90)
+    .max(90),
+  longitude: z
+    .number({ invalid_type_error: "Longitude is required." })
+    .min(-180)
+    .max(180),
+});
 
 // Dynamically import Leaflet and React-Leaflet components
 const MapContainer = dynamic(
@@ -63,23 +81,11 @@ const Marker = dynamic(
   () => import("react-leaflet").then((mod) => mod.Marker),
   { ssr: false }
 );
-const Popup = dynamic(
-  () => import("react-leaflet").then((mod) => mod.Popup),
-  { ssr: false }
-);
-const useMap = dynamic(
-  () => import("react-leaflet").then((mod) => mod.useMap),
-  { ssr: false }
-);
-
-const customerSchema = z.object({
-  companyName: z.string().min(1, "Company name is required"),
-  contactPerson: z.string().min(1, "Contact person is required"),
-  gstNo: z.string().min(1, "GST number is required"),
-  whatsappNumber: z.string().regex(/^\d{10,15}$/, "Enter a valid number"),
-  email: z.string().email("Enter a valid email address"),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
+const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), {
+  ssr: false,
+});
+const useMap = dynamic(() => import("react-leaflet").then((mod) => mod.useMap), {
+  ssr: false,
 });
 
 // A wrapper component for the marker
@@ -111,7 +117,7 @@ const DraggableMarker = ({ position, setPosition, onPositionChange }) => {
           const { lat, lng } = marker.getLatLng();
           const newPos = { lat, lng };
           setPosition(newPos);
-          onPositionChange(newPos);
+          if (onPositionChange) onPositionChange(newPos);
           map.setView(newPos);
         }
       },
@@ -145,40 +151,40 @@ const SearchControl = ({ setPosition, onPositionChange, toast }) => {
 
   useEffect(() => {
     let isMounted = true;
-    Promise.all([import("leaflet"), import("leaflet-control-geocoder")]).then(
-      ([L, Geocoder]) => {
-        if (!isMounted) return;
+    Promise.all([
+      import("leaflet"),
+      import("leaflet-control-geocoder"),
+      import("leaflet/dist/leaflet.css"),
+      import("leaflet-control-geocoder/dist/Control.Geocoder.css"),
+    ]).then(([L, Geocoder]) => {
+      if (!isMounted) return;
 
-        // CSS imports are tricky with dynamic imports, better to have them globally
-        // or ensure they are loaded before this component renders.
-        // Assuming they are loaded in the main layout for simplicity.
-
-        const geocoder = L.Control.Geocoder.nominatim();
-        const control = L.Control.geocoder({
-          geocoder: geocoder,
-          defaultMarkGeocode: false,
-          position: "topright",
-          placeholder: "Search for a location...",
+      const geocoder = L.Control.Geocoder.nominatim();
+      const control = L.Control.geocoder({
+        geocoder: geocoder,
+        defaultMarkGeocode: false,
+        position: "topright",
+        placeholder: "Search for a location...",
+      })
+        .on("markgeocode", function (e) {
+          const { center, name } = e.geocode;
+          map.setView(center, 15);
+          setPosition(center);
+          if (onPositionChange) onPositionChange(center);
+          toast({
+            title: "Location Found",
+            description: name,
+          });
         })
-          .on("markgeocode", function (e) {
-            const { center, name } = e.geocode;
-            map.setView(center, 15);
-            setPosition(center);
-            onPositionChange(center);
-            toast({
-              title: "Location Found",
-              description: name,
-            });
-          })
-          .addTo(map);
+        .addTo(map);
 
-        return () => {
-          if (map && control) {
-            map.removeControl(control);
-          }
-        };
-      }
-    );
+      // Cleanup function to remove control when component unmounts
+      return () => {
+        if (map && control) {
+          map.removeControl(control);
+        }
+      };
+    });
 
     return () => {
       isMounted = false;
@@ -186,6 +192,56 @@ const SearchControl = ({ setPosition, onPositionChange, toast }) => {
   }, [map, setPosition, onPositionChange, toast]);
 
   return null;
+};
+
+const MapPicker = ({ form, initialPosition }) => {
+  const [position, setPosition] = useState(initialPosition);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const onPositionChange = (newPos) => {
+    form.setValue("latitude", newPos.lat, { shouldValidate: true });
+    form.setValue("longitude", newPos.lng, { shouldValidate: true });
+  };
+
+  if (!isClient) {
+    return (
+      <div className="h-[400px] w-full bg-muted rounded-md flex items-center justify-center">
+        Loading map...
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[400px] w-full rounded-md overflow-hidden border">
+      <MapContainer
+        center={position}
+        zoom={13}
+        style={{ height: "100%", width: "100%" }}
+        whenCreated={(map) => {
+          setTimeout(() => map.invalidateSize(), 200);
+        }}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
+        <DraggableMarker
+          position={position}
+          setPosition={setPosition}
+          onPositionChange={onPositionChange}
+        />
+        <SearchControl
+          setPosition={setPosition}
+          onPositionChange={onPositionChange}
+          toast={useToast().toast}
+        />
+      </MapContainer>
+    </div>
+  );
 };
 
 const CustomerPage = () => {
@@ -196,11 +252,6 @@ const CustomerPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const { toast } = useToast();
 
@@ -322,52 +373,6 @@ const CustomerPage = () => {
     setIsSheetOpen(false);
     setSelectedCustomer(null);
     setEditMode(false);
-  };
-  
-  const MapPicker = ({ form, initialPosition }) => {
-    const [position, setPosition] = useState(initialPosition);
-
-    const onPositionChange = (newPos) => {
-      form.setValue("latitude", newPos.lat, { shouldValidate: true });
-      form.setValue("longitude", newPos.lng, { shouldValidate: true });
-    };
-
-    if (!isClient) {
-      return (
-        <div className="h-[400px] w-full bg-muted rounded-md flex items-center justify-center">
-          Loading map...
-        </div>
-      );
-    }
-
-    return (
-      <div className="h-[400px] w-full rounded-md overflow-hidden border">
-        <MapContainer
-          key={`${position.lat}-${position.lng}-${editMode ? "edit" : "add"}`}
-          center={position}
-          zoom={13}
-          style={{ height: "100%", width: "100%" }}
-          whenCreated={(map) => {
-            setTimeout(() => map.invalidateSize(), 200); // Ensures map resizes correctly in sheet/tab
-          }}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          <DraggableMarker
-            position={position}
-            setPosition={setPosition}
-            onPositionChange={onPositionChange}
-          />
-          <SearchControl
-            setPosition={setPosition}
-            onPositionChange={onPositionChange}
-            toast={toast}
-          />
-        </MapContainer>
-      </div>
-    );
   };
 
   const AddCustomerForm = ({ form, onSubmit }) => (
@@ -659,3 +664,5 @@ const CustomerPage = () => {
 };
 
 export default CustomerPage;
+
+    
