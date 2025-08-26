@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -70,6 +70,11 @@ export function WeighbridgeForm() {
   const [dateTime, setDateTime] = useState("");
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const { toast } = useToast();
 
@@ -89,18 +94,14 @@ export function WeighbridgeForm() {
   const firstWeight = form.watch("firstWeight");
   const secondWeight = form.watch("secondWeight");
   const charges = form.watch("charges");
-  const partyName = form.watch("partyName");
 
   useEffect(() => {
-    // Moved from initial state to useEffect to prevent hydration error
-    // This ensures it only runs on the client
-    const generateInitialData = () => {
-      setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
-      const now = new Date();
-      setDateTime(now.toLocaleString('en-IN', { hour12: true }));
-    };
-    generateInitialData();
-  }, []);
+    if (isClient) {
+        setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
+        const now = new Date();
+        setDateTime(now.toLocaleString('en-IN', { hour12: true }));
+    }
+  }, [isClient]);
 
   useEffect(() => {
     const fw = firstWeight || 0;
@@ -110,18 +111,17 @@ export function WeighbridgeForm() {
   }, [firstWeight, secondWeight]);
 
   useEffect(() => {
-    if (charges > 0 && partyName) {
-       // IMPORTANT: Replace with your actual UPI ID
-      const upiId = "your-upi-id@oksbi";
-      const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(partyName)}&am=${charges.toFixed(2)}&cu=INR`;
-      
-      // Use a public API for QR code generation to avoid package issues
-      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiUrl)}&size=128x128&margin=0`;
+    if (charges > 0) {
+      const upiID = "sathishkumar1781@oksbi";
+      const businessName = "Amman Weighing Home";
+      const upiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&am=${charges.toFixed(2)}&cu=INR`;
+
+      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiURL)}&size=128x128&margin=0`;
       setQrCodeUrl(apiUrl);
     } else {
       setQrCodeUrl("");
     }
-  }, [charges, partyName]);
+  }, [charges]);
 
   const handlePrint = () => {
     window.print();
@@ -131,8 +131,10 @@ export function WeighbridgeForm() {
     form.reset();
     setNetWeight(0);
     setQrCodeUrl("");
-    setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
-    setDateTime(new Date().toLocaleString('en-IN', { hour12: true }));
+    if (isClient) {
+        setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
+        setDateTime(new Date().toLocaleString('en-IN', { hour12: true }));
+    }
   };
 
   function onSubmit(values: FormValues) {
