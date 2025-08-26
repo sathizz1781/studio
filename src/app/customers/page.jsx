@@ -146,8 +146,9 @@ const DraggableMarker = ({ position, setPosition, onPositionChange }) => {
 };
 
 // A wrapper for the search control
-const SearchControl = ({ setPosition, onPositionChange, toast }) => {
+const SearchControl = ({ setPosition, onPositionChange }) => {
   const map = useMap();
+  const { toast } = useToast();
 
   useEffect(() => {
     let isMounted = true;
@@ -237,7 +238,6 @@ const MapPicker = ({ form, initialPosition }) => {
         <SearchControl
           setPosition={setPosition}
           onPositionChange={onPositionChange}
-          toast={useToast().toast}
         />
       </MapContainer>
     </div>
@@ -664,5 +664,3 @@ const CustomerPage = () => {
 };
 
 export default CustomerPage;
-
-    
