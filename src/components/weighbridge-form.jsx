@@ -51,6 +51,7 @@ import {
   Scale,
   RefreshCcw,
 } from "lucide-react";
+import { SerialDataComponent } from "./serial-data";
 
 const formSchema = z.object({
   vehicleNumber: z.string().min(1, "Vehicle number is required."),
@@ -90,6 +91,7 @@ export function WeighbridgeForm() {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
   const [reprintSerial, setReprintSerial] = useState("");
+  const [currentWeight, setCurrentWeight] = useState(0);
 
   const upiID = "sathishkumar1781@oksbi";
   const businessName = "Amman Weighing Home";
@@ -121,29 +123,31 @@ export function WeighbridgeForm() {
       setSerialNumber(data.data.sl_no + 1);
     } catch (error) {
       console.error("Error fetching last bill:", error);
-      // Fallback to local generation if API fails
       setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
     }
   };
 
+  const updateDateTime = () => {
+    setDateTime(
+      new Date().toLocaleString("en-IN", {
+        hour12: true,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    );
+  };
 
   useEffect(() => {
     setIsClient(true);
-    const updateDateTime = () => {
-      setDateTime(
-        new Date().toLocaleString("en-IN", {
-          hour12: true,
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
-    };
-    updateDateTime();
     fetchNewSerialNumber();
-    const intervalId = setInterval(updateDateTime, 60000); // Update every minute
+    
+    updateDateTime();
+    const intervalId = setInterval(updateDateTime, 1000);
+    
     return () => clearInterval(intervalId);
   }, []);
 
@@ -196,16 +200,6 @@ export function WeighbridgeForm() {
     setNetWeight(0);
     if (isClient) {
       fetchNewSerialNumber();
-      setDateTime(
-        new Date().toLocaleString("en-IN", {
-          hour12: true,
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
     }
   };
 
@@ -232,7 +226,7 @@ export function WeighbridgeForm() {
             charges: billData.charges,
             firstWeight: billData.first_weight,
             secondWeight: billData.second_weight,
-            whatsappNumber: billData.whatsappNumber || "", // Assuming whatsapp is not in the reprint data
+            whatsappNumber: billData.whatsappNumber || "", 
             paymentStatus: billData.paid_status ? "Paid" : "Credit",
         });
         setSerialNumber(billData.sl_no);
@@ -305,6 +299,16 @@ Thank you!
 
   const BillContent = () => (
     <>
+      <div className="mb-6">
+        <Card>
+            <CardHeader className="p-4">
+                <CardTitle className="text-center text-lg">Live Weight</CardTitle>
+            </CardHeader>
+            <CardContent className="p-2">
+                 <SerialDataComponent setCurrentWeight={setCurrentWeight} />
+            </CardContent>
+        </Card>
+      </div>
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
           <Hash className="h-5 w-5 text-primary" />
@@ -313,18 +317,11 @@ Thank you!
             <p className="text-lg font-bold text-foreground">{serialNumber}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-          <Calendar className="h-5 w-5 text-primary" />
-          <div>
-            <p className="text-sm font-medium">Date</p>
-            <p className="text-sm text-foreground">{dateTime.split(",")[0]}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg col-span-2">
           <Clock className="h-5 w-5 text-primary" />
           <div>
-            <p className="text-sm font-medium">Time</p>
-            <p className="text-sm text-foreground">{dateTime.split(",")[1]}</p>
+            <p className="text-sm font-medium">Date & Time</p>
+            <p className="text-sm text-foreground">{dateTime}</p>
           </div>
         </div>
       </div>
@@ -699,5 +696,3 @@ Thank you!
     </Card>
   );
 }
-
-    
