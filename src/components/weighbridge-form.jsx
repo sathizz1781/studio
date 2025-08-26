@@ -286,7 +286,7 @@ Thank you!
         `.trim();
 
         const encodedMessage = encodeURIComponent(message);
-        const whatsappUrl = `https://wa.me/${values.whatsappNumber}?text=${encodedMessage}`;
+        const whatsappUrl = `https://wa.me/91${values.whatsappNumber}?text=${encodedMessage}`;
         window.open(whatsappUrl, "_blank");
 
         toastMessage = {
@@ -344,7 +344,11 @@ Thank you!
                 Vehicle Number
               </FormLabel>
               <FormControl>
-                <Input placeholder="e.g., MH12AB1234" {...field} />
+                <Input
+                  placeholder="e.g., MH12AB1234"
+                  {...field}
+                  onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
