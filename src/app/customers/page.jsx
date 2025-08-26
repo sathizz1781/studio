@@ -6,7 +6,6 @@ import axios from "axios";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import dynamic from 'next/dynamic';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,16 +27,6 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogTrigger,
-  DialogClose
-} from "@/components/ui/dialog";
-import {
   Form,
   FormControl,
   FormField,
@@ -46,12 +35,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin } from "lucide-react";
-
-const MapPicker = dynamic(() => import('@/components/map-picker'), { 
-  ssr: false,
-  loading: () => <div className="h-[400px] w-full flex items-center justify-center bg-muted rounded-md"><Loader2 className="h-8 w-8 animate-spin" /></div>
-});
+import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin, Share2 } from "lucide-react";
 
 const customerSchema = z.object({
   contactPerson: z.string().min(1, "Contact person is required"),
@@ -59,9 +43,31 @@ const customerSchema = z.object({
   whatsappNumber: z.string().min(1, "WhatsApp number is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   locationUrl: z.string().url("Invalid URL").optional().or(z.literal('')),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  latitude: z.coerce.number().optional(),
+  longitude: z.coerce.number().optional(),
 });
+
+const GoogleMapView = ({ latitude, longitude, className }) => {
+    if (!latitude || !longitude) {
+        return (
+            <div className={`flex items-center justify-center bg-muted text-muted-foreground text-sm rounded-md ${className}`}>
+                <p>No coordinates provided.</p>
+            </div>
+        );
+    }
+
+    const mapSrc = `https://www.google.com/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&center=${latitude},${longitude}&zoom=15`;
+    
+    return (
+        <iframe
+            className={`w-full h-full border-0 rounded-md ${className}`}
+            loading="lazy"
+            allowFullScreen
+            src={mapSrc}>
+        </iframe>
+    );
+};
+
 
 export default function CustomerPage() {
   const [customers, setCustomers] = useState([]);
@@ -70,10 +76,6 @@ export default function CustomerPage() {
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
-
-  const [isMapDialogOpen, setIsMapDialogOpen] = useState(false);
-  const [tempLocation, setTempLocation] = useState({ lat: 11.3410, lng: 77.7172 });
-
 
   const form = useForm({
     resolver: zodResolver(customerSchema),
@@ -114,9 +116,6 @@ export default function CustomerPage() {
 
   const handleSheetOpen = (customer = null) => {
     setEditingCustomer(customer);
-    const defaultLat = 11.3410;
-    const defaultLng = 77.7172;
-
     if (customer) {
       form.reset({
         contactPerson: customer.contactPerson || "",
@@ -124,10 +123,9 @@ export default function CustomerPage() {
         whatsappNumber: customer.whatsappNumber || "",
         email: customer.email || "",
         locationUrl: customer.locationUrl || "",
-        latitude: customer.latitude || defaultLat,
-        longitude: customer.longitude || defaultLng,
+        latitude: customer.latitude || 11.3410,
+        longitude: customer.longitude || 77.7172,
       });
-      setTempLocation({ lat: customer.latitude || defaultLat, lng: customer.longitude || defaultLng });
     } else {
       form.reset({
         contactPerson: "",
@@ -135,10 +133,9 @@ export default function CustomerPage() {
         whatsappNumber: "",
         email: "",
         locationUrl: "",
-        latitude: defaultLat,
-        longitude: defaultLng,
+        latitude: 11.3410,
+        longitude: 77.7172,
       });
-       setTempLocation({ lat: defaultLat, lng: defaultLng });
     }
     setIsSheetOpen(true);
   };
@@ -147,12 +144,6 @@ export default function CustomerPage() {
     setIsSheetOpen(false);
     setEditingCustomer(null);
     form.reset();
-  };
-
-  const handleConfirmLocation = () => {
-    form.setValue('latitude', tempLocation.lat);
-    form.setValue('longitude', tempLocation.lng);
-    setIsMapDialogOpen(false);
   };
 
   const onSubmit = async (data) => {
@@ -200,6 +191,21 @@ export default function CustomerPage() {
             description: "Could not delete customer.",
          });
       }
+  };
+  
+  const handleShareLocation = (lat, lng) => {
+    const url = `https://www.google.com/maps?q=${lat},${lng}`;
+    if (navigator.share) {
+      navigator.share({
+        title: 'Customer Location',
+        text: 'Here is the customer location on Google Maps.',
+        url: url,
+      })
+      .then(() => console.log('Successful share'))
+      .catch((error) => console.log('Error sharing', error));
+    } else {
+      window.open(url, '_blank');
+    }
   };
 
   const filteredCustomers = customers.filter(
@@ -254,7 +260,7 @@ export default function CustomerPage() {
                  </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <p className="flex items-center gap-2">
+                 <p className="flex items-center gap-2">
                   <Phone size={14}/> {customer.whatsappNumber}
                 </p>
                 {customer.email && (
@@ -271,11 +277,14 @@ export default function CustomerPage() {
                     </p>
                 )}
                  {customer.latitude && customer.longitude && (
-                   <div className="flex items-center gap-2 text-primary hover:underline">
-                        <MapPin size={14}/> 
-                        <a href={`https://www.google.com/maps/search/?api=1&query=${customer.latitude},${customer.longitude}`} target="_blank" rel="noopener noreferrer">
-                           View on Google Maps
-                        </a>
+                   <div className="space-y-2">
+                       <div className="aspect-video w-full">
+                          <GoogleMapView latitude={customer.latitude} longitude={customer.longitude} />
+                       </div>
+                       <Button variant="outline" size="sm" className="w-full" onClick={() => handleShareLocation(customer.latitude, customer.longitude)}>
+                           <Share2 className="mr-2 h-3 w-3" />
+                           Share Location
+                       </Button>
                    </div>
                 )}
               </CardContent>
@@ -378,54 +387,32 @@ export default function CustomerPage() {
                   />
 
                   <div className="space-y-2 pt-4">
-                    <Label>Location Coordinates</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="latitude"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs text-muted-foreground">Latitude</FormLabel>
-                            <FormControl><Input readOnly {...field} /></FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="longitude"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs text-muted-foreground">Longitude</FormLabel>
-                            <FormControl><Input readOnly {...field} /></FormControl>
-                          </FormItem>
-                        )}
-                      />
+                    <Label>Location Coordinates (Optional)</Label>
+                     <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="latitude"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs text-muted-foreground">Latitude</FormLabel>
+                                    <FormControl><Input type="number" step="any" placeholder="e.g., 11.3410" {...field} /></FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="longitude"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs text-muted-foreground">Longitude</FormLabel>
+                                    <FormControl><Input type="number" step="any" placeholder="e.g., 77.7172" {...field} /></FormControl>
+                                </FormItem>
+                            )}
+                        />
                     </div>
-                     <Dialog open={isMapDialogOpen} onOpenChange={setIsMapDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button type="button" variant="outline" className="w-full">
-                                <MapPin className="mr-2 h-4 w-4" />
-                                Set Location on Map
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-3xl">
-                            <DialogHeader>
-                                <DialogTitle>Select Location</DialogTitle>
-                                <DialogDescription>Drag the marker to the desired location, then click confirm.</DialogDescription>
-                            </DialogHeader>
-                            <MapPicker
-                              latitude={watchedLatitude}
-                              longitude={watchedLongitude}
-                              onLocationChange={(lat, lng) => setTempLocation({ lat, lng })}
-                            />
-                            <DialogFooter>
-                                <DialogClose asChild>
-                                  <Button type="button" variant="secondary">Cancel</Button>
-                                </DialogClose>
-                                <Button type="button" onClick={handleConfirmLocation}>Confirm</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                     <div className="h-48 mt-2">
+                        <GoogleMapView latitude={watchedLatitude} longitude={watchedLongitude} />
+                    </div>
                   </div>
               </div>
 
@@ -445,5 +432,3 @@ export default function CustomerPage() {
     </div>
   );
 }
-
-    
