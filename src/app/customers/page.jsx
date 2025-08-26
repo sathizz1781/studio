@@ -28,6 +28,16 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose
+} from "@/components/ui/dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -36,14 +46,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin, Share2 } from "lucide-react";
+import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin } from "lucide-react";
 
-// Dynamically import the MapPicker component to ensure it's client-side only
 const MapPicker = dynamic(() => import('@/components/map-picker'), { 
   ssr: false,
   loading: () => <div className="h-[400px] w-full flex items-center justify-center bg-muted rounded-md"><Loader2 className="h-8 w-8 animate-spin" /></div>
 });
-
 
 const customerSchema = z.object({
   contactPerson: z.string().min(1, "Contact person is required"),
@@ -63,6 +71,10 @@ export default function CustomerPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
+  const [isMapDialogOpen, setIsMapDialogOpen] = useState(false);
+  const [tempLocation, setTempLocation] = useState({ lat: 11.3410, lng: 77.7172 });
+
+
   const form = useForm({
     resolver: zodResolver(customerSchema),
     defaultValues: {
@@ -71,7 +83,7 @@ export default function CustomerPage() {
       whatsappNumber: "",
       email: "",
       locationUrl: "",
-      latitude: 11.3410, // Default location (Erode)
+      latitude: 11.3410, 
       longitude: 77.7172,
     },
   });
@@ -102,6 +114,9 @@ export default function CustomerPage() {
 
   const handleSheetOpen = (customer = null) => {
     setEditingCustomer(customer);
+    const defaultLat = 11.3410;
+    const defaultLng = 77.7172;
+
     if (customer) {
       form.reset({
         contactPerson: customer.contactPerson || "",
@@ -109,9 +124,10 @@ export default function CustomerPage() {
         whatsappNumber: customer.whatsappNumber || "",
         email: customer.email || "",
         locationUrl: customer.locationUrl || "",
-        latitude: customer.latitude || 11.3410,
-        longitude: customer.longitude || 77.7172,
+        latitude: customer.latitude || defaultLat,
+        longitude: customer.longitude || defaultLng,
       });
+      setTempLocation({ lat: customer.latitude || defaultLat, lng: customer.longitude || defaultLng });
     } else {
       form.reset({
         contactPerson: "",
@@ -119,9 +135,10 @@ export default function CustomerPage() {
         whatsappNumber: "",
         email: "",
         locationUrl: "",
-        latitude: 11.3410,
-        longitude: 77.7172,
+        latitude: defaultLat,
+        longitude: defaultLng,
       });
+       setTempLocation({ lat: defaultLat, lng: defaultLng });
     }
     setIsSheetOpen(true);
   };
@@ -130,6 +147,12 @@ export default function CustomerPage() {
     setIsSheetOpen(false);
     setEditingCustomer(null);
     form.reset();
+  };
+
+  const handleConfirmLocation = () => {
+    form.setValue('latitude', tempLocation.lat);
+    form.setValue('longitude', tempLocation.lng);
+    setIsMapDialogOpen(false);
   };
 
   const onSubmit = async (data) => {
@@ -186,7 +209,7 @@ export default function CustomerPage() {
       (customer.whatsappNumber && customer.whatsappNumber.includes(searchTerm))
   );
   
-  const { formState: { isSubmitting }, setValue, watch } = form;
+  const { formState: { isSubmitting }, watch } = form;
   const watchedLatitude = watch("latitude");
   const watchedLongitude = watch("longitude");
 
@@ -277,7 +300,7 @@ export default function CustomerPage() {
       )}
 
       <Sheet open={isSheetOpen} onOpenChange={handleSheetClose}>
-        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
               <SheetHeader>
@@ -355,19 +378,54 @@ export default function CustomerPage() {
                   />
 
                   <div className="space-y-2 pt-4">
-                    <Label>Select Location on Map</Label>
-                    <MapPicker
-                      latitude={watchedLatitude}
-                      longitude={watchedLongitude}
-                      onLocationChange={(lat, lng) => {
-                        setValue('latitude', lat);
-                        setValue('longitude', lng);
-                      }}
-                    />
-                     <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                        <p>Latitude: {watchedLatitude.toFixed(4)}</p>
-                        <p>Longitude: {watchedLongitude.toFixed(4)}</p>
-                     </div>
+                    <Label>Location Coordinates</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="latitude"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs text-muted-foreground">Latitude</FormLabel>
+                            <FormControl><Input readOnly {...field} /></FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="longitude"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs text-muted-foreground">Longitude</FormLabel>
+                            <FormControl><Input readOnly {...field} /></FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                     <Dialog open={isMapDialogOpen} onOpenChange={setIsMapDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button type="button" variant="outline" className="w-full">
+                                <MapPin className="mr-2 h-4 w-4" />
+                                Set Location on Map
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-3xl">
+                            <DialogHeader>
+                                <DialogTitle>Select Location</DialogTitle>
+                                <DialogDescription>Drag the marker to the desired location, then click confirm.</DialogDescription>
+                            </DialogHeader>
+                            <MapPicker
+                              latitude={watchedLatitude}
+                              longitude={watchedLongitude}
+                              onLocationChange={(lat, lng) => setTempLocation({ lat, lng })}
+                            />
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                  <Button type="button" variant="secondary">Cancel</Button>
+                                </DialogClose>
+                                <Button type="button" onClick={handleConfirmLocation}>Confirm</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                   </div>
               </div>
 
@@ -387,3 +445,5 @@ export default function CustomerPage() {
     </div>
   );
 }
+
+    

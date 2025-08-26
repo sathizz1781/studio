@@ -22,8 +22,6 @@ function DraggableMarker({ initialPosition, onLocationChange }) {
     const map = useMap();
   
     useEffect(() => {
-        // When the parent component's initialPosition changes (e.g., loading an existing customer),
-        // update the marker's position and fly the map to it.
         setPosition(initialPosition);
         map.flyTo(initialPosition, map.getZoom());
     }, [initialPosition, map]);
@@ -58,17 +56,15 @@ export default function MapPicker({ latitude, longitude, onLocationChange }) {
     const initialPosition = [latitude, longitude];
 
     return (
-        <div className="h-[400px] w-full rounded-md overflow-hidden border">
+        <div className="h-[50vh] w-full rounded-md overflow-hidden border">
             <MapContainer 
                 center={initialPosition} 
                 zoom={13} 
                 style={{ height: '100%', width: '100%' }}
                 whenReady={(map) => {
-                    // This callback helps prevent re-initialization errors on hot-reloads
-                    // You can add logic here that needs to run once the map is ready
                     setTimeout(() => {
-                        map.target.invalidateSize()
-                    }, 200)
+                        map.target.invalidateSize();
+                    }, 200);
                 }}
             >
                 <TileLayer
@@ -83,3 +79,5 @@ export default function MapPicker({ latitude, longitude, onLocationChange }) {
         </div>
     );
 }
+
+    
