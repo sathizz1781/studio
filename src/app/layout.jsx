@@ -1,27 +1,41 @@
 
+"use client";
+
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, BarChart2, Menu, Users } from "lucide-react";
+import { Home, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { usePathname } from 'next/navigation';
 
 const fontInter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
 
-export const metadata = {
-  title: "WeighBridge Biller",
-  description: "A simple weighbridge billing application.",
-};
+// Metadata is not supported in client components, but we can keep the export for static analysis if needed.
+// It's better to move this to a server component layout if possible, but for this fix, we'll keep it simple.
+// export const metadata = {
+//   title: "WeighBridge Biller",
+//   description: "A simple weighbridge billing application.",
+// };
 
 export default function RootLayout({ children }) {
+  const pathname = usePathname();
+
+  const navLinks = [
+    { href: "/", label: "Biller" },
+    { href: "/reports", label: "Reports" },
+  ];
+
   return (
     <html lang="en">
       <head>
+        <title>WeighBridge Biller</title>
+        <meta name="description" content="A simple weighbridge billing application." />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -46,18 +60,20 @@ export default function RootLayout({ children }) {
                 <Home className="h-6 w-6" />
                 <span className="sr-only">Weighbridge</span>
               </Link>
-              <Link
-                href="/"
-                className="text-foreground transition-colors hover:text-foreground"
-              >
-                Biller
-              </Link>
-              <Link
-                href="/reports"
-                className="text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Reports
-              </Link>
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={cn(
+                    "transition-colors hover:text-foreground",
+                    pathname === link.href
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {link.label}
+                </Link>
+              ))}
             </nav>
             <Sheet>
               <SheetTrigger asChild>
@@ -79,15 +95,20 @@ export default function RootLayout({ children }) {
                     <Home className="h-6 w-6" />
                     <span className="sr-only">Weighbridge</span>
                   </Link>
-                  <Link href="/" className="hover:text-foreground">
-                    Biller
-                  </Link>
-                  <Link
-                    href="/reports"
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    Reports
-                  </Link>
+                  {navLinks.map((link) => (
+                     <Link
+                        key={link.href}
+                        href={link.href}
+                        className={cn(
+                          "transition-colors hover:text-foreground",
+                          pathname === link.href
+                            ? "text-foreground"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {link.label}
+                      </Link>
+                  ))}
                 </nav>
               </SheetContent>
             </Sheet>
