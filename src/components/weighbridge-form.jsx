@@ -232,18 +232,26 @@ export function WeighbridgeForm() {
     if (!isClient || !reprintSerial) return;
     setIsLoadingReprint(true);
     try {
-      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getbill", {
+      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getsinglerecord", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ sl_no: reprintSerial }),
       });
+      
       if (!response.ok) {
-        throw new Error('Bill not found');
+        if(response.status === 404) {
+             toast({ variant: "destructive", title: "Bill Not Found", description: `No data found for serial number ${reprintSerial}.` });
+        } else {
+            throw new Error('Failed to fetch bill');
+        }
+        return;
       }
+
       const result = await response.json();
       const billData = result.data;
+
       if (billData) {
         reset({
             serialNumber: billData.sl_no,
@@ -319,20 +327,22 @@ export function WeighbridgeForm() {
 
   async function onSubmit(values) {
     const [date, time] = values.dateTime.split(', ');
-    const billPayload = {
-        sl_no: values.serialNumber,
-        date: date,
-        time: time,
-        vehicle_no: values.vehicleNumber,
-        party_name: values.partyName,
-        material_name: values.materialName,
-        charges: values.charges,
-        first_weight: values.firstWeight,
-        second_weight: values.secondWeight,
-        net_weight: netWeight,
-        paid_status: values.paymentStatus === "Paid",
-    };
     
+    const billPayload = {
+      billNo: Number(values.serialNumber),
+      date: date,
+      time: time,
+      vehicleNo: values.vehicleNumber,
+      material: values.materialName,
+      party: values.partyName,
+      charges: values.charges || 0,
+      paidStatus: values.paymentStatus === "Paid",
+      firstWeight: values.firstWeight,
+      secondWeight: values.secondWeight,
+      netWeight: netWeight,
+      whatsappNumber: values.whatsappNumber || "",
+    };
+
     try {
       const saveResponse = await fetch("https://bend-mqjz.onrender.com/api/wb/postbill", {
         method: 'POST',
@@ -344,7 +354,6 @@ export function WeighbridgeForm() {
         const errorData = await saveResponse.json();
         throw new Error(errorData.message || 'Failed to save the bill.');
       }
-
 
       let toastMessage = {
         title: "Bill Saved",
@@ -870,3 +879,5 @@ Thank you!
     </Card>
   );
 }
+
+    
