@@ -93,12 +93,7 @@ export function WeighbridgeForm() {
 
   const upiID = "sathishkumar1781@oksbi";
   const businessName = "Amman Weighing Home";
-  const defaultUpiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(
-    businessName
-  )}&cu=INR`;
-  const defaultQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(
-    defaultUpiURL
-  )}&size=128x128&margin=0`;
+  const defaultUpiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&cu=INR`;
 
   const { toast } = useToast();
 
@@ -116,7 +111,21 @@ export function WeighbridgeForm() {
     },
   });
 
-  const generateNewSerialNumber = () => `WB-${Date.now().toString().slice(-6)}`;
+  const fetchNewSerialNumber = async () => {
+    try {
+      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill");
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      setSerialNumber(data.data.sl_no + 1);
+    } catch (error) {
+      console.error("Error fetching last bill:", error);
+      // Fallback to local generation if API fails
+      setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
+    }
+  };
+
 
   useEffect(() => {
     setIsClient(true);
@@ -133,8 +142,7 @@ export function WeighbridgeForm() {
       );
     };
     updateDateTime();
-    setSerialNumber(generateNewSerialNumber());
-    setQrCodeUrl(defaultQrCodeUrl);
+    fetchNewSerialNumber();
     const intervalId = setInterval(updateDateTime, 60000); // Update every minute
     return () => clearInterval(intervalId);
   }, []);
@@ -163,9 +171,12 @@ export function WeighbridgeForm() {
       )}&size=128x128&margin=0`;
       setQrCodeUrl(apiUrl);
     } else {
-      setQrCodeUrl(defaultQrCodeUrl);
+        const defaultQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(
+            defaultUpiURL
+        )}&size=128x128&margin=0`;
+        setQrCodeUrl(defaultQrCodeUrl);
     }
-  }, [charges, defaultQrCodeUrl, businessName, upiID]);
+  }, [charges, defaultUpiURL, businessName, upiID]);
 
   const handlePrint = () => {
     window.print();
@@ -173,7 +184,7 @@ export function WeighbridgeForm() {
 
   const handleReset = () => {
     form.reset({
-       vehicleNumber: "",
+      vehicleNumber: "",
       partyName: "",
       materialName: "",
       charges: "",
@@ -184,7 +195,7 @@ export function WeighbridgeForm() {
     });
     setNetWeight(0);
     if (isClient) {
-      setSerialNumber(generateNewSerialNumber());
+      fetchNewSerialNumber();
       setDateTime(
         new Date().toLocaleString("en-IN", {
           hour12: true,
@@ -198,26 +209,34 @@ export function WeighbridgeForm() {
     }
   };
 
-  const saveBill = (data) => {
-    if (!isClient) return;
-    try {
-      const bills = JSON.parse(localStorage.getItem("weighbridgeBills")) || {};
-      bills[data.serialNumber] = data;
-      localStorage.setItem("weighbridgeBills", JSON.stringify(bills));
-    } catch (error) {
-      console.error("Failed to save bill:", error);
-    }
-  };
-
-  const findBill = () => {
+  const findBill = async () => {
     if (!isClient || !reprintSerial) return;
     try {
-      const bills = JSON.parse(localStorage.getItem("weighbridgeBills")) || {};
-      const billData = bills[reprintSerial];
+      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getbill", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ billNo: reprintSerial }),
+      });
+      if (!response.ok) {
+        throw new Error('Bill not found');
+      }
+      const result = await response.json();
+      const billData = result.data;
       if (billData) {
-        form.reset(billData.formData);
-        setSerialNumber(billData.serialNumber);
-        setDateTime(billData.dateTime);
+        form.reset({
+            vehicleNumber: billData.vehicle_no,
+            partyName: billData.party_name,
+            materialName: billData.material_name,
+            charges: billData.charges,
+            firstWeight: billData.first_weight,
+            secondWeight: billData.second_weight,
+            whatsappNumber: billData.whatsappNumber || "", // Assuming whatsapp is not in the reprint data
+            paymentStatus: billData.paid_status ? "Paid" : "Credit",
+        });
+        setSerialNumber(billData.sl_no);
+        setDateTime(`${billData.date}, ${billData.time}`);
         toast({ title: "Bill Found", description: `Data for bill ${reprintSerial} has been loaded.` });
       } else {
         toast({ variant: "destructive", title: "Bill Not Found", description: `No data found for serial number ${reprintSerial}.` });
@@ -228,17 +247,31 @@ export function WeighbridgeForm() {
     }
   };
 
-  function onSubmit(values) {
-    // Save the bill data on any submission (new or from WhatsApp button)
-    const billData = {
-      serialNumber,
-      dateTime,
-      formData: values,
-      netWeight,
+  async function onSubmit(values) {
+    const [date, time] = dateTime.split(', ');
+    const billPayload = {
+        sl_no: serialNumber,
+        date: date,
+        time: time,
+        vehicle_no: values.vehicleNumber,
+        party_name: values.partyName,
+        material_name: values.materialName,
+        charges: values.charges,
+        first_weight: values.firstWeight,
+        second_weight: values.secondWeight,
+        net_weight: netWeight,
+        paid_status: values.paymentStatus === "Paid",
     };
-    saveBill(billData);
+    
+    try {
+      // Save bill to backend
+      await fetch("https://bend-mqjz.onrender.com/api/wb/postbill", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(billPayload),
+      });
 
-    const message = `
+      const message = `
 *WeighBridge Bill*
 -------------------------
 *Serial No:* ${serialNumber}
@@ -253,17 +286,21 @@ export function WeighbridgeForm() {
 *Net Weight:* ${netWeight} kg
 -------------------------
 Thank you!
-    `.trim();
+      `.trim();
 
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${values.whatsappNumber}?text=${encodedMessage}`;
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/${values.whatsappNumber}?text=${encodedMessage}`;
+      window.open(whatsappUrl, "_blank");
 
-    window.open(whatsappUrl, "_blank");
+      toast({
+        title: "Bill Saved & WhatsApp Ready",
+        description: "Please press send in the newly opened WhatsApp tab.",
+      });
 
-    toast({
-      title: "WhatsApp Message Prepared",
-      description: "Please press send in the newly opened WhatsApp tab.",
-    });
+    } catch (error) {
+      console.error("Failed to save or send bill:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not save the bill." });
+    }
   }
 
   const BillContent = () => (
