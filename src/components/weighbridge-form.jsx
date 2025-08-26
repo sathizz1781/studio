@@ -158,7 +158,8 @@ export function WeighbridgeForm() {
   const [reprintSerial, setReprintSerial] = useState("");
   const [isManualMode, setIsManualMode] = useState(false);
   const [previousWeights, setPreviousWeights] = useState(null);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isVehiclePopoverOpen, setIsVehiclePopoverOpen] = useState(false);
+  const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const [isLoadingReprint, setIsLoadingReprint] = useState(false);
   const [reprintData, setReprintData] = useState(null);
@@ -374,7 +375,7 @@ export function WeighbridgeForm() {
     const vehicleNo = e.target.value;
     if (!vehicleNo) {
       setPreviousWeights(null);
-      setIsPopoverOpen(false);
+      setIsVehiclePopoverOpen(false);
       return;
     }
     
@@ -389,22 +390,22 @@ export function WeighbridgeForm() {
       
       if (!response.ok) {
         setPreviousWeights(null);
-        setIsPopoverOpen(false);
+        setIsVehiclePopoverOpen(false);
         return;
       }
 
       const result = await response.json();
       if (result.data && result.data.length > 0) {
         setPreviousWeights(result.data[0]);
-        setIsPopoverOpen(true);
+        setIsVehiclePopoverOpen(true);
       } else {
         setPreviousWeights(null);
-        setIsPopoverOpen(false);
+        setIsVehiclePopoverOpen(false);
       }
     } catch (error) {
       console.error("Error fetching previous weights:", error);
       setPreviousWeights(null);
-      setIsPopoverOpen(false);
+      setIsVehiclePopoverOpen(false);
     } finally {
         setIsLoadingVehicle(false);
     }
@@ -414,7 +415,7 @@ export function WeighbridgeForm() {
     const liveWeight = serialDataRef.current.weight;
     setValue("firstWeight", Math.max(selectedWeight, liveWeight));
     setValue("secondWeight", Math.min(selectedWeight, liveWeight));
-    setIsPopoverOpen(false);
+    setIsVehiclePopoverOpen(false);
   };
 
   async function onSubmit(values) {
@@ -522,6 +523,7 @@ Thank you!
         setValue("whatsappNumber", customer.whatsappNumber);
         // You could also set vehicle number if it's stored with the customer
     }
+    setIsCustomerPopoverOpen(false);
   };
 
 
@@ -591,14 +593,14 @@ Thank you!
         />
       </div>
       
-      <div className="no-print">
+      <div className="no-print mb-6">
         <FormField
             control={control}
             name="customerId"
             render={({ field }) => (
-            <FormItem className="mb-6">
+            <FormItem>
               <FormLabel className="flex items-center gap-2"><Users size={16} /> Select Customer</FormLabel>
-                <Popover>
+                <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
                     <PopoverTrigger asChild>
                     <FormControl>
                         <Button
@@ -617,7 +619,15 @@ Thank you!
                     </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
+                    <Command
+                        filter={(value, search) => {
+                          const customer = customers.find(c => c.customerId === value);
+                          if (customer) {
+                            return customer.companyName.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                          }
+                          return 0;
+                        }}
+                    >
                         <CommandInput placeholder="Search customer..." />
                         <CommandList>
                             <CommandEmpty>No customer found.</CommandEmpty>
@@ -628,6 +638,7 @@ Thank you!
                                     key={customer.customerId}
                                     onSelect={() => {
                                         handleCustomerSelect(customer.customerId)
+                                        form.setValue("customerId", customer.customerId)
                                     }}
                                 >
                                     <Check
@@ -677,7 +688,7 @@ Thank you!
                         </div>
                      )}
                      {previousWeights && !isLoadingVehicle && (
-                        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                        <Popover open={isVehiclePopoverOpen} onOpenChange={setIsVehiclePopoverOpen}>
                           <PopoverTrigger asChild>
                             <Button variant="ghost" size="icon" className="absolute right-1 h-8 w-8">
                               <ChevronDown className="h-4 w-4" />
@@ -1076,3 +1087,5 @@ Thank you!
     </div>
   );
 }
+
+    
