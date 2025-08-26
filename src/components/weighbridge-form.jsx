@@ -124,7 +124,6 @@ export function WeighbridgeForm() {
   const [reprintData, setReprintData] = useState(null);
   const [isReprintDialogOpen, setIsReprintDialogOpen] = useState(false);
 
-  const [pullPosition, setPullPosition] = useState(-50);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const touchStartY = useRef(0);
   const PULL_THRESHOLD = 70;
@@ -436,14 +435,8 @@ Thank you!
     const touchY = e.targetTouches[0].clientY;
     const pullDistance = touchY - touchStartY.current;
 
-    if (window.scrollY === 0 && pullDistance > 0) {
-      e.preventDefault();
-      const newPullPosition = Math.min(pullDistance, PULL_THRESHOLD + 20) - 50;
-      setPullPosition(newPullPosition);
-      
-      if (pullDistance > PULL_THRESHOLD) {
-        setIsRefreshing(true);
-      }
+    if (window.scrollY === 0 && pullDistance > PULL_THRESHOLD) {
+      setIsRefreshing(true);
     }
   };
 
@@ -453,7 +446,6 @@ Thank you!
       toast({ title: "Refreshed", description: "New bill ready." });
     }
     setIsRefreshing(false);
-    setPullPosition(-50);
     touchStartY.current = 0;
   };
 
@@ -841,14 +833,6 @@ Thank you!
       onTouchEnd={handleTouchEnd}
       className="relative"
     >
-      <div
-        className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 text-muted-foreground transition-all duration-200"
-        style={{ top: `${pullPosition}px` }}
-      >
-        {isRefreshing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowDown className="h-5 w-5" />}
-        <span className="text-sm">{isRefreshing ? 'Refreshing...' : 'Pull to refresh'}</span>
-      </div>
-
       <Card className="w-full max-w-4xl printable-card shadow-2xl">
         <CardHeader className="no-print">
           <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center justify-between gap-2">
