@@ -4,7 +4,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -48,7 +48,7 @@ import Image from "next/image";
 import {
   Printer,
   Hash,
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   Truck,
   User,
@@ -59,6 +59,7 @@ import {
   RefreshCcw,
   Edit,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
 
@@ -111,12 +112,11 @@ export function WeighbridgeForm() {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
   const [reprintSerial, setReprintSerial] = useState("");
-  const [currentWeight, setCurrentWeight] = useState(0);
   const [isManualMode, setIsManualMode] = useState(false);
   const [previousWeights, setPreviousWeights] = useState(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
 
-  const popoverTriggerRef = useRef(null);
   const serialDataRef = useRef({ weight: 0 });
 
   const upiID = "sathishkumar1781@oksbi";
@@ -272,6 +272,8 @@ export function WeighbridgeForm() {
       setIsPopoverOpen(false);
       return;
     }
+    
+    setIsLoadingVehicle(true);
 
     try {
       const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getprevweightofvehicle", {
@@ -298,6 +300,8 @@ export function WeighbridgeForm() {
       console.error("Error fetching previous weights:", error);
       setPreviousWeights(null);
       setIsPopoverOpen(false);
+    } finally {
+        setIsLoadingVehicle(false);
     }
   };
   
@@ -466,9 +470,13 @@ Thank you!
                       {...field}
                       onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                       onBlur={handleVehicleBlur}
-                      ref={popoverTriggerRef}
                     />
-                     {previousWeights && (
+                     {isLoadingVehicle && (
+                        <div className="absolute right-10 flex items-center pr-3 pointer-events-none">
+                            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                        </div>
+                     )}
+                     {previousWeights && !isLoadingVehicle && (
                         <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                           <PopoverTrigger asChild>
                             <Button variant="ghost" size="icon" className="absolute right-1 h-8 w-8">
@@ -676,7 +684,7 @@ Thank you!
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-primary" />
+          <CalendarIcon className="h-5 w-5 text-primary" />
           <p className="text-sm">
             <strong>Date:</strong> {values.dateTime}
           </p>

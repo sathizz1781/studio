@@ -1,10 +1,11 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { io } from "socket.io-client";
 
-export const SerialDataComponent = ({ serialDataRef }) => {
+// Memoize the component to prevent re-renders when parent's state changes
+const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) {
   const [serialData, setSerialData] = useState("000000");
 
   useEffect(() => {
@@ -18,7 +19,9 @@ export const SerialDataComponent = ({ serialDataRef }) => {
       let output = data.split("N+").pop().split(".").shift();
       const sanitizedOutput = output.replace(/\s/g, ''); // Remove whitespace
       if (sanitizedOutput.length === 6 && /^\d+$/.test(sanitizedOutput)) {
+        // Update local state for display only
         setSerialData(sanitizedOutput);
+        // Update the ref for the parent component to access without causing a re-render
         if (serialDataRef && serialDataRef.current) {
           serialDataRef.current.weight = Number(sanitizedOutput);
         }
@@ -33,7 +36,7 @@ export const SerialDataComponent = ({ serialDataRef }) => {
     return () => {
       socket.disconnect();
     };
-  }, [serialDataRef]);
+  }, [serialDataRef]); // Dependency array is correct
 
   return (
     <p
@@ -42,6 +45,8 @@ export const SerialDataComponent = ({ serialDataRef }) => {
       {serialData}
     </p>
   );
-};
+});
+
+export const SerialDataComponent = MemoizedSerialData;
 
     
