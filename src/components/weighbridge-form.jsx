@@ -717,89 +717,22 @@ Thank you!
     </>
   );
 
-  const PrintableBill = ({billData, netWt}) => {
+  const PrintableBill = ({ billData, copyType }) => {
     const values = billData || getValues();
-    const currentNetWeight = netWt !== undefined ? netWt : netWeight;
-    const paymentStatus = values.paidStatus !== undefined ? (values.paid_status ? "Paid" : "Credit") : values.paymentStatus;
-    
+    const currentNetWeight = billData ? billData.net_weight : netWeight;
+    const dateTime = values.dateTime || `${values.date}, ${values.time}`;
+    const [date, time] = dateTime.split(', ');
+
     return (
-      <div className="grid grid-cols-1 gap-4">
-        <div className="flex items-center gap-2">
-          <Hash className="h-5 w-5 text-primary" />
-          <p className="text-sm">
-            <strong>Serial:</strong> {values.sl_no || values.serialNumber}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <CalendarIcon className="h-5 w-5 text-primary" />
-          <p className="text-sm">
-            <strong>Date:</strong> {values.dateTime || `${values.date}, ${values.time}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Truck className="h-5 w-5 text-primary" />
-          <p className="text-sm">
-            <strong>Vehicle:</strong> {values.vehicle_no || values.vehicleNumber}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <User className="h-5 w-5 text-primary" />
-          <p className="text-sm">
-            <strong>Party:</strong> {values.party_name || values.partyName}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Package className="h-5 w-5 text-primary" />
-          <p className="text-sm">
-            <strong>Material:</strong> {values.material_name || values.materialName}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <CircleDollarSign className="h-5 w-5 text-primary" />
-          <p className="text-sm">
-            <strong>Charges:</strong> ₹{values.charges || 0}
-          </p>
-        </div>
-          <div className="flex items-center gap-2">
-          <CircleDollarSign className="h-5 w-5 text-primary" />
-          <p className="text-sm">
-            <strong>Status:</strong> {paymentStatus}
-          </p>
-        </div>
-        <Separator className="my-1" />
-        <div className="flex items-center gap-2">
-          <Weight className="h-5 w-5" />
-          <p className="text-sm">
-            <strong>First Wt:</strong> {values.first_weight || values.firstWeight} kg
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Weight className="h-5 w-5" />
-          <p className="text-sm">
-            <strong>Second Wt:</strong> {values.second_weight || values.secondWeight} kg
-          </p>
-        </div>
-        <Separator className="my-1" />
-        <div className="flex items-center gap-2">
-          <Scale className="h-5 w-5 text-primary" />
-          <p className="text-sm">
-            <strong>Net Wt:</strong> {values.net_weight || currentNetWeight} kg
-          </p>
-        </div>
-        {qrCodeUrl && Number(values.charges) > 0 && (
-          <div className="mt-2 flex flex-col items-center">
-            <Image
-              src={qrCodeUrl}
-              alt="QR Code for UPI Payment"
-              width={96}
-              height={96}
-              unoptimized
-            />
-          </div>
-        )}
+      <div className="grid grid-cols-1 gap-1 text-xs">
+        <p>{values.sl_no || values.serialNumber}</p>
+        <p>{date}</p>
+        <p>{time}</p>
+        <p>{currentNetWeight} kg</p>
+        <p>{copyType}</p>
       </div>
     );
-  }
+  };
 
   const ReprintDialog = () => {
       const handleReprintPrint = () => {
@@ -807,37 +740,24 @@ Thank you!
           printWindow.document.write('<html><head><title>Print Bill</title>');
           printWindow.document.write(`
               <style>
-                  body { font-family: sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                  body { font-family: monospace; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                   @page { size: auto; margin: 0mm; }
                   .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-                  .printable-content-wrapper { flex: 1 1 32%; min-width: 0; border: 1px dashed #ccc; padding: 0.5rem; font-size: 9px; }
-                  .text-primary { color: #4f46e5; }
-                  .separator { border-top: 1px solid #eee; margin: 4px 0; }
-                  .flex { display: flex; align-items: center; }
-                  .gap-2 { gap: 0.5rem; }
-                  .h-5 { height: 12px; } .w-5 { width: 12px; }
-                  .grid { display: grid; } .gap-4 { gap: 1rem; }
-                  .text-sm { font-size: 9px; } 
+                  .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; }
                   p { margin: 0; }
-                  strong { font-weight: bold; }
               </style>
           `);
           printWindow.document.write('</head><body>');
   
-          // Create a container for the printable content
-          const container = document.createElement('div');
-          
-          const printableContent = (
-              <div className="printable-section">
-                  <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-                  <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-                  <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-              </div>
-          );
-  
           // Use ReactDOMServer to render the React component to a static HTML string
           const ReactDOMServer = require('react-dom/server');
-          printWindow.document.write(ReactDOMServer.renderToStaticMarkup(printableContent));
+          printWindow.document.write(ReactDOMServer.renderToStaticMarkup(
+            <div className="printable-section">
+                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} copyType="Original" /></div>
+                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} copyType="Duplicate" /></div>
+                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} copyType="Triplicate" /></div>
+            </div>
+          ));
   
           printWindow.document.write('</body></html>');
           printWindow.document.close();
@@ -917,13 +837,13 @@ Thank you!
               {/* This is for the print view only */}
               <div className="print-only printable-section">
                 <div className="printable-content-wrapper">
-                  <PrintableBill />
+                  <PrintableBill copyType="Original" />
                 </div>
                 <div className="printable-content-wrapper">
-                  <PrintableBill />
+                  <PrintableBill copyType="Duplicate" />
                 </div>
                 <div className="printable-content-wrapper">
-                  <PrintableBill />
+                  <PrintableBill copyType="Triplicate" />
                 </div>
               </div>
 
