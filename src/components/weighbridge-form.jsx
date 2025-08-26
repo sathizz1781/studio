@@ -116,6 +116,7 @@ export function WeighbridgeForm() {
   const [previousWeights, setPreviousWeights] = useState(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
+  const [isLoadingReprint, setIsLoadingReprint] = useState(false);
 
   const serialDataRef = useRef({ weight: 0 });
 
@@ -229,13 +230,14 @@ export function WeighbridgeForm() {
 
   const findBill = async () => {
     if (!isClient || !reprintSerial) return;
+    setIsLoadingReprint(true);
     try {
       const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getbill", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ billNo: reprintSerial }),
+        body: JSON.stringify({ sl_no: reprintSerial }),
       });
       if (!response.ok) {
         throw new Error('Bill not found');
@@ -262,6 +264,8 @@ export function WeighbridgeForm() {
     } catch (error) {
       console.error("Failed to find bill:", error);
       toast({ variant: "destructive", title: "Error", description: "Could not retrieve bill data." });
+    } finally {
+        setIsLoadingReprint(false);
     }
   };
   
@@ -842,7 +846,10 @@ Thank you!
                 </div>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={findBill}>Find Bill</AlertDialogAction>
+                  <AlertDialogAction onClick={findBill} disabled={isLoadingReprint}>
+                    {isLoadingReprint && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Find Bill
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -863,9 +870,3 @@ Thank you!
     </Card>
   );
 }
-
-    
-
-    
-
-    
