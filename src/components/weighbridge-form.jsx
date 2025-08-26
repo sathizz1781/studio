@@ -48,7 +48,6 @@ import Image from "next/image";
 import {
   Printer,
   Hash,
-  Calendar as CalendarIcon,
   Clock,
   Truck,
   User,
@@ -218,7 +217,42 @@ export function WeighbridgeForm() {
   }, [charges, defaultUpiURL, businessName, upiID]);
 
   const handlePrint = () => {
-    window.print();
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print bills." });
+      return;
+    }
+    printWindow.document.write('<html><head><title>Print Bill</title>');
+    printWindow.document.write(`
+        <style>
+            body { font-family: monospace; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: auto; margin: 0mm; }
+            .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
+            .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; }
+            p { margin: 0; }
+        </style>
+    `);
+    printWindow.document.write('</head><body>');
+    
+    // We need a wrapper to render the component into
+    const printContainer = printWindow.document.createElement('div');
+    printWindow.document.body.appendChild(printContainer);
+
+    const ReactDOMServer = require('react-dom/server');
+    printContainer.innerHTML = ReactDOMServer.renderToStaticMarkup(
+      <div className="printable-section">
+        <div className="printable-content-wrapper"><PrintableBill copyType="Original" /></div>
+        <div className="printable-content-wrapper"><PrintableBill copyType="Duplicate" /></div>
+        <div className="printable-content-wrapper"><PrintableBill copyType="Triplicate" /></div>
+      </div>
+    );
+    
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 250);
   };
 
   const handleReset = useCallback(() => {
@@ -365,7 +399,7 @@ export function WeighbridgeForm() {
 -------------------------
 *Serial No:* ${values.serialNumber}
 *Date:* ${values.dateTime}
-*Vehicle No:* ${values.vehicleNumber}
+*Vehicle No:* ${values.vehicleNumber.toUpperCase()}
 *Party Name:* ${values.partyName}
 *Material:* ${values.materialName}
 *Charges:* ₹${values.charges || 0}
@@ -719,15 +753,27 @@ Thank you!
 
   const PrintableBill = ({ billData, copyType }) => {
     const values = billData || getValues();
-    const currentNetWeight = billData ? billData.net_weight : netWeight;
+    const isReprint = !!billData;
+  
+    const currentNetWeight = isReprint ? values.net_weight : netWeight;
     const dateTime = values.dateTime || `${values.date}, ${values.time}`;
     const [date, time] = dateTime.split(', ');
-
+    const firstWeightValue = isReprint ? values.first_weight : values.firstWeight;
+    const secondWeightValue = isReprint ? values.second_weight : values.secondWeight;
+    const vehicleNumber = isReprint ? values.vehicle_no : values.vehicleNumber;
+    const materialName = isReprint ? values.material_name : values.materialName;
+    const partyName = isReprint ? values.party_name : values.partyName;
+  
     return (
       <div className="grid grid-cols-1 gap-1 text-xs">
         <p>{values.sl_no || values.serialNumber}</p>
         <p>{date}</p>
         <p>{time}</p>
+        <p>{vehicleNumber}</p>
+        <p>{materialName}</p>
+        <p>{partyName}</p>
+        <p>{firstWeightValue} kg</p>
+        <p>{secondWeightValue} kg</p>
         <p>{currentNetWeight} kg</p>
         <p>{copyType}</p>
       </div>
@@ -834,18 +880,8 @@ Thank you!
                 <BillContent />
               </div>
 
-              {/* This is for the print view only */}
-              <div className="print-only printable-section">
-                <div className="printable-content-wrapper">
-                  <PrintableBill copyType="Original" />
-                </div>
-                <div className="printable-content-wrapper">
-                  <PrintableBill copyType="Duplicate" />
-                </div>
-                <div className="printable-content-wrapper">
-                  <PrintableBill copyType="Triplicate" />
-                </div>
-              </div>
+              {/* This is for the print view only and will be dynamically injected */}
+              <div className="print-only" id="print-section"></div>
 
               <Separator className="my-8 no-print" />
 
@@ -903,11 +939,7 @@ Thank you!
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={() => {
                        findBill();
-                       // We need to close the alert dialog ourselves
-                       // as it does not close on its own when an action is taken.
-                       // A bit of a hack: find the cancel button and click it programmatically
-                       // This is needed because the reprint logic opens another dialog.
-                       document.querySelector('[data-radix-collection-item] button[aria-label="Cancel"]')?.click();
+                       document.querySelector('[data-radix-collection-item] button[type="button"]:not([aria-label="Close"])')?.click();
                     }} disabled={isLoadingReprint}>
                       {isLoadingReprint && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Find Bill
@@ -934,5 +966,3 @@ Thank you!
     </div>
   );
 }
-
-    
