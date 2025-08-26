@@ -521,7 +521,7 @@ Thank you!
         setValue("customerId", customer.customerId);
         setValue("partyName", customer.companyName);
         setValue("whatsappNumber", customer.whatsappNumber);
-        // You could also set vehicle number if it's stored with the customer
+        setValue("vehicleNumber", customer.vehicleNumber || '');
     }
     setIsCustomerPopoverOpen(false);
   };
@@ -621,11 +621,9 @@ Thank you!
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                     <Command
                         filter={(value, search) => {
-                          const customer = customers.find(c => c.customerId === value);
-                          if (customer) {
-                            return customer.companyName.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
-                          }
-                          return 0;
+                            const customerName = customers.find(c => c.customerId === value)?.companyName || "";
+                            if (customerName.toLowerCase().includes(search.toLowerCase())) return 1;
+                            return 0;
                         }}
                     >
                         <CommandInput placeholder="Search customer..." />
@@ -636,9 +634,8 @@ Thank you!
                                 <CommandItem
                                     value={customer.customerId}
                                     key={customer.customerId}
-                                    onSelect={() => {
-                                        handleCustomerSelect(customer.customerId)
-                                        form.setValue("customerId", customer.customerId)
+                                    onSelect={(currentValue) => {
+                                        handleCustomerSelect(currentValue);
                                     }}
                                 >
                                     <Check
