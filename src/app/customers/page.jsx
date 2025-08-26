@@ -34,16 +34,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin, LocateFixed } from "lucide-react";
+import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe } from "lucide-react";
 
 const customerSchema = z.object({
-  contactPerson: z.string().min(1, "Contact person is required"),
+  name: z.string().min(1, "Name is required"),
   companyName: z.string().optional(),
-  whatsappNumber: z.string().min(1, "WhatsApp number is required"),
+  contactNumber: z.string().min(1, "Contact number is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
-  locationUrl: z.string().url("Invalid URL").optional().or(z.literal('')),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
+  website: z.string().url("Invalid URL").optional().or(z.literal('')),
 });
 
 export default function CustomerPage() {
@@ -57,13 +55,11 @@ export default function CustomerPage() {
   const form = useForm({
     resolver: zodResolver(customerSchema),
     defaultValues: {
-      contactPerson: "",
+      name: "",
       companyName: "",
-      whatsappNumber: "",
+      contactNumber: "",
       email: "",
-      locationUrl: "",
-      latitude: "",
-      longitude: "",
+      website: "",
     },
   });
 
@@ -97,23 +93,19 @@ export default function CustomerPage() {
     setEditingCustomer(customer);
     if (customer) {
       form.reset({
-        contactPerson: customer.contactPerson || "",
+        name: customer.name || "",
         companyName: customer.companyName || "",
-        whatsappNumber: customer.whatsappNumber || "",
+        contactNumber: customer.contactNumber || "",
         email: customer.email || "",
-        locationUrl: customer.locationUrl || "",
-        latitude: customer.latitude || "",
-        longitude: customer.longitude || "",
+        website: customer.website || "",
       });
     } else {
       form.reset({
-        contactPerson: "",
+        name: "",
         companyName: "",
-        whatsappNumber: "",
+        contactNumber: "",
         email: "",
-        locationUrl: "",
-        latitude: "",
-        longitude: "",
+        website: "",
       });
     }
     setIsSheetOpen(true);
@@ -131,8 +123,16 @@ export default function CustomerPage() {
       : "https://bend-mqjz.onrender.com/api/user/createuser";
     const apiMethod = editingCustomer ? "patch" : "post";
 
+    const payload = {
+        contactPerson: data.name, // Mapping 'name' to 'contactPerson'
+        whatsappNumber: data.contactNumber, // Mapping 'contactNumber' to 'whatsappNumber'
+        companyName: data.companyName,
+        email: data.email,
+        locationUrl: data.website // Mapping 'website' to 'locationUrl'
+    }
+
     try {
-      await axios[apiMethod](apiEndpoint, data);
+      await axios[apiMethod](apiEndpoint, payload);
       toast({
         title: "Success",
         description: `Customer has been successfully ${editingCustomer ? "updated" : "created"}.`,
@@ -170,9 +170,9 @@ export default function CustomerPage() {
 
   const filteredCustomers = customers.filter(
     (customer) =>
-      (customer.contactPerson && customer.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (customer.name && customer.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (customer.companyName && customer.companyName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (customer.whatsappNumber && customer.whatsappNumber.includes(searchTerm))
+      (customer.contactNumber && customer.contactNumber.includes(searchTerm))
   );
   
   const { formState: { isSubmitting } } = form;
@@ -211,7 +211,7 @@ export default function CustomerPage() {
             <Card key={customer._id}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                    <User /> {customer.contactPerson || 'N/A'}
+                    <User /> {customer.name || 'N/A'}
                 </CardTitle>
                 {customer.companyName && (
                   <CardDescription className="flex items-center gap-2">
@@ -221,24 +221,19 @@ export default function CustomerPage() {
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <p className="flex items-center gap-2">
-                  <Phone size={14}/> {customer.whatsappNumber}
+                  <Phone size={14}/> {customer.contactNumber}
                 </p>
                 {customer.email && (
                     <p className="flex items-center gap-2 truncate">
                         <Mail size={14}/> {customer.email}
                     </p>
                 )}
-                {customer.locationUrl && (
+                {customer.website && (
                     <p className="flex items-center gap-2 truncate">
-                        <MapPin size={14}/> 
-                        <a href={customer.locationUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                           View Location
+                        <Globe size={14}/> 
+                        <a href={customer.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                           {customer.website}
                         </a>
-                    </p>
-                )}
-                 {(customer.latitude || customer.longitude) && (
-                    <p className="flex items-center gap-2 truncate text-muted-foreground">
-                        <LocateFixed size={14}/> {customer.latitude}, {customer.longitude}
                     </p>
                 )}
               </CardContent>
@@ -276,10 +271,10 @@ export default function CustomerPage() {
               <div className="flex-1 overflow-y-auto py-6 px-1 space-y-4">
                  <FormField
                     control={form.control}
-                    name="contactPerson"
+                    name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Contact Person</FormLabel>
+                        <FormLabel>Name</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., John Doe" {...field} />
                         </FormControl>
@@ -302,10 +297,10 @@ export default function CustomerPage() {
                   />
                    <FormField
                     control={form.control}
-                    name="whatsappNumber"
+                    name="contactNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>WhatsApp Number</FormLabel>
+                        <FormLabel>Contact Number</FormLabel>
                         <FormControl>
                           <Input type="tel" placeholder="e.g., 9876543210" {...field} />
                         </FormControl>
@@ -328,45 +323,17 @@ export default function CustomerPage() {
                   />
                   <FormField
                     control={form.control}
-                    name="locationUrl"
+                    name="website"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Location URL</FormLabel>
+                        <FormLabel>Website</FormLabel>
                         <FormControl>
-                           <Input placeholder="e.g., https://maps.google.com/?q=..." {...field} />
+                           <Input placeholder="e.g., https://example.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="latitude"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Latitude</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., 11.1271" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="longitude"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Longitude</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., 78.6569" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
               </div>
 
               <SheetFooter>
@@ -385,5 +352,3 @@ export default function CustomerPage() {
     </div>
   );
 }
-
-    
