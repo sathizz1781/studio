@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 import {
   Printer,
   Hash,
@@ -68,6 +69,7 @@ export function WeighbridgeForm() {
   const [serialNumber, setSerialNumber] = useState("");
   const [dateTime, setDateTime] = useState("");
   const [netWeight, setNetWeight] = useState(0);
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
 
   const { toast } = useToast();
 
@@ -86,13 +88,14 @@ export function WeighbridgeForm() {
 
   const firstWeight = form.watch("firstWeight");
   const secondWeight = form.watch("secondWeight");
-
+  const charges = form.watch("charges");
+  const partyName = form.watch("partyName");
 
   useEffect(() => {
     // Mock API call to get last serial number
     setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
     const now = new Date();
-    setDateTime(now.toLocaleString());
+    setDateTime(now.toLocaleString('en-IN', { hour12: true }));
   }, []);
 
   useEffect(() => {
@@ -102,6 +105,20 @@ export function WeighbridgeForm() {
     setNetWeight(parseFloat(newNetWeight.toFixed(3)));
   }, [firstWeight, secondWeight]);
 
+  useEffect(() => {
+    if (charges > 0 && partyName) {
+       // IMPORTANT: Replace with your actual UPI ID
+      const upiId = "your-upi-id@oksbi";
+      const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(partyName)}&am=${charges.toFixed(2)}&cu=INR`;
+      
+      // Use a public API for QR code generation
+      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiUrl)}&size=128x128`;
+      setQrCodeUrl(apiUrl);
+    } else {
+      setQrCodeUrl("");
+    }
+  }, [charges, partyName]);
+
   const handlePrint = () => {
     window.print();
   };
@@ -109,9 +126,10 @@ export function WeighbridgeForm() {
   const handleReset = () => {
     form.reset();
     setNetWeight(0);
+    setQrCodeUrl("");
     // Mock API call to get new serial number
     setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
-    setDateTime(new Date().toLocaleString());
+    setDateTime(new Date().toLocaleString('en-IN', { hour12: true }));
   };
 
   function onSubmit(values: FormValues) {
@@ -143,7 +161,7 @@ Thank you!
   }
   
   const BillContent = () => (
-    <div className="printable-content-wrapper">
+    <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
             <Hash className="h-5 w-5 text-primary" />
@@ -257,13 +275,24 @@ Thank you!
             </FormControl>
           </FormItem>
         </div>
-    </div>
-  );
 
+        {qrCodeUrl && (
+          <div className="mt-6 flex flex-col items-center">
+            <h3 className="text-lg font-medium text-accent mb-2">Scan to Pay</h3>
+            <div className="bg-white p-2 rounded-lg border">
+                <Image src={qrCodeUrl} alt="QR Code for UPI Payment" width={128} height={128} />
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Pay ₹{charges} using any UPI app
+            </p>
+          </div>
+        )}
+    </>
+  );
 
   return (
     <Card className="w-full max-w-4xl printable-card shadow-2xl">
-      <CardHeader>
+      <CardHeader className="no-print">
         <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2">
           <Scale /> WeighBridge Biller
         </CardTitle>
@@ -274,12 +303,16 @@ Thank you!
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent>
-            {/* Printable Section */}
-            <div className="printable-section">
-                <BillContent />
-                {/* These are for the other 2 columns on the print-out */}
-                <BillContent />
-                <BillContent />
+            {/* This is for the screen view */}
+            <div className="no-print">
+              <BillContent />
+            </div>
+            
+            {/* This is for the print view only */}
+            <div className="print-only printable-section">
+                <div className="printable-content-wrapper"><BillContent /></div>
+                <div className="printable-content-wrapper"><BillContent /></div>
+                <div className="printable-content-wrapper"><BillContent /></div>
             </div>
             
             <Separator className="my-8 no-print" />
