@@ -92,10 +92,14 @@ export function WeighbridgeForm() {
   const partyName = form.watch("partyName");
 
   useEffect(() => {
-    // Mock API call to get last serial number
-    setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
-    const now = new Date();
-    setDateTime(now.toLocaleString('en-IN', { hour12: true }));
+    // Moved from initial state to useEffect to prevent hydration error
+    // This ensures it only runs on the client
+    const generateInitialData = () => {
+      setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
+      const now = new Date();
+      setDateTime(now.toLocaleString('en-IN', { hour12: true }));
+    };
+    generateInitialData();
   }, []);
 
   useEffect(() => {
@@ -111,7 +115,7 @@ export function WeighbridgeForm() {
       const upiId = "your-upi-id@oksbi";
       const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(partyName)}&am=${charges.toFixed(2)}&cu=INR`;
       
-      // Use a public API for QR code generation
+      // Use a public API for QR code generation to avoid package issues
       const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiUrl)}&size=128x128&margin=0`;
       setQrCodeUrl(apiUrl);
     } else {
@@ -127,7 +131,6 @@ export function WeighbridgeForm() {
     form.reset();
     setNetWeight(0);
     setQrCodeUrl("");
-    // Mock API call to get new serial number
     setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
     setDateTime(new Date().toLocaleString('en-IN', { hour12: true }));
   };
@@ -160,9 +163,9 @@ Thank you!
     });
   }
   
-  const BillContent = ({ isPrint }: { isPrint?: boolean }) => (
+  const BillContent = () => (
     <>
-      <div className={`grid ${isPrint ? 'grid-cols-1' : 'md:grid-cols-3'} gap-4 mb-6`}>
+      <div className="grid md:grid-cols-3 gap-4 mb-6">
           <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
             <Hash className="h-5 w-5 text-primary" />
             <div>
@@ -186,7 +189,7 @@ Thank you!
           </div>
         </div>
 
-        <div className={`grid ${isPrint ? 'grid-cols-1' : 'md:grid-cols-2'} gap-x-8 gap-y-6 mb-6`}>
+        <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
           <FormField
             control={form.control}
             name="vehicleNumber"
@@ -241,7 +244,7 @@ Thank you!
           />
         </div>
 
-        <div className={`grid ${isPrint ? 'grid-cols-1' : 'md:grid-cols-3'} gap-x-8 gap-y-6`}>
+        <div className="grid md:grid-cols-3 gap-x-8 gap-y-6">
            <FormField
             control={form.control}
             name="firstWeight"
@@ -290,6 +293,55 @@ Thank you!
     </>
   );
 
+  const PrintableBill = () => (
+    <div className="grid grid-cols-1 gap-4">
+        <div className="flex items-center gap-2">
+            <Hash className="h-5 w-5 text-primary" />
+            <p className="text-sm"><strong>Serial:</strong> {serialNumber}</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            <p className="text-sm"><strong>Date:</strong> {dateTime}</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <Truck className="h-5 w-5 text-primary" />
+            <p className="text-sm"><strong>Vehicle:</strong> {form.getValues("vehicleNumber")}</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <User className="h-5 w-5 text-primary" />
+            <p className="text-sm"><strong>Party:</strong> {form.getValues("partyName")}</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" />
+            <p className="text-sm"><strong>Material:</strong> {form.getValues("materialName")}</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <CircleDollarSign className="h-5 w-5 text-primary" />
+            <p className="text-sm"><strong>Charges:</strong> ₹{form.getValues("charges")}</p>
+        </div>
+        <Separator className="my-1"/>
+         <div className="flex items-center gap-2">
+            <Weight className="h-5 w-5" />
+            <p className="text-sm"><strong>First Wt:</strong> {form.getValues("firstWeight")} kg</p>
+        </div>
+        <div className="flex items-center gap-2">
+            <Weight className="h-5 w-5" />
+            <p className="text-sm"><strong>Second Wt:</strong> {form.getValues("secondWeight")} kg</p>
+        </div>
+        <Separator className="my-1" />
+        <div className="flex items-center gap-2">
+            <Scale className="h-5 w-5 text-primary" />
+            <p className="text-sm"><strong>Net Wt:</strong> {netWeight} kg</p>
+        </div>
+        {qrCodeUrl && (
+          <div className="mt-2 flex flex-col items-center">
+            <Image src={qrCodeUrl} alt="QR Code for UPI Payment" width={96} height={96} unoptimized />
+          </div>
+        )}
+    </div>
+  );
+
+
   return (
     <Card className="w-full max-w-4xl printable-card shadow-2xl">
       <CardHeader className="no-print">
@@ -310,9 +362,9 @@ Thank you!
             
             {/* This is for the print view only */}
             <div className="print-only printable-section">
-                <div className="printable-content-wrapper"><BillContent isPrint={true} /></div>
-                <div className="printable-content-wrapper"><BillContent isPrint={true} /></div>
-                <div className="printable-content-wrapper"><BillContent isPrint={true} /></div>
+                <div className="printable-content-wrapper"><PrintableBill /></div>
+                <div className="printable-content-wrapper"><PrintableBill /></div>
+                <div className="printable-content-wrapper"><PrintableBill /></div>
             </div>
             
             <Separator className="my-8 no-print" />
