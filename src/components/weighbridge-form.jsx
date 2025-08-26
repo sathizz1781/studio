@@ -167,6 +167,7 @@ export function WeighbridgeForm() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
 
   const touchStartY = useRef(0);
   const PULL_THRESHOLD = 70;
@@ -295,7 +296,7 @@ export function WeighbridgeForm() {
     printWindow.document.write('</head><body>');
     
     const printContainer = printWindow.document.createElement('div');
-    printWindow.document.body.appendChild(printContainer);
+    window.document.body.appendChild(printContainer);
 
     const ReactDOMServer = require('react-dom/server');
     printContainer.innerHTML = ReactDOMServer.renderToStaticMarkup(
@@ -329,6 +330,7 @@ export function WeighbridgeForm() {
     setNetWeight(0);
     setPreviousWeights(null);
     setSelectedCustomer(null);
+    setSelectedCustomerForDisplay(null);
     if (isClient) {
       initializeForm();
     }
@@ -518,6 +520,7 @@ Thank you!
     const customer = customers.find(c => c.customerId === customerId);
     if (customer) {
         setSelectedCustomer(customer);
+        setSelectedCustomerForDisplay(customer);
         setValue("customerId", customer.customerId);
         setValue("partyName", customer.companyName);
         setValue("whatsappNumber", customer.whatsappNumber);
@@ -592,73 +595,6 @@ Thank you!
             )}
         />
       </div>
-      
-      <div className="no-print mb-6">
-        <FormField
-            control={control}
-            name="customerId"
-            render={({ field }) => (
-            <FormItem>
-              <FormLabel className="flex items-center gap-2"><Users size={16} /> Select Customer</FormLabel>
-                <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
-                    <PopoverTrigger asChild>
-                    <FormControl>
-                        <Button
-                        variant="outline"
-                        role="combobox"
-                        className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
-                        )}
-                        >
-                        {field.value
-                            ? customers.find(c => c.customerId === field.value)?.companyName
-                            : "Select a customer"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                    </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command
-                        filter={(value, search) => {
-                            const customerName = customers.find(c => c.customerId === value)?.companyName || "";
-                            if (customerName.toLowerCase().includes(search.toLowerCase())) return 1;
-                            return 0;
-                        }}
-                    >
-                        <CommandInput placeholder="Search customer..." />
-                        <CommandList>
-                            <CommandEmpty>No customer found.</CommandEmpty>
-                            <CommandGroup>
-                                {customers.map((customer) => (
-                                <CommandItem
-                                    value={customer.customerId}
-                                    key={customer.customerId}
-                                    onSelect={(currentValue) => {
-                                        handleCustomerSelect(currentValue);
-                                    }}
-                                >
-                                    <Check
-                                    className={cn(
-                                        "mr-2 h-4 w-4",
-                                        customer.customerId === field.value
-                                        ? "opacity-100"
-                                        : "opacity-0"
-                                    )}
-                                    />
-                                    {customer.companyName}
-                                </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </CommandList>
-                    </Command>
-                    </PopoverContent>
-                </Popover>
-               <FormMessage />
-            </FormItem>
-            )}
-        />
-       </div>
 
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
@@ -1013,72 +949,127 @@ Thank you!
             Fill in the details below to generate a new bill.
           </CardDescription>
         </CardHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent>
-              <div className="no-print">
-                <BillContent />
-              </div>
+        <CardContent>
+            <div className="no-print mb-6">
+                <div className="space-y-2">
+                    <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
+                    <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+                        <PopoverTrigger asChild>
+                            <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between"
+                            >
+                            {selectedCustomerForDisplay
+                                ? selectedCustomerForDisplay.companyName
+                                : "Select a customer"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command
+                            filter={(value, search) => {
+                                const customer = customers.find(c => c.customerId.toLowerCase() === value);
+                                if (customer && customer.companyName.toLowerCase().includes(search.toLowerCase())) {
+                                    return 1;
+                                }
+                                return 0;
+                            }}
+                        >
+                            <CommandInput placeholder="Search customer..." />
+                            <CommandList>
+                                <CommandEmpty>No customer found.</CommandEmpty>
+                                <CommandGroup>
+                                    {customers.map((customer) => (
+                                    <CommandItem
+                                        value={customer.customerId.toLowerCase()}
+                                        key={customer.customerId}
+                                        onSelect={() => {
+                                            handleCustomerSelect(customer.customerId);
+                                        }}
+                                    >
+                                        <Check
+                                        className={cn(
+                                            "mr-2 h-4 w-4",
+                                            selectedCustomerForDisplay?.customerId === customer.customerId
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                        />
+                                        {customer.companyName}
+                                    </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            </CommandList>
+                        </Command>
+                        </PopoverContent>
+                    </Popover>
+                </div>
+            </div>
 
-              <div className="print-only" id="print-section"></div>
-
-            </CardContent>
-            <CardFooter className="flex flex-col sm:flex-row sm:flex-wrap justify-end gap-2 sm:gap-4 no-print mt-4">
-               <Link href="/reports" passHref>
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <BarChart2 className="mr-2 h-4 w-4" />
-                  View Reports
-                </Button>
-              </Link>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button type="button" variant="outline" className="w-full sm:w-auto">
-                    <RefreshCcw className="mr-2 h-4 w-4" />
-                    Reprint Bill
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reprint Bill</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Enter the serial number of the bill you want to reprint.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <div className="flex items-center space-x-2">
-                      <Input 
-                        id="reprint-serial" 
-                        type="number"
-                        placeholder="e.g., 123456" 
-                        value={reprintSerial}
-                        onChange={(e) => setReprintSerial(e.target.value)}
-                      />
-                  </div>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => {
-                       findBill();
-                       document.querySelector('[data-radix-collection-item] button[type="button"]:not([aria-label="Close"])')?.click();
-                    }} disabled={isLoadingReprint}>
-                      {isLoadingReprint && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Find Bill
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              <Button
-                type="submit"
-                style={{
-                  backgroundColor: "hsl(var(--accent))",
-                  color: "hsl(var(--accent-foreground))",
-                }}
-                className="w-full sm:w-auto"
-              >
-                <Printer className="mr-2 h-4 w-4" />
-                Send &amp; Print
-              </Button>
-            </CardFooter>
-          </form>
-        </Form>
+            <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)}>
+                <div className="no-print">
+                    <BillContent />
+                </div>
+                <div className="print-only" id="print-section"></div>
+                <CardFooter className="flex flex-col sm:flex-row sm:flex-wrap justify-end gap-2 sm:gap-4 no-print mt-4">
+                    <Link href="/reports" passHref>
+                        <Button variant="outline" className="w-full sm:w-auto">
+                        <BarChart2 className="mr-2 h-4 w-4" />
+                        View Reports
+                        </Button>
+                    </Link>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                        <Button type="button" variant="outline" className="w-full sm:w-auto">
+                            <RefreshCcw className="mr-2 h-4 w-4" />
+                            Reprint Bill
+                        </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Reprint Bill</AlertDialogTitle>
+                            <AlertDialogDescription>
+                            Enter the serial number of the bill you want to reprint.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <div className="flex items-center space-x-2">
+                            <Input 
+                                id="reprint-serial" 
+                                type="number"
+                                placeholder="e.g., 123456" 
+                                value={reprintSerial}
+                                onChange={(e) => setReprintSerial(e.target.value)}
+                            />
+                        </div>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => {
+                            findBill();
+                            document.querySelector('[data-radix-collection-item] button[type="button"]:not([aria-label="Close"])')?.click();
+                            }} disabled={isLoadingReprint}>
+                            {isLoadingReprint && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Find Bill
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <Button
+                        type="submit"
+                        style={{
+                        backgroundColor: "hsl(var(--accent))",
+                        color: "hsl(var(--accent-foreground))",
+                        }}
+                        className="w-full sm:w-auto"
+                    >
+                        <Printer className="mr-2 h-4 w-4" />
+                        Send &amp; Print
+                    </Button>
+                </CardFooter>
+            </form>
+            </Form>
+        </CardContent>
       </Card>
       {isReprintDialogOpen && <ReprintDialog />}
     </div>
