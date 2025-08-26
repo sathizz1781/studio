@@ -63,6 +63,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 const formSchema = z.object({
   serialNumber: z.string().min(1, "Serial number is required."),
@@ -121,6 +122,8 @@ export function WeighbridgeForm() {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const [isLoadingReprint, setIsLoadingReprint] = useState(false);
+  const [reprintData, setReprintData] = useState(null);
+  const [isReprintDialogOpen, setIsReprintDialogOpen] = useState(false);
 
   // State for pull-to-refresh
   const [pullPosition, setPullPosition] = useState(-50);
@@ -260,21 +263,9 @@ export function WeighbridgeForm() {
       }
 
       const result = await response.json();
-      const billData = result.data;
-
-      if (billData) {
-        reset({
-            serialNumber: billData.sl_no,
-            dateTime: `${billData.date}, ${billData.time}`,
-            vehicleNumber: billData.vehicle_no,
-            partyName: billData.party_name,
-            materialName: billData.material_name,
-            charges: billData.charges,
-            firstWeight: billData.first_weight,
-            secondWeight: billData.second_weight,
-            whatsappNumber: billData.whatsappNumber || "", 
-            paymentStatus: billData.paid_status ? "Paid" : "Credit",
-        });
+      if (result.data) {
+        setReprintData(result.data);
+        setIsReprintDialogOpen(true);
         toast({ title: "Bill Found", description: `Data for bill ${reprintSerial} has been loaded.` });
       } else {
         toast({ variant: "destructive", title: "Bill Not Found", description: `No data found for serial number ${reprintSerial}.` });
@@ -728,38 +719,41 @@ Thank you!
     </>
   );
 
-  const PrintableBill = () => {
-    const values = getValues();
+  const PrintableBill = ({billData, netWt}) => {
+    const values = billData || getValues();
+    const currentNetWeight = netWt !== undefined ? netWt : netWeight;
+    const paymentStatus = values.paid_status ? "Paid" : "Credit";
+    
     return (
       <div className="grid grid-cols-1 gap-4">
         <div className="flex items-center gap-2">
           <Hash className="h-5 w-5 text-primary" />
           <p className="text-sm">
-            <strong>Serial:</strong> {values.serialNumber}
+            <strong>Serial:</strong> {values.sl_no || values.serialNumber}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <CalendarIcon className="h-5 w-5 text-primary" />
           <p className="text-sm">
-            <strong>Date:</strong> {values.dateTime}
+            <strong>Date:</strong> {values.dateTime || `${values.date}, ${values.time}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Truck className="h-5 w-5 text-primary" />
           <p className="text-sm">
-            <strong>Vehicle:</strong> {values.vehicleNumber}
+            <strong>Vehicle:</strong> {values.vehicle_no || values.vehicleNumber}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <User className="h-5 w-5 text-primary" />
           <p className="text-sm">
-            <strong>Party:</strong> {values.partyName}
+            <strong>Party:</strong> {values.party_name || values.partyName}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-primary" />
           <p className="text-sm">
-            <strong>Material:</strong> {values.materialName}
+            <strong>Material:</strong> {values.material_name || values.materialName}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -771,30 +765,30 @@ Thank you!
           <div className="flex items-center gap-2">
           <CircleDollarSign className="h-5 w-5 text-primary" />
           <p className="text-sm">
-            <strong>Status:</strong> {values.paymentStatus}
+            <strong>Status:</strong> {values.paymentStatus || paymentStatus}
           </p>
         </div>
         <Separator className="my-1" />
         <div className="flex items-center gap-2">
           <Weight className="h-5 w-5" />
           <p className="text-sm">
-            <strong>First Wt:</strong> {values.firstWeight} kg
+            <strong>First Wt:</strong> {values.first_weight || values.firstWeight} kg
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Weight className="h-5 w-5" />
           <p className="text-sm">
-            <strong>Second Wt:</strong> {values.secondWeight} kg
+            <strong>Second Wt:</strong> {values.second_weight || values.secondWeight} kg
           </p>
         </div>
         <Separator className="my-1" />
         <div className="flex items-center gap-2">
           <Scale className="h-5 w-5 text-primary" />
           <p className="text-sm">
-            <strong>Net Wt:</strong> {netWeight} kg
+            <strong>Net Wt:</strong> {values.net_weight || currentNetWeight} kg
           </p>
         </div>
-        {qrCodeUrl && Number(charges) > 0 && (
+        {qrCodeUrl && Number(values.charges) > 0 && (
           <div className="mt-2 flex flex-col items-center">
             <Image
               src={qrCodeUrl}
@@ -808,6 +802,57 @@ Thank you!
       </div>
     );
   }
+
+  const ReprintDialog = () => {
+    const handleReprintPrint = () => {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write('<html><head><title>Print Bill</title>');
+        // In-line styles that roughly match the globals.css for printing
+        printWindow.document.write(`
+            <style>
+                body { font-family: sans-serif; }
+                .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
+                .printable-content-wrapper { flex: 1 1 32%; min-width: 0; border: 1px dashed #ccc; padding: 0.5rem; font-size: 9px; }
+                .printable-content-wrapper .text-sm { font-size: 8px; }
+                .printable-content-wrapper .text-lg { font-size: 10px; }
+                .printable-content-wrapper .grid { display: grid; gap: 0.25rem; }
+                .printable-content-wrapper .separator { border-top: 1px solid #ccc; margin: 4px 0; }
+                .printable-content-wrapper .flex { display: flex; align-items: center; }
+                .printable-content-wrapper .gap-2 { gap: 0.5rem; }
+                 .printable-content-wrapper .h-5 { height: 12px; }
+                 .printable-content-wrapper .w-5 { width: 12px; }
+            </style>
+        `);
+        printWindow.document.write('</head><body>');
+        const content = document.getElementById('reprint-content').innerHTML;
+        printWindow.document.write(content);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.print();
+    };
+
+    return (
+        <Dialog open={isReprintDialogOpen} onOpenChange={setIsReprintDialogOpen}>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Reprint Bill - #{reprintData?.sl_no}</DialogTitle>
+                    <DialogDescription>
+                        Showing details for the requested bill. Click print to get a copy.
+                    </DialogDescription>
+                </DialogHeader>
+                <div id="reprint-content" className="printable-section">
+                     <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+                     <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+                     <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+                </div>
+                <DialogFooter className="no-print">
+                     <Button variant="outline" onClick={() => setIsReprintDialogOpen(false)}>Close</Button>
+                     <Button onClick={handleReprintPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 
   return (
@@ -934,6 +979,7 @@ Thank you!
           </form>
         </Form>
       </Card>
+      {reprintData && <ReprintDialog />}
     </div>
   );
 }
