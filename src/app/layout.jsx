@@ -58,12 +58,6 @@ export default function RootLayout({ children }) {
               >
                 Reports
               </Link>
-              <Link
-                href="/customers"
-                className="text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Customers
-              </Link>
             </nav>
             <Sheet>
               <SheetTrigger asChild>
@@ -94,12 +88,6 @@ export default function RootLayout({ children }) {
                   >
                     Reports
                   </Link>
-                  <Link
-                    href="/customers"
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    Customers
-                  </Link>
                 </nav>
               </SheetContent>
             </Sheet>
@@ -113,5 +101,3 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
-
-    
