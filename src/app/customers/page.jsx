@@ -250,6 +250,99 @@ const CustomerPage = () => {
         setIsSubmitting(false);
     }
   };
+  
+  const tabItems = [
+    {
+      key: '1',
+      label: 'Customer List',
+      children: isLoading ? (
+          <div className="flex justify-center items-center h-64">
+              <Spin size="large" />
+          </div>
+      ) : (
+          <List
+              bordered
+              dataSource={customerList}
+              renderItem={(customer) => (
+                  <List.Item
+                      key={customer.customerId}
+                      onClick={() => showCustomerDetails(customer)}
+                      className="cursor-pointer hover:bg-gray-50"
+                  >
+                      <List.Item.Meta
+                          title={<Text strong>{`${customer.companyName} - ${customer.customerId}`}</Text>}
+                          description={customer.contactPerson}
+                      />
+                  </List.Item>
+              )}
+              locale={{ emptyText: <Empty description="No customers found. Add one in the next tab!" /> }}
+          />
+      ),
+    },
+    {
+      key: '2',
+      label: 'Add New Customer',
+      children: (
+        <Form form={addForm} layout="vertical" onFinish={handleAddCustomer} disabled={isSubmitting}>
+          <Row gutter={16}>
+              <Col xs={24} md={12}>
+                  <Form.Item label="Company Name" name="companyName" rules={[{ required: true }]}>
+                      <Input placeholder="Enter company name" />
+                  </Form.Item>
+              </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item label="Contact Person" name="contactPerson" rules={[{ required: true }]}>
+                      <Input placeholder="Enter contact person's name" />
+                  </Form.Item>
+              </Col>
+          </Row>
+          <Row gutter={16}>
+              <Col xs={24} md={12}>
+                  <Form.Item label="GST No" name="gstNo" rules={[{ required: true }]}>
+                      <Input placeholder="Enter GST number" />
+                  </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                  <Form.Item label="WhatsApp No" name="whatsappNumber" rules={[{ required: true, pattern: /^\d{10,15}$/, message: "Enter a valid number" }]}>
+                      <Input placeholder="Enter WhatsApp number" />
+                  </Form.Item>
+              </Col>
+          </Row>
+          <Row gutter={16}>
+              <Col xs={24} md={12}>
+                  <Form.Item label="Email" name="email" rules={[{ required: true, type: 'email' }]}>
+                      <Input placeholder="Enter Email Id" />
+                  </Form.Item>
+              </Col>
+          </Row>
+          
+          <Title level={5}>Location</Title>
+          <div style={{ height: "400px", width: "100%", marginBottom: '1rem', border: '1px solid #d9d9d9', borderRadius: '2px' }}>
+              <MapContainer
+                  center={addPosition}
+                  zoom={13}
+                  style={{ height: "100%", width: "100%" }}
+              >
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <DraggableMarker position={addPosition} setPosition={setAddPosition} setLatitude={setAddLatitude} setLongitude={setAddLongitude}/>
+                  <SearchControl setPosition={setAddPosition} setLatitude={setAddLatitude} setLongitude={setAddLongitude} />
+              </MapContainer>
+          </div>
+          
+          <Row gutter={16} className="mb-4">
+              <Col><Text strong>Latitude:</Text> {addLatitude}</Col>
+              <Col><Text strong>Longitude:</Text> {addLongitude}</Col>
+          </Row>
+
+          <Form.Item>
+              <Button type="primary" htmlType="submit" loading={isSubmitting}>
+                  Add Customer
+              </Button>
+          </Form.Item>
+        </Form>
+      )
+    }
+  ];
 
   return (
     <div className="container mx-auto py-4">
@@ -259,98 +352,13 @@ const CustomerPage = () => {
             activeKey={activeKey}
             onChange={(key) => setActiveKey(key)}
             type="card"
-        >
-            <Tabs.TabPane tab="Customer List" key="1">
-                {isLoading ? (
-                    <div className="flex justify-center items-center h-64">
-                        <Spin size="large" />
-                    </div>
-                ) : (
-                    <List
-                        bordered
-                        dataSource={customerList}
-                        renderItem={(customer) => (
-                            <List.Item
-                            key={customer.customerId}
-                            onClick={() => showCustomerDetails(customer)}
-                            className="cursor-pointer hover:bg-gray-50"
-                            >
-                            <List.Item.Meta
-                                title={<Text strong>{`${customer.companyName} - ${customer.customerId}`}</Text>}
-                                description={customer.contactPerson}
-                            />
-                            </List.Item>
-                        )}
-                        locale={{ emptyText: <Empty description="No customers found. Add one in the next tab!" /> }}
-                    />
-                )}
-            </Tabs.TabPane>
-
-            <Tabs.TabPane tab="Add New Customer" key="2">
-                <Form form={addForm} layout="vertical" onFinish={handleAddCustomer} disabled={isSubmitting}>
-                <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                        <Form.Item label="Company Name" name="companyName" rules={[{ required: true }]}>
-                            <Input placeholder="Enter company name" />
-                        </Form.Item>
-                    </Col>
-                     <Col xs={24} md={12}>
-                        <Form.Item label="Contact Person" name="contactPerson" rules={[{ required: true }]}>
-                            <Input placeholder="Enter contact person's name" />
-                        </Form.Item>
-                    </Col>
-                </Row>
-                <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                        <Form.Item label="GST No" name="gstNo" rules={[{ required: true }]}>
-                            <Input placeholder="Enter GST number" />
-                        </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                        <Form.Item label="WhatsApp No" name="whatsappNumber" rules={[{ required: true, pattern: /^\d{10,15}$/, message: "Enter a valid number" }]}>
-                            <Input placeholder="Enter WhatsApp number" />
-                        </Form.Item>
-                    </Col>
-                </Row>
-                <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                        <Form.Item label="Email" name="email" rules={[{ required: true, type: 'email' }]}>
-                            <Input placeholder="Enter Email Id" />
-                        </Form.Item>
-                    </Col>
-                </Row>
-                
-                <Title level={5}>Location</Title>
-                <div style={{ height: "400px", width: "100%", marginBottom: '1rem', border: '1px solid #d9d9d9', borderRadius: '2px' }}>
-                    <MapContainer
-                        center={addPosition}
-                        zoom={13}
-                        style={{ height: "100%", width: "100%" }}
-                    >
-                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                        <DraggableMarker position={addPosition} setPosition={setAddPosition} setLatitude={setAddLatitude} setLongitude={setAddLongitude}/>
-                        <SearchControl setPosition={setAddPosition} setLatitude={setAddLatitude} setLongitude={setAddLongitude} />
-                    </MapContainer>
-                </div>
-                
-                <Row gutter={16} className="mb-4">
-                    <Col><Text strong>Latitude:</Text> {addLatitude}</Col>
-                    <Col><Text strong>Longitude:</Text> {addLongitude}</Col>
-                </Row>
-
-                <Form.Item>
-                    <Button type="primary" htmlType="submit" loading={isSubmitting}>
-                        Add Customer
-                    </Button>
-                </Form.Item>
-                </Form>
-            </Tabs.TabPane>
-        </Tabs>
+            items={tabItems}
+        />
         
         <Drawer
             title={<Title level={4}>Customer Details: {selectedCustomer?.companyName}</Title>}
             placement="right"
-            width={ window.innerWidth > 768 ? "50%" : "90%" }
+            width={ typeof window !== 'undefined' && window.innerWidth > 768 ? "50%" : "90%" }
             onClose={onClose}
             open={visible}
             destroyOnClose
