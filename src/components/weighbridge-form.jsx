@@ -56,9 +56,7 @@ const formSchema = z.object({
   }),
 });
 
-type FormValues = z.infer<typeof formSchema>;
-
-const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
+const WhatsAppIcon = (props) => (
     <svg role="img" viewBox="0 0 24 24" {...props}>
         <path d="M17.472 14.382c-.297-.149-.88-.436-1.017-.486s-.39-.074-.555.074-.35.486-.432.586-.165.111-.297.037s-1.24-.463-2.36-1.455c-.862-.772-1.45-1.725-1.62-2.023s-.17-.45-.074-.586c.074-.111.165-.24.24-.33s.111-.165.165-.278.037-.24-.037-.35-.555-1.32-.732-1.808s-.35-.41-.486-.41h-.45c-.165 0-.41.074-.628.35s-.88.862-.88 2.1c0 1.238.905 2.437 1.037 2.613s1.77 2.71 4.3 3.822c.565.24.99.375 1.32.486.51.165.968.13 1.32-.074.39-.222.88-.905.99-1.238.111-.33.111-.615.074-.732zM12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18.13c-4.49 0-8.13-3.64-8.13-8.13s3.64-8.13 8.13-8.13 8.13 3.64 8.13 8.13-3.64 8.13-8.13 8.13z" />
     </svg>
@@ -70,7 +68,7 @@ export function WeighbridgeForm() {
   const [dateTime, setDateTime] = useState("");
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
-  const isClient, setIsClient] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -78,7 +76,7 @@ export function WeighbridgeForm() {
 
   const { toast } = useToast();
 
-  const form = useForm<FormValues>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       vehicleNumber: "",
@@ -137,7 +135,7 @@ export function WeighbridgeForm() {
     }
   };
 
-  function onSubmit(values: FormValues) {
+  function onSubmit(values) {
     const message = `
 *WeighBridge Bill*
 -------------------------
