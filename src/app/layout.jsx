@@ -29,6 +29,7 @@ export default function RootLayout({ children }) {
   const navLinks = [
     { href: "/", label: "Biller" },
     { href: "/reports", label: "Reports" },
+    { href: "/customers", label: "Customers" },
   ];
 
   return (
@@ -67,7 +68,7 @@ export default function RootLayout({ children }) {
                   className={cn(
                     "transition-colors hover:text-foreground",
                     pathname === link.href
-                      ? "text-foreground"
+                      ? "text-foreground font-semibold"
                       : "text-muted-foreground"
                   )}
                 >
@@ -101,8 +102,8 @@ export default function RootLayout({ children }) {
                         href={link.href}
                         className={cn(
                           "transition-colors hover:text-foreground",
-                          pathname === link.href
-                            ? "text-foreground"
+                           pathname === link.href
+                            ? "text-foreground font-semibold"
                             : "text-muted-foreground"
                         )}
                       >
