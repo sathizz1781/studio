@@ -88,6 +88,7 @@ const useMap = dynamic(() => import("react-leaflet").then((mod) => mod.useMap), 
   ssr: false,
 });
 
+
 // A wrapper component for the marker
 const DraggableMarker = ({ position, setPosition, onPositionChange }) => {
   const map = useMap();
@@ -207,42 +208,42 @@ const MapPicker = ({ form, initialPosition }) => {
     form.setValue("latitude", newPos.lat, { shouldValidate: true });
     form.setValue("longitude", newPos.lng, { shouldValidate: true });
   };
-
-  if (!isClient) {
-    return (
-      <div className="h-[400px] w-full bg-muted rounded-md flex items-center justify-center">
-        Loading map...
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="h-[400px] w-full rounded-md overflow-hidden border">
-      <MapContainer
-        center={position}
-        zoom={13}
-        style={{ height: "100%", width: "100%" }}
-        whenCreated={(map) => {
-          setTimeout(() => map.invalidateSize(), 200);
-        }}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-        <DraggableMarker
-          position={position}
-          setPosition={setPosition}
-          onPositionChange={onPositionChange}
-        />
-        <SearchControl
-          setPosition={setPosition}
-          onPositionChange={onPositionChange}
-        />
-      </MapContainer>
+    <div className="h-[400px] w-full rounded-md overflow-hidden border relative">
+      <div className={`h-full w-full transition-opacity duration-500 ${isClient ? 'opacity-100' : 'opacity-0'}`}>
+        <MapContainer
+          center={position}
+          zoom={13}
+          style={{ height: "100%", width: "100%" }}
+          whenCreated={(map) => {
+            setTimeout(() => map.invalidateSize(), 200);
+          }}
+        >
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+          <DraggableMarker
+            position={position}
+            setPosition={setPosition}
+            onPositionChange={onPositionChange}
+          />
+          <SearchControl
+            setPosition={setPosition}
+            onPositionChange={onPositionChange}
+          />
+        </MapContainer>
+      </div>
+       {!isClient && (
+         <div className="absolute inset-0 bg-muted flex items-center justify-center">
+            <p>Loading map...</p>
+         </div>
+       )}
     </div>
   );
 };
+
 
 const CustomerPage = () => {
   const [activeTab, setActiveTab] = useState("list");
@@ -664,3 +665,4 @@ const CustomerPage = () => {
 };
 
 export default CustomerPage;
+
