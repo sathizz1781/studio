@@ -1,0 +1,259 @@
+"use client";
+
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Calendar as CalendarIcon,
+  Download,
+  FileText,
+  Loader2,
+  Search,
+} from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+
+// PDF and Excel libraries
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import * as XLSX from "xlsx";
+
+export function ReportsTable() {
+  const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState({
+    from: undefined,
+    to: undefined,
+  });
+  const [vehicleNumberFilter, setVehicleNumberFilter] = useState("");
+  const { toast } = useToast();
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // In a real app, you'd pass filter params to the API
+      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getallrecords");
+      if (!response.ok) {
+        throw new Error("Failed to fetch data");
+      }
+      const result = await response.json();
+      setData(result.data || []);
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching data",
+        description: "Could not load reports. Please try again later.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    let result = data;
+
+    if (dateRange.from && dateRange.to) {
+      result = result.filter((item) => {
+        const itemDate = new Date(
+          item.date.split("/").reverse().join("-")
+        );
+        return itemDate >= dateRange.from && itemDate <= dateRange.to;
+      });
+    }
+
+    if (vehicleNumberFilter) {
+      result = result.filter((item) =>
+        item.vehicle_no
+          .toLowerCase()
+          .includes(vehicleNumberFilter.toLowerCase())
+      );
+    }
+
+    setFilteredData(result);
+  }, [data, dateRange, vehicleNumberFilter]);
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Weighbridge Report", 14, 16);
+    doc.autoTable({
+      head: [
+        [
+          "Sl. No",
+          "Date",
+          "Time",
+          "Vehicle No",
+          "Party Name",
+          "Material",
+          "1st Wt",
+          "2nd Wt",
+          "Net Wt",
+          "Charges",
+        ],
+      ],
+      body: filteredData.map((item) => [
+        item.sl_no,
+        item.date,
+        item.time,
+        item.vehicle_no,
+        item.party_name,
+        item.material_name,
+        item.first_weight,
+        item.second_weight,
+        item.net_weight,
+        item.charges,
+      ]),
+      startY: 20,
+    });
+    doc.save("weighbridge-report.pdf");
+  };
+
+  const handleExportExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(
+      filteredData.map((item) => ({
+        "Serial No": item.sl_no,
+        Date: item.date,
+        Time: item.time,
+        "Vehicle No": item.vehicle_no,
+        "Party Name": item.party_name,
+        Material: item.material_name,
+        "First Weight": item.first_weight,
+        "Second Weight": item.second_weight,
+        "Net Weight": item.net_weight,
+        Charges: item.charges,
+        "Paid Status": item.paid_status ? "Paid" : "Credit",
+        "WhatsApp No": item.whatsapp,
+      }))
+    );
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Reports");
+    XLSX.writeFile(workbook, "weighbridge-report.xlsx");
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row items-center gap-2 w-full">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                id="date"
+                variant={"outline"}
+                className={cn(
+                  "w-full md:w-[300px] justify-start text-left font-normal",
+                  !dateRange && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y")} -{" "}
+                      {format(dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Pick a date range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+          <div className="relative w-full md:w-auto">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Filter by vehicle number..."
+              className="pl-8 w-full md:w-[250px]"
+              value={vehicleNumberFilter}
+              onChange={(e) => setVehicleNumberFilter(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <Button onClick={handleExportPDF} variant="outline" className="w-full">
+            <FileText className="mr-2 h-4 w-4" />
+            Export PDF
+          </Button>
+          <Button onClick={handleExportExcel} variant="outline" className="w-full">
+            <Download className="mr-2 h-4 w-4" />
+            Export Excel
+          </Button>
+        </div>
+      </div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Sl. No</TableHead>
+              <TableHead>Date & Time</TableHead>
+              <TableHead>Vehicle No</TableHead>
+              <TableHead>Party Name</TableHead>
+              <TableHead>Net Weight</TableHead>
+              <TableHead className="text-right">Charges</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                </TableCell>
+              </TableRow>
+            ) : filteredData.length > 0 ? (
+              filteredData.map((item) => (
+                <TableRow key={item._id}>
+                  <TableCell className="font-medium">{item.sl_no}</TableCell>
+                  <TableCell>
+                    {item.date} {item.time}
+                  </TableCell>
+                  <TableCell>{item.vehicle_no}</TableCell>
+                  <TableCell>{item.party_name}</TableCell>
+                  <TableCell>{item.net_weight}</TableCell>
+                  <TableCell className="text-right">{item.charges}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  No results found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}

@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   Form,
   FormControl,
@@ -60,6 +61,7 @@ import {
   ChevronDown,
   Loader2,
   ArrowDown,
+  BarChart2
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -100,9 +102,7 @@ const WhatsAppIcon = (props) => (
 const LiveClock = () => {
   const [time, setTime] = useState("");
   useEffect(() => {
-    // Set the initial time immediately
     setTime(new Date().toLocaleTimeString('en-IN', { hour12: true }));
-    // Then set up the interval to update it
     const timerId = setInterval(() => {
       setTime(new Date().toLocaleTimeString('en-IN', { hour12: true }));
     }, 1000);
@@ -124,11 +124,10 @@ export function WeighbridgeForm() {
   const [reprintData, setReprintData] = useState(null);
   const [isReprintDialogOpen, setIsReprintDialogOpen] = useState(false);
 
-  // State for pull-to-refresh
   const [pullPosition, setPullPosition] = useState(-50);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const touchStartY = useRef(0);
-  const PULL_THRESHOLD = 70; // How far the user needs to pull down in px
+  const PULL_THRESHOLD = 70;
 
   const serialDataRef = useRef({ weight: 0 });
 
@@ -234,16 +233,15 @@ export function WeighbridgeForm() {
     `);
     printWindow.document.write('</head><body>');
     
-    // We need a wrapper to render the component into
     const printContainer = printWindow.document.createElement('div');
     printWindow.document.body.appendChild(printContainer);
 
     const ReactDOMServer = require('react-dom/server');
     printContainer.innerHTML = ReactDOMServer.renderToStaticMarkup(
       <div className="printable-section">
-        <div className="printable-content-wrapper"><PrintableBill copyType="Original" /></div>
-        <div className="printable-content-wrapper"><PrintableBill copyType="Duplicate" /></div>
-        <div className="printable-content-wrapper"><PrintableBill copyType="Triplicate" /></div>
+        <div className="printable-content-wrapper"><PrintableBill /></div>
+        <div className="printable-content-wrapper"><PrintableBill /></div>
+        <div className="printable-content-wrapper"><PrintableBill /></div>
       </div>
     );
     
@@ -357,7 +355,6 @@ export function WeighbridgeForm() {
     setIsPopoverOpen(false);
   };
 
-
   async function onSubmit(values) {
     const [date, time] = values.dateTime.split(', ');
     
@@ -404,9 +401,9 @@ export function WeighbridgeForm() {
 *Material:* ${values.materialName}
 *Charges:* ₹${values.charges || 0}
 *Payment:* ${values.paymentStatus}
-*First Weight:* ${values.firstWeight} kg
-*Second Weight:* ${values.secondWeight} kg
-*Net Weight:* ${netWeight} kg
+*First Weight:* ${values.firstWeight}
+*Second Weight:* ${values.secondWeight}
+*Net Weight:* ${netWeight}
 -------------------------
 Thank you!
         `.trim();
@@ -431,7 +428,6 @@ Thank you!
     }
   }
 
-  // Pull to refresh handlers
   const handleTouchStart = (e) => {
     touchStartY.current = e.targetTouches[0].clientY;
   };
@@ -441,7 +437,6 @@ Thank you!
     const pullDistance = touchY - touchStartY.current;
 
     if (window.scrollY === 0 && pullDistance > 0) {
-      // Prevent default browser refresh action
       e.preventDefault();
       const newPullPosition = Math.min(pullDistance, PULL_THRESHOLD + 20) - 50;
       setPullPosition(newPullPosition);
@@ -457,7 +452,6 @@ Thank you!
       handleReset();
       toast({ title: "Refreshed", description: "New bill ready." });
     }
-    // Reset states
     setIsRefreshing(false);
     setPullPosition(-50);
     touchStartY.current = 0;
@@ -485,7 +479,6 @@ Thank you!
             onCheckedChange={(checked) => {
               setIsManualMode(checked);
               if (!checked) {
-                // When turning off manual mode, re-initialize to get latest data
                 fetchNewSerialNumber();
                 setInitialDateTime();
               }
@@ -530,7 +523,6 @@ Thank you!
         />
       </div>
 
-
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
         <FormField
           control={control}
@@ -569,13 +561,13 @@ Thank you!
                                     <p><strong>Date:</strong> {previousWeights.date} {previousWeights.time}</p>
                                 </div>
                                 <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.first_weight)}>
-                                 1st: {previousWeights.first_weight} kg
+                                 1st: {previousWeights.first_weight}
                                 </Button>
                                 <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.second_weight)}>
-                                 2nd: {previousWeights.second_weight} kg
+                                 2nd: {previousWeights.second_weight}
                                 </Button>
                                 <Button variant="secondary" onClick={() => handleWeightSelection(serialDataRef.current.weight)}>
-                                  Use Live: {serialDataRef.current.weight} kg
+                                  Use Live: {serialDataRef.current.weight}
                                 </Button>
                             </div>
                           </PopoverContent>
@@ -645,7 +637,7 @@ Thank you!
             <FormItem>
               <FormLabel className="flex items-center gap-2">
                 <Weight size={16} />
-                First Weight (kg)
+                First Weight
               </FormLabel>
               <FormControl>
                 <Input
@@ -666,7 +658,7 @@ Thank you!
             <FormItem>
               <FormLabel className="flex items-center gap-2">
                 <Weight size={16} />
-                Second Weight (kg)
+                Second Weight
               </FormLabel>
               <FormControl>
                 <Input
@@ -683,7 +675,7 @@ Thank you!
         <FormItem>
           <FormLabel className="flex items-center gap-2">
             <Scale size={16} />
-            Net Weight (kg)
+            Net Weight
           </FormLabel>
           <FormControl>
             <Input
@@ -795,20 +787,18 @@ Thank you!
           `);
           printWindow.document.write('</head><body>');
   
-          // Use ReactDOMServer to render the React component to a static HTML string
           const ReactDOMServer = require('react-dom/server');
           printWindow.document.write(ReactDOMServer.renderToStaticMarkup(
             <div className="printable-section">
-                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} copyType="Original" /></div>
-                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} copyType="Duplicate" /></div>
-                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} copyType="Triplicate" /></div>
+                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
             </div>
           ));
   
           printWindow.document.write('</body></html>');
           printWindow.document.close();
           printWindow.focus();
-          // Use a timeout to ensure content is loaded before printing
           setTimeout(() => {
               printWindow.print();
               printWindow.close();
@@ -830,7 +820,7 @@ Thank you!
                       <p><strong>Date:</strong> {reprintData.date} {reprintData.time}</p>
                       <p><strong>Vehicle:</strong> {reprintData.vehicle_no}</p>
                       <p><strong>Party:</strong> {reprintData.party_name}</p>
-                      <p><strong>Net Weight:</strong> {reprintData.net_weight} kg</p>
+                      <p><strong>Net Weight:</strong> {reprintData.net_weight}</p>
                   </div>
                   <DialogFooter className="sm:justify-end">
                        <Button type="button" variant="secondary" onClick={() => setIsReprintDialogOpen(false)}>Close</Button>
@@ -843,7 +833,6 @@ Thank you!
           </Dialog>
       );
   };
-
 
   return (
     <div
@@ -875,17 +864,14 @@ Thank you!
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent>
-              {/* This is for the screen view */}
               <div className="no-print">
                 <BillContent />
               </div>
 
-              {/* This is for the print view only and will be dynamically injected */}
               <div className="print-only" id="print-section"></div>
 
               <Separator className="my-8 no-print" />
 
-              {/* Non-Printable Section */}
               <div className="no-print">
                 <h3 className="text-lg font-medium text-accent mb-2">
                   Send via WhatsApp
@@ -912,6 +898,12 @@ Thank you!
               </div>
             </CardContent>
             <CardFooter className="flex flex-col sm:flex-row sm:flex-wrap justify-end gap-2 sm:gap-4 no-print mt-4">
+               <Link href="/reports" passHref>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <BarChart2 className="mr-2 h-4 w-4" />
+                  View Reports
+                </Button>
+              </Link>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button type="button" variant="outline" className="w-full sm:w-auto">
