@@ -69,7 +69,7 @@ const formSchema = z.object({
     .nonnegative("Weight must be a positive number."),
   whatsappNumber: z.string().regex(/^\d{10,15}$/, {
     message: "Please enter a valid 10 to 15 digit phone number.",
-  }),
+  }).optional().or(z.literal('')),
   paymentStatus: z.enum(["Paid", "Credit"], {
     required_error: "You need to select a payment status.",
   }),
@@ -265,7 +265,13 @@ export function WeighbridgeForm() {
         body: JSON.stringify(billPayload),
       });
 
-      const message = `
+      let toastMessage = {
+        title: "Bill Saved",
+        description: "The bill has been saved and is ready for printing.",
+      };
+
+      if (values.whatsappNumber) {
+        const message = `
 *WeighBridge Bill*
 -------------------------
 *Serial No:* ${serialNumber}
@@ -280,16 +286,20 @@ export function WeighbridgeForm() {
 *Net Weight:* ${netWeight} kg
 -------------------------
 Thank you!
-      `.trim();
+        `.trim();
 
-      const encodedMessage = encodeURIComponent(message);
-      const whatsappUrl = `https://wa.me/${values.whatsappNumber}?text=${encodedMessage}`;
-      window.open(whatsappUrl, "_blank");
+        const encodedMessage = encodeURIComponent(message);
+        const whatsappUrl = `https://wa.me/${values.whatsappNumber}?text=${encodedMessage}`;
+        window.open(whatsappUrl, "_blank");
 
-      toast({
-        title: "Bill Saved & WhatsApp Ready",
-        description: "Please press send in the newly opened WhatsApp tab.",
-      });
+        toastMessage = {
+          title: "Bill Saved & WhatsApp Ready",
+          description: "Please press send in the newly opened WhatsApp tab.",
+        };
+      }
+      
+      toast(toastMessage);
+      handlePrint();
 
     } catch (error) {
       console.error("Failed to save or send bill:", error);
@@ -676,10 +686,6 @@ Thank you!
             <Button type="button" variant="outline" onClick={handleReset} className="w-full sm:w-auto">
               Reset Form
             </Button>
-            <Button type="button" variant="secondary" onClick={handlePrint} className="w-full sm:w-auto">
-              <Printer className="mr-2 h-4 w-4" />
-              Print
-            </Button>
             <Button
               type="submit"
               style={{
@@ -688,8 +694,8 @@ Thank you!
               }}
                className="w-full sm:w-auto"
             >
-              <WhatsAppIcon className="mr-2 h-5 w-5 fill-current" />
-              Send & Save
+              <Printer className="mr-2 h-4 w-4" />
+              Send &amp; Print
             </Button>
           </CardFooter>
         </form>
@@ -697,3 +703,5 @@ Thank you!
     </Card>
   );
 }
+
+    
