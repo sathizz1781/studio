@@ -45,7 +45,8 @@ const formSchema = z.object({
   materialName: z.string().min(1, "Material name is required."),
   charges: z.coerce
     .number({ invalid_type_error: "Please enter a valid number." })
-    .positive("Charges must be a positive number."),
+    .nonnegative("Charges must be a non-negative number.")
+    .optional(),
   firstWeight: z.coerce
     .number({ invalid_type_error: "Please enter a valid number." })
     .nonnegative("Weight must be a positive number."),
@@ -59,7 +60,7 @@ const formSchema = z.object({
 
 const WhatsAppIcon = (props) => (
     <svg role="img" viewBox="0 0 24 24" {...props}>
-        <path d="M17.472 14.382c-.297-.149-.88-.436-1.017-.486s-.39-.074-.555.074-.35.486-.432.586-.165.111-.297.037s-1.24-.463-2.36-1.455c-.862-.772-1.45-1.725-1.62-2.023s-.17-.45-.074-.586c.074-.111.165-.24.24-.33s.111-.165.165-.278.037-.24-.037-.35-.555-1.32-.732-1.808s-.35-.41-.486-.41h-.45c-.165 0-.41.074-.628.35s-.88.862-.88 2.1c0 1.238.905 2.437 1.037 2.613s1.77 2.71 4.3 3.822c.565.24.99.375 1.32.486.51.165.968.13 1.32-.074.39-.222.88-.905.99-1.238.111-.33.111-.615.074-.732zM12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18.13c-4.49 0-8.13-3.64-8.13-8.13s3.64-8.13 8.13-8.13 8.13 3.64 8.13 8.13-3.64 8.13-8.13 8.13z" />
+        <path d="M17.472 14.382c-.297-.149-.88-.436-1.017-.486s-.39-.074-.555.074-.35.486-.432.586-.165.111-.297.037s-1.24-.463-2.36-1.455c-.862-.772-1.45-1.725-1.62-2.023s-.17-.45-.074-.586c.074-.111.165-.24.24-.33s.111-.165.165-.278s.037-.24-.037-.35-.555-1.32-.732-1.808s-.35-.41-.486-.41h-.45c-.165 0-.41.074-.628.35s-.88.862-.88 2.1c0 1.238.905 2.437 1.037 2.613s1.77 2.71 4.3 3.822c.565.24.99.375 1.32.486.51.165.968.13 1.32-.074.39-.222.88-.905.99-1.238.111-.33.111-.615.074-.732zM12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18.13c-4.49 0-8.13-3.64-8.13-8.13s3.64-8.13 8.13-8.13 8.13 3.64 8.13 8.13-3.64 8.13-8.13 8.13z" />
     </svg>
 );
 
@@ -71,8 +72,15 @@ export function WeighbridgeForm() {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
 
+  const upiID = "sathishkumar1781@oksbi";
+  const businessName = "Amman Weighing Home";
+  const defaultUpiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&cu=INR`;
+  const defaultQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(defaultUpiURL)}&size=128x128&margin=0`;
+
+
   useEffect(() => {
     setIsClient(true);
+    setQrCodeUrl(defaultQrCodeUrl);
   }, []);
 
   const { toast } = useToast();
@@ -83,7 +91,7 @@ export function WeighbridgeForm() {
       vehicleNumber: "",
       partyName: "",
       materialName: "",
-      charges: 0,
+      charges: "",
       firstWeight: 0,
       secondWeight: 0,
       whatsappNumber: "",
@@ -118,16 +126,13 @@ export function WeighbridgeForm() {
   useEffect(() => {
     const numericCharges = Number(charges);
     if (numericCharges > 0) {
-      const upiID = "sathishkumar1781@oksbi";
-      const businessName = "Amman Weighing Home";
       const upiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&am=${numericCharges.toFixed(2)}&cu=INR`;
-
       const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiURL)}&size=128x128&margin=0`;
       setQrCodeUrl(apiUrl);
     } else {
-      setQrCodeUrl("");
+      setQrCodeUrl(defaultQrCodeUrl);
     }
-  }, [charges]);
+  }, [charges, defaultQrCodeUrl]);
 
   const handlePrint = () => {
     window.print();
@@ -136,7 +141,7 @@ export function WeighbridgeForm() {
   const handleReset = () => {
     form.reset();
     setNetWeight(0);
-    setQrCodeUrl("");
+    setQrCodeUrl(defaultQrCodeUrl);
     if (isClient) {
         setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
         setDateTime(new Date().toLocaleString('en-IN', { hour12: true, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
@@ -152,7 +157,7 @@ export function WeighbridgeForm() {
 *Vehicle No:* ${values.vehicleNumber}
 *Party Name:* ${values.partyName}
 *Material:* ${values.materialName}
-*Charges:* ${values.charges}
+*Charges:* ${values.charges || 0}
 *First Weight:* ${values.firstWeight} kg
 *Second Weight:* ${values.secondWeight} kg
 *Net Weight:* ${netWeight} kg
@@ -294,7 +299,10 @@ Thank you!
                 <Image src={qrCodeUrl} alt="QR Code for UPI Payment" width={128} height={128} unoptimized />
             </div>
             <p className="text-sm text-muted-foreground mt-2">
-              Pay ₹{charges} using any UPI app
+              Pay ₹{charges || '0'} using any UPI app
+            </p>
+             <p className="text-xs text-muted-foreground mt-1">
+              UPI ID: {upiID}
             </p>
           </div>
         )}
@@ -325,7 +333,7 @@ Thank you!
         </div>
         <div className="flex items-center gap-2">
             <CircleDollarSign className="h-5 w-5 text-primary" />
-            <p className="text-sm"><strong>Charges:</strong> ₹{form.getValues("charges")}</p>
+            <p className="text-sm"><strong>Charges:</strong> ₹{form.getValues("charges") || 0}</p>
         </div>
         <Separator className="my-1"/>
          <div className="flex items-center gap-2">
