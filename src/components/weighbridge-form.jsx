@@ -4,7 +4,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -95,6 +95,17 @@ const WhatsAppIcon = (props) => (
   </svg>
 );
 
+const LiveClock = () => {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const timerId = setInterval(() => {
+      setTime(new Date().toLocaleTimeString('en-IN', { hour12: true }));
+    }, 1000);
+    return () => clearInterval(timerId);
+  }, []);
+  return <div className="text-lg font-mono text-accent">{time}</div>;
+};
+
 export function WeighbridgeForm() {
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -102,9 +113,10 @@ export function WeighbridgeForm() {
   const [reprintSerial, setReprintSerial] = useState("");
   const [currentWeight, setCurrentWeight] = useState(0);
   const [isManualMode, setIsManualMode] = useState(false);
-  const [currentTime, setCurrentTime] = useState("");
   const [previousWeights, setPreviousWeights] = useState(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+  const popoverTriggerRef = useRef(null);
 
   const upiID = "sathishkumar1781@oksbi";
   const businessName = "Amman Weighing Home";
@@ -128,11 +140,10 @@ export function WeighbridgeForm() {
     },
   });
 
-  const { setValue, watch, getValues } = form;
+  const { setValue, watch, getValues, reset, control } = form;
   const firstWeight = watch("firstWeight");
   const secondWeight = watch("secondWeight");
   const charges = watch("charges");
-  const serialNumber = watch("serialNumber");
   
   const fetchNewSerialNumber = useCallback(async () => {
     try {
@@ -148,7 +159,7 @@ export function WeighbridgeForm() {
     }
   }, [setValue]);
 
-  const updateDateTime = useCallback(() => {
+  const setInitialDateTime = useCallback(() => {
     const now = new Date();
     const formattedDateTime = now.toLocaleString("en-IN", {
       hour12: true,
@@ -159,26 +170,20 @@ export function WeighbridgeForm() {
       minute: "2-digit",
       second: "2-digit",
     });
-     if (!isManualMode) {
-      setValue("dateTime", formattedDateTime);
-    }
-    setCurrentTime(now.toLocaleTimeString('en-IN', { hour12: true }));
-  }, [setValue, isManualMode]);
+    setValue("dateTime", formattedDateTime);
+  }, [setValue]);
   
   const initializeForm = useCallback(() => {
     if (!isManualMode) {
       fetchNewSerialNumber();
+      setInitialDateTime();
     }
-    updateDateTime();
-  }, [isManualMode, fetchNewSerialNumber, updateDateTime]);
+  }, [isManualMode, fetchNewSerialNumber, setInitialDateTime]);
 
   useEffect(() => {
     setIsClient(true);
     initializeForm();
-    const timer = setInterval(updateDateTime, 1000);
-    return () => clearInterval(timer);
   }, [initializeForm]);
-
 
   useEffect(() => {
     if (typeof firstWeight !== "undefined" && typeof secondWeight !== "undefined") {
@@ -206,7 +211,7 @@ export function WeighbridgeForm() {
   };
 
   const handleReset = useCallback(() => {
-    form.reset({
+    reset({
       vehicleNumber: "",
       partyName: "",
       materialName: "",
@@ -221,7 +226,7 @@ export function WeighbridgeForm() {
     if (isClient) {
       initializeForm();
     }
-  }, [form, isClient, initializeForm]);
+  }, [reset, isClient, initializeForm]);
 
   const findBill = async () => {
     if (!isClient || !reprintSerial) return;
@@ -239,7 +244,7 @@ export function WeighbridgeForm() {
       const result = await response.json();
       const billData = result.data;
       if (billData) {
-        form.reset({
+        reset({
             serialNumber: billData.sl_no,
             dateTime: `${billData.date}, ${billData.time}`,
             vehicleNumber: billData.vehicle_no,
@@ -261,9 +266,13 @@ export function WeighbridgeForm() {
     }
   };
   
-  const handleVehicleBlur = async () => {
-    const vehicleNo = getValues("vehicleNumber");
-    if (!vehicleNo) return;
+  const handleVehicleBlur = async (e) => {
+    const vehicleNo = e.target.value;
+    if (!vehicleNo) {
+      setPreviousWeights(null);
+      setIsPopoverOpen(false);
+      return;
+    }
 
     try {
       const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getprevweightofvehicle", {
@@ -271,19 +280,25 @@ export function WeighbridgeForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vehicleNo }),
       });
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch previous weights.');
+        setPreviousWeights(null);
+        setIsPopoverOpen(false);
+        return;
       }
+
       const result = await response.json();
       if (result.data && result.data.length > 0) {
         setPreviousWeights(result.data[0]);
         setIsPopoverOpen(true);
       } else {
         setPreviousWeights(null);
+        setIsPopoverOpen(false);
       }
     } catch (error) {
       console.error("Error fetching previous weights:", error);
       setPreviousWeights(null);
+      setIsPopoverOpen(false);
     }
   };
   
@@ -391,7 +406,7 @@ Thank you!
               if (!checked) {
                 // When turning off manual mode, re-initialize to get latest data
                 fetchNewSerialNumber();
-                updateDateTime();
+                setInitialDateTime();
               }
             }}
           />
@@ -399,7 +414,7 @@ Thank you!
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <FormField
-            control={form.control}
+            control={control}
             name="serialNumber"
             render={({ field }) => (
                 <FormItem className="sm:col-span-1">
@@ -416,7 +431,7 @@ Thank you!
             )}
         />
         <FormField
-            control={form.control}
+            control={control}
             name="dateTime"
             render={({ field }) => (
                 <FormItem className="sm:col-span-2">
@@ -437,7 +452,7 @@ Thank you!
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
         <FormField
-          control={form.control}
+          control={control}
           name="vehicleNumber"
           render={({ field }) => (
             <FormItem>
@@ -452,6 +467,7 @@ Thank you!
                       {...field}
                       onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                       onBlur={handleVehicleBlur}
+                      ref={popoverTriggerRef}
                     />
                      {previousWeights && (
                         <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
@@ -483,7 +499,7 @@ Thank you!
           )}
         />
         <FormField
-          control={form.control}
+          control={control}
           name="partyName"
           render={({ field }) => (
             <FormItem>
@@ -499,7 +515,7 @@ Thank you!
           )}
         />
         <FormField
-          control={form.control}
+          control={control}
           name="materialName"
           render={({ field }) => (
             <FormItem>
@@ -515,7 +531,7 @@ Thank you!
           )}
         />
         <FormField
-          control={form.control}
+          control={control}
           name="charges"
           render={({ field }) => (
             <FormItem>
@@ -534,7 +550,7 @@ Thank you!
 
       <div className="grid md:grid-cols-3 gap-x-8 gap-y-6">
         <FormField
-          control={form.control}
+          control={control}
           name="firstWeight"
           render={({ field }) => (
             <FormItem>
@@ -555,7 +571,7 @@ Thank you!
           )}
         />
         <FormField
-          control={form.control}
+          control={control}
           name="secondWeight"
           render={({ field }) => (
             <FormItem>
@@ -592,7 +608,7 @@ Thank you!
 
       <div className="flex flex-col md:flex-row items-center justify-between mt-6 gap-6">
          <FormField
-          control={form.control}
+          control={control}
           name="paymentStatus"
           render={({ field }) => (
             <FormItem className="space-y-3">
@@ -735,7 +751,7 @@ Thank you!
           <div className="flex items-center gap-2">
             <Scale /> WeighBridge Biller
           </div>
-           {isClient && <div className="text-lg font-mono text-accent">{currentTime}</div>}
+           {isClient && <LiveClock />}
         </CardTitle>
         <CardDescription>
           Fill in the details below to generate a new bill.
@@ -773,7 +789,7 @@ Thank you!
                 Enter a WhatsApp number to send the bill details.
               </p>
               <FormField
-                control={form.control}
+                control={control}
                 name="whatsappNumber"
                 render={({ field }) => (
                   <FormItem>
@@ -836,7 +852,5 @@ Thank you!
     </Card>
   );
 }
-
-    
 
     
