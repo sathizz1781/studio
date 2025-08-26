@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Table,
   TableHeader,
@@ -8,6 +8,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  TableFooter,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Badge } from "@/components/ui/badge";
 import {
   Calendar as CalendarIcon,
   Download,
@@ -92,6 +94,9 @@ export function ReportsTable() {
     fetchRecords();
   }, [fetchRecords]);
 
+  const totalCharges = useMemo(() => {
+    return data.reduce((total, item) => total + (Number(item.charges) || 0), 0);
+  }, [data]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
@@ -109,6 +114,7 @@ export function ReportsTable() {
           "2nd Wt",
           "Net Wt",
           "Charges",
+          "Status"
         ],
       ],
       body: data.map((item) => [
@@ -122,6 +128,7 @@ export function ReportsTable() {
         item.second_weight,
         item.net_weight,
         item.charges,
+        item.paid_status ? "Paid" : "Credit",
       ]),
       startY: 20,
     });
@@ -230,14 +237,17 @@ export function ReportsTable() {
               <TableHead>Date & Time</TableHead>
               <TableHead>Vehicle No</TableHead>
               <TableHead>Party Name</TableHead>
-              <TableHead>Net Weight</TableHead>
-              <TableHead className="text-right">Charges</TableHead>
+              <TableHead>1st Wt</TableHead>
+              <TableHead>2nd Wt</TableHead>
+              <TableHead>Net Wt</TableHead>
+              <TableHead>Charges</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
                 </TableCell>
               </TableRow>
@@ -250,18 +260,32 @@ export function ReportsTable() {
                   </TableCell>
                   <TableCell>{item.vehicle_no}</TableCell>
                   <TableCell>{item.party_name}</TableCell>
+                  <TableCell>{item.first_weight}</TableCell>
+                  <TableCell>{item.second_weight}</TableCell>
                   <TableCell>{item.net_weight}</TableCell>
-                  <TableCell className="text-right">{item.charges}</TableCell>
+                  <TableCell>{item.charges}</TableCell>
+                  <TableCell>
+                     <Badge variant={item.paid_status ? "secondary" : "destructive"}>
+                        {item.paid_status ? "Paid" : "Credit"}
+                     </Badge>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   No results found.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
+          <TableFooter>
+            <TableRow>
+                <TableCell colSpan={7} className="font-bold text-right">Total Charges</TableCell>
+                <TableCell className="font-bold text-left">{totalCharges.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</TableCell>
+                <TableCell />
+            </TableRow>
+          </TableFooter>
         </Table>
       </div>
     </div>

@@ -4,7 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, BarChart2 } from "lucide-react";
+import { Home, BarChart2, Menu } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const fontInter = Inter({
   subsets: ["latin"],
@@ -44,12 +45,50 @@ export default function RootLayout({ children }) {
                 <span className="sr-only">Weighbridge</span>
               </Link>
               <Link
+                href="/"
+                className="text-foreground transition-colors hover:text-foreground"
+              >
+                Biller
+              </Link>
+              <Link
                 href="/reports"
                 className="text-muted-foreground transition-colors hover:text-foreground"
               >
                 Reports
               </Link>
             </nav>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0 md:hidden"
+                >
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle navigation menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left">
+                <nav className="grid gap-6 text-lg font-medium">
+                  <Link
+                    href="/"
+                    className="flex items-center gap-2 text-lg font-semibold"
+                  >
+                    <Home className="h-6 w-6" />
+                    <span className="sr-only">Weighbridge</span>
+                  </Link>
+                  <Link href="/" className="hover:text-foreground">
+                    Biller
+                  </Link>
+                  <Link
+                    href="/reports"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Reports
+                  </Link>
+                </nav>
+              </SheetContent>
+            </Sheet>
           </header>
           <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             {children}
