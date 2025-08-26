@@ -301,23 +301,23 @@ Thank you!
     <>
       <div className="mb-6">
         <Card>
-            <CardHeader className="p-4">
-                <CardTitle className="text-center text-lg">Live Weight</CardTitle>
+            <CardHeader className="p-3 sm:p-4">
+                <CardTitle className="text-center text-md sm:text-lg">Live Weight</CardTitle>
             </CardHeader>
-            <CardContent className="p-2">
+            <CardContent className="p-2 sm:p-3">
                  <SerialDataComponent setCurrentWeight={setCurrentWeight} />
             </CardContent>
         </Card>
       </div>
-      <div className="grid md:grid-cols-3 gap-4 mb-6">
-        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg sm:col-span-1">
           <Hash className="h-5 w-5 text-primary" />
           <div>
             <p className="text-sm font-medium">Serial Number</p>
             <p className="text-lg font-bold text-foreground">{serialNumber}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg col-span-2">
+        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg sm:col-span-2">
           <Clock className="h-5 w-5 text-primary" />
           <div>
             <p className="text-sm font-medium">Date & Time</p>
@@ -588,7 +588,7 @@ Thank you!
   return (
     <Card className="w-full max-w-4xl printable-card shadow-2xl">
       <CardHeader className="no-print">
-        <CardTitle className="text-3xl font-bold text-primary flex items-center gap-2">
+        <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
           <Scale /> WeighBridge Biller
         </CardTitle>
         <CardDescription>
@@ -644,10 +644,10 @@ Thank you!
               />
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end gap-4 no-print mt-4">
+          <CardFooter className="flex flex-col sm:flex-row sm:flex-wrap justify-end gap-2 sm:gap-4 no-print mt-4">
              <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button type="button" variant="outline">
+                <Button type="button" variant="outline" className="w-full sm:w-auto">
                    <RefreshCcw className="mr-2 h-4 w-4" />
                    Reprint Bill
                 </Button>
@@ -673,10 +673,10 @@ Thank you!
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <Button type="button" variant="outline" onClick={handleReset}>
+            <Button type="button" variant="outline" onClick={handleReset} className="w-full sm:w-auto">
               Reset Form
             </Button>
-            <Button type="button" variant="secondary" onClick={handlePrint}>
+            <Button type="button" variant="secondary" onClick={handlePrint} className="w-full sm:w-auto">
               <Printer className="mr-2 h-4 w-4" />
               Print
             </Button>
@@ -686,6 +686,7 @@ Thank you!
                 backgroundColor: "hsl(var(--accent))",
                 color: "hsl(var(--accent-foreground))",
               }}
+               className="w-full sm:w-auto"
             >
               <WhatsAppIcon className="mr-2 h-5 w-5 fill-current" />
               Send & Save

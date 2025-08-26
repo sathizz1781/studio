@@ -34,19 +34,7 @@ export const SerialDataComponent = ({ setCurrentWeight }) => {
 
   return (
     <p
-      style={{
-        fontSize: "80px",
-        border: "8px solid hsl(var(--primary))",
-        padding: '10px',
-        borderRadius: "10px",
-        color: "hsl(var(--foreground))",
-        backgroundColor: "hsl(var(--background))",
-        margin: "0px",
-        letterSpacing: "15px",
-        fontWeight: "600",
-        textAlign: 'center',
-        fontFamily: 'monospace'
-      }}
+       className="w-full text-center font-mono font-bold tracking-[10px] md:tracking-[15px] text-4xl sm:text-5xl md:text-6xl lg:text-8xl p-2 rounded-lg border-4 md:border-8 border-primary bg-background text-foreground"
     >
       {serialData}
     </p>
