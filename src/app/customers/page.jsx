@@ -1,42 +1,72 @@
 
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import {
-  Tabs,
-  Drawer,
-  List,
-  Form,
-  Input,
-  Button,
-  Row,
-  Col,
-  notification,
-  Spin,
-  Empty,
-  Typography,
-} from "antd";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import L from "leaflet";
-import axios from "axios";
 import "leaflet/dist/leaflet.css";
 import "leaflet-control-geocoder/dist/Control.Geocoder.css";
 import "leaflet-control-geocoder";
+import axios from "axios";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+  SheetClose,
+} from "@/components/ui/sheet";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, User, Users, MapPin, Search as SearchIcon, ExternalLink } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+
 
 // Fix for default icon issues with webpack
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+if (typeof window !== "undefined") {
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+        iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+    });
+}
+
+const customerSchema = z.object({
+  companyName: z.string().min(1, "Company name is required"),
+  contactPerson: z.string().min(1, "Contact person is required"),
+  gstNo: z.string().min(1, "GST number is required"),
+  whatsappNumber: z.string().regex(/^\d{10,15}$/, "Enter a valid number"),
+  email: z.string().email("Enter a valid email address"),
+  latitude: z.number(),
+  longitude: z.number(),
 });
 
-const { Title, Text } = Typography;
 
-const DraggableMarker = ({ position, setPosition, setLatitude, setLongitude }) => {
+const DraggableMarker = ({ position, setPosition, onPositionChange }) => {
     const map = useMap();
     const markerRef = React.useRef(null);
   
@@ -45,19 +75,21 @@ const DraggableMarker = ({ position, setPosition, setLatitude, setLongitude }) =
         const marker = markerRef.current;
         if (marker != null) {
           const { lat, lng } = marker.getLatLng();
-          setPosition({ lat, lng });
-          setLatitude(lat);
-          setLongitude(lng);
-          map.setView({ lat, lng });
+          const newPos = { lat, lng };
+          setPosition(newPos);
+          onPositionChange(newPos);
+          map.setView(newPos);
         }
       },
-    }), [map, setPosition, setLatitude, setLongitude]);
+    }), [map, setPosition, onPositionChange]);
   
     useEffect(() => {
-        if(position) {
+        if(position?.lat && position?.lng) {
             map.setView(position, map.getZoom());
         }
     }, [position, map]);
+
+    if (!position?.lat || !position?.lng) return null;
 
     return (
       <Marker
@@ -71,7 +103,7 @@ const DraggableMarker = ({ position, setPosition, setLatitude, setLongitude }) =
     );
 };
 
-const SearchControl = ({ setPosition, setLatitude, setLongitude }) => {
+const SearchControl = ({ setPosition, onPositionChange, toast }) => {
     const map = useMap();
   
     useEffect(() => {
@@ -86,10 +118,9 @@ const SearchControl = ({ setPosition, setLatitude, setLongitude }) => {
         const { center, name } = e.geocode;
         map.setView(center, 15);
         setPosition(center);
-        setLatitude(center.lat);
-        setLongitude(center.lng);
-        notification.success({
-            message: "Location Found",
+        onPositionChange(center);
+        toast({
+            title: "Location Found",
             description: name,
         });
       })
@@ -98,337 +129,339 @@ const SearchControl = ({ setPosition, setLatitude, setLongitude }) => {
       return () => {
         map.removeControl(control);
       };
-    }, [map, setPosition, setLatitude, setLongitude]);
+    }, [map, setPosition, onPositionChange, toast]);
   
     return null;
 };
 
 
 const CustomerPage = () => {
-  const [activeKey, setActiveKey] = useState("1");
-  const [visible, setVisible] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [customerList, setCustomerList] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // State for map positions
-  const [addPosition, setAddPosition] = useState({ lat: 11.3410, lng: 77.7172 });
-  const [editPosition, setEditPosition] = useState({ lat: 11.3410, lng: 77.7172 });
-  
-  // State for lat/lng values
-  const [addLatitude, setAddLatitude] = useState(11.3410);
-  const [addLongitude, setAddLongitude] = useState(77.7172);
-  const [editLatitude, setEditLatitude] = useState(11.3410);
-  const [editLongitude, setEditLongitude] = useState(77.7172);
-
-  const [editMode, setEditMode] = useState(false);
-  const [drawerForm] = Form.useForm();
-  const [addForm] = Form.useForm();
-  
-  const fetchCustomers = async () => {
-    setIsLoading(true);
-    try {
-      const response = await axios.get(
-        "https://bend-mqjz.onrender.com/api/user/userlist"
-      );
-      setCustomerList(response.data.users || []);
-    } catch (error) {
-      console.error("Error fetching user list:", error);
-      notification.error({
-        message: "Error",
-        description: "Could not load customers. Please try again later.",
-      });
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const showCustomerDetails = (customer) => {
-    setSelectedCustomer(customer);
-    const lat = customer.latitude || 11.3410;
-    const lng = customer.longitude || 77.7172;
-    setEditPosition({ lat, lng });
-    setEditLatitude(lat);
-    setEditLongitude(lng);
-    setEditMode(false);
+    const [activeTab, setActiveTab] = useState("list");
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [customerList, setCustomerList] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editMode, setEditMode] = useState(false);
     
-    drawerForm.setFieldsValue({
-      companyName: customer.companyName,
-      contactPerson: customer.contactPerson,
-      gstNo: customer.gstNo,
-      whatsappNumber: customer.whatsappNumber,
-      email: customer.email,
+    const { toast } = useToast();
+
+    // --- FORMS ---
+    const addForm = useForm({
+        resolver: zodResolver(customerSchema),
+        defaultValues: {
+            companyName: "", contactPerson: "", gstNo: "", whatsappNumber: "", email: "",
+            latitude: 11.341, longitude: 77.7172,
+        },
     });
-    setVisible(true);
-  };
 
-  const onClose = () => {
-    setVisible(false);
-    setSelectedCustomer(null);
-  };
+    const editForm = useForm({
+        resolver: zodResolver(customerSchema),
+    });
 
-  const handleDrawerSave = async (values) => {
-    setIsSubmitting(true);
-    const updatedCustomer = {
-      ...values,
-      latitude: editLatitude,
-      longitude: editLongitude,
-    };
+    // --- API CALLS ---
+    const fetchCustomers = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const response = await axios.get("https://bend-mqjz.onrender.com/api/user/userlist");
+            setCustomerList(response.data.users || []);
+        } catch (error) {
+            console.error("Error fetching user list:", error);
+            toast({ variant: "destructive", title: "Error", description: "Could not load customers." });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [toast]);
 
-    try {
-      const response = await axios.post(
-        `https://bend-mqjz.onrender.com/api/user/updateuser/${selectedCustomer.customerId}`,
-        updatedCustomer
-      );
-      if (response.data.user) {
-        notification.success({
-          message: "Customer Updated",
-          description: `Customer ${updatedCustomer.companyName} was successfully updated!`,
-        });
-        fetchCustomers(); // Refetch list
-        setEditMode(false);
-        setVisible(false);
-      } else {
-        throw new Error("No user data returned from API");
-      }
-    } catch (error) {
-      notification.error({
-        message: "Error",
-        description: "An error occurred while updating the customer.",
-      });
-      console.error("Error updating customer:", error);
-    } finally {
-        setIsSubmitting(false);
-    }
-  };
-
-  const handleAddCustomer = async (values) => {
-    if (!addLatitude || !addLongitude) {
-      notification.error({
-        message: "Location Required",
-        description: "Please select a location on the map.",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    const customerData = {
-      ...values,
-      latitude: addLatitude,
-      longitude: addLongitude,
-    };
-
-    try {
-      const response = await axios.post(
-        "https://bend-mqjz.onrender.com/api/user/createuser",
-        customerData
-      );
-      if (response.data.user) {
-        notification.success({
-          message: "Customer Added",
-          description: `Customer ${customerData.companyName} was successfully added!`,
-        });
+    useEffect(() => {
         fetchCustomers();
-        addForm.resetFields();
-        setAddPosition({ lat: 11.3410, lng: 77.7172 }); // Reset map
-        setActiveKey("1");
-      } else {
-        throw new Error("No user data returned from API");
-      }
-    } catch (error) {
-      notification.error({
-        message: "Error",
-        description: "An error occurred while adding the customer.",
-      });
-      console.error("Error adding customer:", error);
-    } finally {
-        setIsSubmitting(false);
-    }
-  };
-  
-  const tabItems = [
-    {
-      key: '1',
-      label: 'Customer List',
-      children: isLoading ? (
-          <div className="flex justify-center items-center h-64">
-              <Spin size="large" />
-          </div>
-      ) : (
-          <List
-              bordered
-              dataSource={customerList}
-              renderItem={(customer) => (
-                  <List.Item
-                      key={customer.customerId}
-                      onClick={() => showCustomerDetails(customer)}
-                      className="cursor-pointer hover:bg-gray-50"
-                  >
-                      <List.Item.Meta
-                          title={<Text strong>{`${customer.companyName} - ${customer.customerId}`}</Text>}
-                          description={customer.contactPerson}
-                      />
-                  </List.Item>
-              )}
-              locale={{ emptyText: <Empty description="No customers found. Add one in the next tab!" /> }}
-          />
-      ),
-    },
-    {
-      key: '2',
-      label: 'Add New Customer',
-      children: (
-        <Form form={addForm} layout="vertical" onFinish={handleAddCustomer} disabled={isSubmitting}>
-          <Row gutter={16}>
-              <Col xs={24} md={12}>
-                  <Form.Item label="Company Name" name="companyName" rules={[{ required: true }]}>
-                      <Input placeholder="Enter company name" />
-                  </Form.Item>
-              </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item label="Contact Person" name="contactPerson" rules={[{ required: true }]}>
-                      <Input placeholder="Enter contact person's name" />
-                  </Form.Item>
-              </Col>
-          </Row>
-          <Row gutter={16}>
-              <Col xs={24} md={12}>
-                  <Form.Item label="GST No" name="gstNo" rules={[{ required: true }]}>
-                      <Input placeholder="Enter GST number" />
-                  </Form.Item>
-              </Col>
-              <Col xs={24} md={12}>
-                  <Form.Item label="WhatsApp No" name="whatsappNumber" rules={[{ required: true, pattern: /^\d{10,15}$/, message: "Enter a valid number" }]}>
-                      <Input placeholder="Enter WhatsApp number" />
-                  </Form.Item>
-              </Col>
-          </Row>
-          <Row gutter={16}>
-              <Col xs={24} md={12}>
-                  <Form.Item label="Email" name="email" rules={[{ required: true, type: 'email' }]}>
-                      <Input placeholder="Enter Email Id" />
-                  </Form.Item>
-              </Col>
-          </Row>
-          
-          <Title level={5}>Location</Title>
-          <div style={{ height: "400px", width: "100%", marginBottom: '1rem', border: '1px solid #d9d9d9', borderRadius: '2px' }}>
-              <MapContainer
-                  center={addPosition}
+    }, [fetchCustomers]);
+
+    const handleAddCustomer = async (values) => {
+        setIsSubmitting(true);
+        try {
+            const response = await axios.post("https://bend-mqjz.onrender.com/api/user/createuser", values);
+            if (response.data.user) {
+                toast({ title: "Customer Added", description: `${values.companyName} was successfully added!` });
+                fetchCustomers();
+                addForm.reset();
+                setActiveTab("list");
+            } else {
+                throw new Error("No user data returned from API");
+            }
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "An error occurred while adding the customer." });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    
+    const handleUpdateCustomer = async (values) => {
+        setIsSubmitting(true);
+        try {
+            const response = await axios.post(`https://bend-mqjz.onrender.com/api/user/updateuser/${selectedCustomer.customerId}`, values);
+            if (response.data.user) {
+                toast({ title: "Customer Updated", description: `${values.companyName} was successfully updated!` });
+                fetchCustomers();
+                setEditMode(false);
+                setIsSheetOpen(false);
+                setSelectedCustomer(null);
+            } else {
+                throw new Error("No user data returned from API");
+            }
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "An error occurred while updating the customer." });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // --- UI HANDLERS ---
+    const showCustomerDetails = (customer) => {
+        setSelectedCustomer(customer);
+        editForm.reset({
+            companyName: customer.companyName,
+            contactPerson: customer.contactPerson,
+            gstNo: customer.gstNo,
+            whatsappNumber: customer.whatsappNumber,
+            email: customer.email,
+            latitude: customer.latitude || 11.341,
+            longitude: customer.longitude || 77.7172,
+        });
+        setEditMode(false);
+        setIsSheetOpen(true);
+    };
+
+    const handleSheetClose = () => {
+        setIsSheetOpen(false);
+        setSelectedCustomer(null);
+        setEditMode(false);
+    };
+    
+    const MapDisplay = ({ lat, lng }) => {
+        if (typeof window === 'undefined' || !lat || !lng) {
+            return (
+                <div className="h-[300px] w-full bg-muted rounded-md flex items-center justify-center">
+                    <p className="text-muted-foreground">Location not available</p>
+                </div>
+            );
+        }
+        return (
+            <div className="h-[300px] w-full rounded-md overflow-hidden border">
+                <iframe
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    allowFullScreen
+                    src={`https://maps.google.com/maps?q=${lat},${lng}&hl=es&z=14&output=embed`}>
+                </iframe>
+            </div>
+        );
+    };
+
+    const MapPicker = ({ form, initialPosition }) => {
+        const [position, setPosition] = useState(initialPosition);
+
+        const onPositionChange = (newPos) => {
+            form.setValue('latitude', newPos.lat);
+            form.setValue('longitude', newPos.lng);
+        };
+        
+        return(
+            <div className="h-[400px] w-full rounded-md overflow-hidden border">
+                 <MapContainer
+                  center={position}
                   zoom={13}
                   style={{ height: "100%", width: "100%" }}
+                  whenCreated={map => {
+                      // Invalidate size after a short delay to ensure correct rendering inside tabs/sheets
+                      setTimeout(() => map.invalidateSize(), 200);
+                  }}
               >
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <DraggableMarker position={addPosition} setPosition={setAddPosition} setLatitude={setAddLatitude} setLongitude={setAddLongitude}/>
-                  <SearchControl setPosition={setAddPosition} setLatitude={setAddLatitude} setLongitude={setAddLongitude} />
+                  <DraggableMarker position={position} setPosition={setPosition} onPositionChange={onPositionChange} />
+                  <SearchControl setPosition={setPosition} onPositionChange={onPositionChange} toast={toast} />
               </MapContainer>
-          </div>
-          
-          <Row gutter={16} className="mb-4">
-              <Col><Text strong>Latitude:</Text> {addLatitude}</Col>
-              <Col><Text strong>Longitude:</Text> {addLongitude}</Col>
-          </Row>
+            </div>
+        );
+    };
 
-          <Form.Item>
-              <Button type="primary" htmlType="submit" loading={isSubmitting}>
-                  Add Customer
-              </Button>
-          </Form.Item>
-        </Form>
-      )
-    }
-  ];
-
-  return (
-    <div className="container mx-auto py-4">
-        <Title level={2} className="mb-6">Customer Management</Title>
-        <Tabs
-            defaultActiveKey="1"
-            activeKey={activeKey}
-            onChange={(key) => setActiveKey(key)}
-            type="card"
-            items={tabItems}
-        />
+    return (
+        <div className="container mx-auto py-4">
+            <h1 className="text-3xl font-bold mb-6">Customer Management</h1>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="list">Customer List</TabsTrigger>
+                    <TabsTrigger value="add">Add New Customer</TabsTrigger>
+                </TabsList>
+                <TabsContent value="list" className="mt-4">
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Customers</CardTitle>
+                            <CardDescription>Select a customer to view or edit their details.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {isLoading ? (
+                                <div className="flex justify-center items-center h-48">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                </div>
+                            ) : customerList.length > 0 ? (
+                                <ScrollArea className="h-96">
+                                    <div className="space-y-2">
+                                    {customerList.map((customer) => (
+                                        <div
+                                            key={customer.customerId}
+                                            onClick={() => showCustomerDetails(customer)}
+                                            className="p-3 border rounded-md cursor-pointer hover:bg-muted transition-colors flex items-center gap-4"
+                                        >
+                                            <div className="p-2 bg-secondary rounded-full">
+                                               <User className="h-5 w-5 text-secondary-foreground" />
+                                            </div>
+                                            <div>
+                                               <p className="font-semibold">{customer.companyName}</p>
+                                               <p className="text-sm text-muted-foreground">{customer.contactPerson} - {customer.customerId}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    </div>
+                                </ScrollArea>
+                            ) : (
+                                <div className="text-center py-10">
+                                    <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+                                    <h3 className="mt-2 text-sm font-medium text-muted-foreground">No customers found</h3>
+                                    <p className="mt-1 text-sm text-muted-foreground">Add one in the next tab!</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="add" className="mt-4">
+                   <Card>
+                        <CardHeader>
+                            <CardTitle>Add a New Customer</CardTitle>
+                            <CardDescription>Fill out the form below to create a new customer.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Form {...addForm}>
+                                <form onSubmit={addForm.handleSubmit(handleAddCustomer)} className="space-y-6">
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        <FormField name="companyName" control={addForm.control} render={({ field }) => (
+                                            <FormItem><FormLabel>Company Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField name="contactPerson" control={addForm.control} render={({ field }) => (
+                                            <FormItem><FormLabel>Contact Person</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField name="gstNo" control={addForm.control} render={({ field }) => (
+                                            <FormItem><FormLabel>GST No</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField name="whatsappNumber" control={addForm.control} render={({ field }) => (
+                                            <FormItem><FormLabel>WhatsApp No</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField name="email" control={addForm.control} render={({ field }) => (
+                                            <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                    </div>
+                                    <Separator />
+                                     <div>
+                                        <h3 className="text-lg font-medium mb-2">Location</h3>
+                                        <MapPicker form={addForm} initialPosition={{ lat: addForm.getValues('latitude'), lng: addForm.getValues('longitude') }} />
+                                        <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                                            <span>Lat: {addForm.watch('latitude').toFixed(4)}</span>
+                                            <span>Lng: {addForm.watch('longitude').toFixed(4)}</span>
+                                        </div>
+                                    </div>
+                                    <Button type="submit" disabled={isSubmitting}>
+                                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Add Customer
+                                    </Button>
+                                </form>
+                            </Form>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
         
-        <Drawer
-            title={<Title level={4}>Customer Details: {selectedCustomer?.companyName}</Title>}
-            placement="right"
-            width={ typeof window !== 'undefined' && window.innerWidth > 768 ? "50%" : "90%" }
-            onClose={onClose}
-            open={visible}
-            destroyOnClose
-        >
-            {selectedCustomer && (
-            <>
-                <p><Text strong>Customer ID:</Text> {selectedCustomer.customerId}</p>
-                {editMode ? (
-                <Form form={drawerForm} layout="vertical" onFinish={handleDrawerSave} initialValues={selectedCustomer} disabled={isSubmitting}>
-                    <Form.Item label="Company Name" name="companyName" rules={[{ required: true }]}>
-                        <Input />
-                    </Form.Item>
-                     <Form.Item label="Contact Person" name="contactPerson" rules={[{ required: true }]}>
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="GST No" name="gstNo" rules={[{ required: true }]}>
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="WhatsApp Number" name="whatsappNumber" rules={[{ required: true, pattern: /^\d{10,15}$/, message: "Enter a valid number" }]}>
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Email" name="email" rules={[{ required: true, type: 'email' }]}>
-                        <Input />
-                    </Form.Item>
-                    
-                    <Title level={5}>Location</Title>
-                     <div style={{ height: "300px", width: "100%", marginBottom: 16, border: '1px solid #d9d9d9', borderRadius: '2px' }}>
-                        <MapContainer center={editPosition} zoom={13} style={{ height: "100%", width: "100%" }}>
-                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                            <DraggableMarker position={editPosition} setPosition={setEditPosition} setLatitude={setEditLatitude} setLongitude={setEditLongitude}/>
-                            <SearchControl setPosition={setEditPosition} setLatitude={setEditLatitude} setLongitude={setEditLongitude} />
-                        </MapContainer>
-                    </div>
-                     <Row gutter={16} className="mb-4">
-                        <Col><Text strong>Latitude:</Text> {editLatitude}</Col>
-                        <Col><Text strong>Longitude:</Text> {editLongitude}</Col>
-                    </Row>
-
-                    <Form.Item>
-                        <Button type="primary" htmlType="submit" loading={isSubmitting}>Save</Button>
-                        <Button style={{ marginLeft: 8 }} onClick={() => setEditMode(false)}>Cancel</Button>
-                    </Form.Item>
-                </Form>
-                ) : (
-                <>
-                    <p><Text strong>Company:</Text> {selectedCustomer.companyName}</p>
-                    <p><Text strong>Contact Person:</Text> {selectedCustomer.contactPerson}</p>
-                    <p><Text strong>GST No:</Text> {selectedCustomer.gstNo}</p>
-                    <p><Text strong>WhatsApp No:</Text> {selectedCustomer.whatsappNumber}</p>
-                    <p><Text strong>Email:</Text> {selectedCustomer.email}</p>
-                    
-                    <Title level={5} className="mt-4">Location</Title>
-                    <div style={{ width: "100%", height: "300px", marginBottom: 16, border: '1px solid #d9d9d9', borderRadius: '2px', overflow: 'hidden' }}>
-                        <iframe
-                            width="100%"
-                            height="100%"
-                            style={{ border: 0 }}
-                            loading="lazy"
-                            allowFullScreen
-                            src={`https://maps.google.com/maps?q=${selectedCustomer.latitude},${selectedCustomer.longitude}&hl=es&z=14&output=embed`}>
-                        </iframe>
-                    </div>
-
-                    <Button type="primary" onClick={() => setEditMode(true)}>Edit</Button>
-                </>
-                )}
-            </>
-            )}
-        </Drawer>
-    </div>
+            <Sheet open={isSheetOpen} onOpenChange={handleSheetClose}>
+                <SheetContent className="sm:max-w-xl w-full">
+                    {selectedCustomer && (
+                        <>
+                            <SheetHeader>
+                                <SheetTitle>{editMode ? "Edit Customer" : "Customer Details"}</SheetTitle>
+                                <SheetDescription>{editMode ? "Update the customer's information below." : selectedCustomer.companyName}</SheetDescription>
+                            </SheetHeader>
+                            <ScrollArea className="h-[calc(100vh-8rem)] pr-4">
+                            <div className="py-4 space-y-6">
+                                {editMode ? (
+                                     <Form {...editForm}>
+                                        <form onSubmit={editForm.handleSubmit(handleUpdateCustomer)} className="space-y-6">
+                                            <FormField name="companyName" control={editForm.control} render={({ field }) => (
+                                                <FormItem><FormLabel>Company Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <FormField name="contactPerson" control={editForm.control} render={({ field }) => (
+                                                <FormItem><FormLabel>Contact Person</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <FormField name="gstNo" control={editForm.control} render={({ field }) => (
+                                                <FormItem><FormLabel>GST No</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <FormField name="whatsappNumber" control={editForm.control} render={({ field }) => (
+                                                <FormItem><FormLabel>WhatsApp No</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            <FormField name="email" control={editForm.control} render={({ field }) => (
+                                                <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )} />
+                                            
+                                            <Separator />
+                                            <div>
+                                                <h3 className="text-lg font-medium mb-2">Location</h3>
+                                                <MapPicker form={editForm} initialPosition={{ lat: editForm.getValues('latitude'), lng: editForm.getValues('longitude') }} />
+                                                <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                                                    <span>Lat: {editForm.watch('latitude').toFixed(4)}</span>
+                                                    <span>Lng: {editForm.watch('longitude').toFixed(4)}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <SheetFooter className="mt-6">
+                                                <SheetClose asChild>
+                                                    <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
+                                                </SheetClose>
+                                                <Button type="submit" disabled={isSubmitting}>
+                                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                    Save Changes
+                                                </Button>
+                                            </SheetFooter>
+                                        </form>
+                                    </Form>
+                                ) : (
+                                    <div className="space-y-4 text-sm">
+                                        <p><strong>Customer ID:</strong> {selectedCustomer.customerId}</p>
+                                        <p><strong>Company:</strong> {selectedCustomer.companyName}</p>
+                                        <p><strong>Contact Person:</strong> {selectedCustomer.contactPerson}</p>
+                                        <p><strong>GST No:</strong> {selectedCustomer.gstNo}</p>
+                                        <p><strong>WhatsApp No:</strong> {selectedCustomer.whatsappNumber}</p>
+                                        <p><strong>Email:</strong> {selectedCustomer.email}</p>
+                                        <Separator />
+                                        <div>
+                                            <h3 className="text-lg font-medium mb-2 flex items-center gap-2">
+                                               <MapPin className="h-5 w-5" /> Location
+                                            </h3>
+                                            <MapDisplay lat={selectedCustomer.latitude} lng={selectedCustomer.longitude} />
+                                        </div>
+                                         <SheetFooter className="mt-6">
+                                            <SheetClose asChild>
+                                                <Button variant="outline">Close</Button>
+                                            </SheetClose>
+                                            <Button onClick={() => setEditMode(true)}>Edit</Button>
+                                        </SheetFooter>
+                                    </div>
+                                )}
+                            </div>
+                            </ScrollArea>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
+        </div>
     );
 };
 
