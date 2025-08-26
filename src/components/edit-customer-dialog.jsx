@@ -9,13 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Loader2, Edit, MapPin } from "lucide-react";
-import dynamic from 'next/dynamic';
-
-const MapPicker = dynamic(() => import('./map-picker').then(mod => mod.MapPicker), { 
-    ssr: false,
-    loading: () => <p>Loading map...</p>
-});
+import { Loader2, MapPin } from "lucide-react";
+import Link from "next/link";
 
 
 const formSchema = z.object({
@@ -25,14 +20,13 @@ const formSchema = z.object({
   whatsappNumber: z.string().regex(/^\d{10,15}$/, "Please enter a valid WhatsApp number.").optional().or(z.literal('')),
   email: z.string().email("Please enter a valid email address.").optional().or(z.literal('')),
   locationUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
-  latitude: z.number({ required_error: "Please select a location on the map." }),
-  longitude: z.number({ required_error: "Please select a location on the map." }),
+  latitude: z.coerce.number({ required_error: "Latitude is required." }).min(-90, "Invalid latitude").max(90, "Invalid latitude"),
+  longitude: z.coerce.number({ required_error: "Longitude is required." }).min(-180, "Invalid longitude").max(180, "Invalid longitude"),
 });
 
 
 export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustomer }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isMapEditMode, setIsMapEditMode] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -43,8 +37,8 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
       whatsappNumber: "",
       email: "",
       locationUrl: "",
-      latitude: undefined,
-      longitude: undefined,
+      latitude: "",
+      longitude: "",
     },
   });
   
@@ -61,14 +55,8 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
         longitude: customer.longitude
       });
     }
-    // Reset map edit mode when dialog is opened or customer changes
-    setIsMapEditMode(false);
   }, [customer, form, isOpen]);
 
-  const handleLocationSelect = (lat, lng) => {
-    form.setValue("latitude", lat, { shouldValidate: true });
-    form.setValue("longitude", lng, { shouldValidate: true });
-  };
 
   async function onSubmit(values) {
     setIsSubmitting(true);
@@ -78,11 +66,11 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
 
   const GoogleMapsEmbed = ({ lat, lng }) => {
     if (typeof lat !== 'number' || typeof lng !== 'number') {
-        return <div className="h-80 w-full rounded-md border bg-muted flex items-center justify-center"><p>Location not available.</p></div>;
+        return <div className="h-60 w-full rounded-md border bg-muted flex items-center justify-center"><p>Location not available.</p></div>;
     }
     const embedUrl = `https://www.google.com/maps?q=${lat},${lng}&hl=en&z=14&output=embed`;
     return (
-      <div className="h-80 w-full rounded-md border overflow-hidden">
+      <div className="h-60 w-full rounded-md border overflow-hidden">
         <iframe
           width="100%"
           height="100%"
@@ -96,6 +84,9 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
       </div>
     );
   };
+  
+  const currentLat = form.watch("latitude");
+  const currentLng = form.watch("longitude");
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -186,33 +177,44 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
                     )}
                 />
             </div>
-
-            <FormField
-                control={form.control}
-                name="latitude" // This field is just for validation trigger
-                render={() => (
-                  <FormItem>
-                    <FormLabel className="flex justify-between items-center">
-                      <span className="flex items-center gap-2"><MapPin className="h-4 w-4" /> Location</span>
-                       <Button type="button" variant="ghost" size="sm" onClick={() => setIsMapEditMode(!isMapEditMode)}>
-                         <Edit className="mr-2 h-4 w-4" />
-                         {isMapEditMode ? "View Map" : "Edit Location"}
-                       </Button>
-                    </FormLabel>
-                    <FormControl>
-                        {isMapEditMode ? (
-                             <MapPicker 
-                                onLocationSelect={handleLocationSelect} 
-                                initialPosition={customer && customer.latitude && customer.longitude ? [customer.latitude, customer.longitude] : undefined}
-                              />
-                        ) : (
-                            <GoogleMapsEmbed lat={customer?.latitude} lng={customer?.longitude} />
+             <div className="space-y-4 rounded-lg border p-4">
+                <div className="flex justify-between items-center">
+                    <h3 className="text-base font-medium flex items-center gap-2"><MapPin size={16} /> Customer Location</h3>
+                     <Button variant="link" size="sm" asChild>
+                       <Link href="https://www.google.com/maps" target="_blank">Find on Google Maps</Link>
+                    </Button>
+                </div>
+                 <div className="grid md:grid-cols-2 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="latitude"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Latitude</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 11.3410" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
                         )}
-                    </FormControl>
-                     <FormMessage>{form.formState.errors.latitude?.message || form.formState.errors.longitude?.message}</FormMessage>
-                  </FormItem>
-                )}
-              />
+                    />
+                    <FormField
+                        control={form.control}
+                        name="longitude"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Longitude</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 77.7172" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
+                 <GoogleMapsEmbed lat={currentLat} lng={currentLng} />
+            </div>
+
             <DialogFooter>
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">Cancel</Button>

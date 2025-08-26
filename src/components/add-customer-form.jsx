@@ -9,13 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
-import dynamic from 'next/dynamic';
+import { Loader2, MapPin } from "lucide-react";
+import Link from "next/link";
 
-const MapPicker = dynamic(() => import('./map-picker').then(mod => mod.MapPicker), { 
-    ssr: false,
-    loading: () => <p>Loading map...</p>
-});
 
 const formSchema = z.object({
   companyName: z.string().min(1, "Company name is required."),
@@ -24,8 +20,8 @@ const formSchema = z.object({
   whatsappNumber: z.string().regex(/^\d{10,15}$/, "Please enter a valid WhatsApp number.").optional().or(z.literal('')),
   email: z.string().email("Please enter a valid email address.").optional().or(z.literal('')),
   locationUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
-  latitude: z.number({ required_error: "Please select a location on the map." }),
-  longitude: z.number({ required_error: "Please select a location on the map." }),
+  latitude: z.coerce.number({ required_error: "Latitude is required." }).min(-90, "Invalid latitude").max(90, "Invalid latitude"),
+  longitude: z.coerce.number({ required_error: "Longitude is required." }).min(-180, "Invalid longitude").max(180, "Invalid longitude"),
 });
 
 export function AddCustomerForm({ onAddCustomer }) {
@@ -40,13 +36,10 @@ export function AddCustomerForm({ onAddCustomer }) {
       whatsappNumber: "",
       email: "",
       locationUrl: "",
+      latitude: "",
+      longitude: ""
     },
   });
-
-  const handleLocationSelect = (lat, lng) => {
-    form.setValue("latitude", lat, { shouldValidate: true });
-    form.setValue("longitude", lng, { shouldValidate: true });
-  };
 
   async function onSubmit(values) {
     setIsSubmitting(true);
@@ -147,19 +140,43 @@ export function AddCustomerForm({ onAddCustomer }) {
               />
             </div>
             
-            <FormField
-                control={form.control}
-                name="latitude" // This field is just for validation trigger
-                render={() => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
-                    <FormControl>
-                        <MapPicker onLocationSelect={handleLocationSelect} />
-                    </FormControl>
-                     <FormMessage>{form.formState.errors.latitude?.message || form.formState.errors.longitude?.message}</FormMessage>
-                  </FormItem>
-                )}
-              />
+            <div className="space-y-4 rounded-lg border p-4">
+                <div className="flex justify-between items-center">
+                    <h3 className="text-base font-medium flex items-center gap-2"><MapPin size={16} /> Customer Location</h3>
+                    <Button variant="link" size="sm" asChild>
+                       <Link href="https://www.google.com/maps" target="_blank">Find on Google Maps</Link>
+                    </Button>
+                </div>
+                 <div className="grid md:grid-cols-2 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="latitude"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Latitude</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 11.3410" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="longitude"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Longitude</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="e.g., 77.7172" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
+            </div>
+
 
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
