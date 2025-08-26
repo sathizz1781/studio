@@ -242,12 +242,12 @@ export function WeighbridgeForm() {
     if (!isClient || !reprintSerial) return;
     setIsLoadingReprint(true);
     try {
-      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getsinglerecord", {
+      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getsinglerecords", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ sl_no: reprintSerial }),
+        body: JSON.stringify({ sl_no: Number(reprintSerial) }),
       });
       
       if (!response.ok) {
@@ -904,7 +904,8 @@ Thank you!
                   <div className="flex items-center space-x-2">
                       <Input 
                         id="reprint-serial" 
-                        placeholder="e.g., WB-123456" 
+                        type="number"
+                        placeholder="e.g., 123456" 
                         value={reprintSerial}
                         onChange={(e) => setReprintSerial(e.target.value)}
                       />
