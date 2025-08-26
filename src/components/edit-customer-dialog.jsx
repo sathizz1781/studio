@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Loader2, MapPin } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 
 
@@ -20,8 +20,6 @@ const formSchema = z.object({
   whatsappNumber: z.string().regex(/^\d{10,15}$/, "Please enter a valid WhatsApp number.").optional().or(z.literal('')),
   email: z.string().email("Please enter a valid email address.").optional().or(z.literal('')),
   locationUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
-  latitude: z.coerce.number({ required_error: "Latitude is required." }).min(-90, "Invalid latitude").max(90, "Invalid latitude"),
-  longitude: z.coerce.number({ required_error: "Longitude is required." }).min(-180, "Invalid longitude").max(180, "Invalid longitude"),
 });
 
 
@@ -37,8 +35,6 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
       whatsappNumber: "",
       email: "",
       locationUrl: "",
-      latitude: "",
-      longitude: "",
     },
   });
   
@@ -51,8 +47,6 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
         whatsappNumber: customer.whatsappNumber || "",
         email: customer.email || "",
         locationUrl: customer.locationUrl || "",
-        latitude: customer.latitude,
-        longitude: customer.longitude
       });
     }
   }, [customer, form, isOpen]);
@@ -64,33 +58,9 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
     setIsSubmitting(false);
   }
 
-  const GoogleMapsEmbed = ({ lat, lng }) => {
-    if (typeof lat !== 'number' || typeof lng !== 'number') {
-        return <div className="h-60 w-full rounded-md border bg-muted flex items-center justify-center"><p>Location not available.</p></div>;
-    }
-    const embedUrl = `https://www.google.com/maps?q=${lat},${lng}&hl=en&z=14&output=embed`;
-    return (
-      <div className="h-60 w-full rounded-md border overflow-hidden">
-        <iframe
-          width="100%"
-          height="100%"
-          style={{ border: 0 }}
-          src={embedUrl}
-          allowFullScreen=""
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          title="Customer Location"
-        ></iframe>
-      </div>
-    );
-  };
-  
-  const currentLat = form.watch("latitude");
-  const currentLng = form.watch("longitude");
-
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Edit Customer: {customer?.companyName}</DialogTitle>
           <DialogDescription>Update the customer details below.</DialogDescription>
@@ -177,43 +147,18 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
                     )}
                 />
             </div>
-             <div className="space-y-4 rounded-lg border p-4">
-                <div className="flex justify-between items-center">
-                    <h3 className="text-base font-medium flex items-center gap-2"><MapPin size={16} /> Customer Location</h3>
-                     <Button variant="link" size="sm" asChild>
-                       <Link href="https://www.google.com/maps" target="_blank">Find on Google Maps</Link>
+            
+            {customer?.locationUrl && (
+                <div className="space-y-2 rounded-lg border p-4">
+                    <h3 className="text-base font-medium">Customer Location</h3>
+                    <Button variant="link" asChild className="p-0 h-auto">
+                        <Link href={customer.locationUrl} target="_blank" rel="noopener noreferrer">
+                            View on Google Maps
+                        </Link>
                     </Button>
                 </div>
-                 <div className="grid md:grid-cols-2 gap-6">
-                    <FormField
-                        control={form.control}
-                        name="latitude"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Latitude</FormLabel>
-                            <FormControl>
-                            <Input type="number" placeholder="e.g., 11.3410" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="longitude"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Longitude</FormLabel>
-                            <FormControl>
-                            <Input type="number" placeholder="e.g., 77.7172" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                </div>
-                 <GoogleMapsEmbed lat={currentLat} lng={currentLng} />
-            </div>
+            )}
+
 
             <DialogFooter>
                 <DialogClose asChild>
