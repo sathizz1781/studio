@@ -87,10 +87,12 @@ export function WeighbridgeForm() {
   const firstWeight = form.watch("firstWeight");
   const secondWeight = form.watch("secondWeight");
 
+
   useEffect(() => {
     // Mock API call to get last serial number
     setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
-    setDateTime(new Date().toLocaleString());
+    const now = new Date();
+    setDateTime(now.toLocaleString());
   }, []);
 
   useEffect(() => {
@@ -99,7 +101,7 @@ export function WeighbridgeForm() {
     const newNetWeight = Math.abs(fw - sw);
     setNetWeight(parseFloat(newNetWeight.toFixed(3)));
   }, [firstWeight, secondWeight]);
-  
+
   const handlePrint = () => {
     window.print();
   };
@@ -139,6 +141,125 @@ Thank you!
       description: "Please press send in the newly opened WhatsApp tab.",
     });
   }
+  
+  const BillContent = () => (
+    <div className="printable-content-wrapper">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+            <Hash className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-sm font-medium">Serial Number</p>
+              <p className="text-sm text-foreground">{serialNumber}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+            <Calendar className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-sm font-medium">Date</p>
+              <p className="text-sm text-foreground">{dateTime.split(',')[0]}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+            <Clock className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-sm font-medium">Time</p>
+              <p className="text-sm text-foreground">{dateTime.split(',')[1]}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
+          <FormField
+            control={form.control}
+            name="vehicleNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2"><Truck size={16}/>Vehicle Number</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., MH12AB1234" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="partyName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2"><User size={16}/>Party Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., John Doe" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="materialName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2"><Package size={16}/>Material Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., Sand, Gravel" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="charges"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2"><CircleDollarSign size={16}/>Charges (₹)</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="e.g., 250" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+           <FormField
+            control={form.control}
+            name="firstWeight"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2"><Weight size={16}/>First Weight (kg)</FormLabel>
+                <FormControl>
+                  <Input type="number" step="0.01" placeholder="e.g., 5000" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="secondWeight"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2"><Weight size={16}/>Second Weight (kg)</FormLabel>
+                <FormControl>
+                  <Input type="number" step="0.01" placeholder="e.g., 2000" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormItem>
+            <FormLabel className="flex items-center gap-2"><Scale size={16}/>Net Weight (kg)</FormLabel>
+            <FormControl>
+              <Input value={netWeight} disabled className="font-bold text-primary"/>
+            </FormControl>
+          </FormItem>
+        </div>
+    </div>
+  );
+
 
   return (
     <Card className="w-full max-w-4xl printable-card shadow-2xl">
@@ -154,122 +275,13 @@ Thank you!
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardContent>
             {/* Printable Section */}
-            <div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                  <Hash className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium">Serial Number</p>
-                    <p className="text-sm text-foreground">{serialNumber}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium">Date</p>
-                    <p className="text-sm text-foreground">{dateTime.split(',')[0]}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium">Time</p>
-                    <p className="text-sm text-foreground">{dateTime.split(',')[1]}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
-                <FormField
-                  control={form.control}
-                  name="vehicleNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2"><Truck size={16}/>Vehicle Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., MH12AB1234" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="partyName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2"><User size={16}/>Party Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., John Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="materialName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2"><Package size={16}/>Material Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Sand, Gravel" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="charges"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2"><CircleDollarSign size={16}/>Charges (₹)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="e.g., 250" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
-                 <FormField
-                  control={form.control}
-                  name="firstWeight"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2"><Weight size={16}/>First Weight (kg)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="e.g., 5000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="secondWeight"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2"><Weight size={16}/>Second Weight (kg)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="e.g., 2000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormItem>
-                  <FormLabel className="flex items-center gap-2"><Scale size={16}/>Net Weight (kg)</FormLabel>
-                  <FormControl>
-                    <Input value={netWeight} disabled className="font-bold text-primary"/>
-                  </FormControl>
-                </FormItem>
-              </div>
+            <div className="printable-section">
+                <BillContent />
+                {/* These are for the other 2 columns on the print-out */}
+                <BillContent />
+                <BillContent />
             </div>
-
+            
             <Separator className="my-8 no-print" />
 
             {/* Non-Printable Section */}

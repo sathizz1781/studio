@@ -88,4 +88,66 @@
     min-height: auto !important;
     justify-content: flex-start !important;
   }
+  .printable-section {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+  }
+  .printable-content-wrapper {
+    flex: 1 1 32%;
+    min-width: 0;
+    border: 1px dashed #ccc;
+    padding: 0.5rem;
+    font-size: 10px; /* Smaller font for dot matrix */
+  }
+
+  .printable-content-wrapper .text-sm {
+    font-size: 9px;
+  }
+
+  /* Create three copies for dot-matrix printing */
+  .printable-section::after {
+    content: '';
+    display: block;
+    flex: 1 1 32%;
+    min-width: 0;
+  }
+  .printable-section::before {
+    content: '';
+    display: block;
+    flex: 1 1 32%;
+    min-width: 0;
+  }
+
+  /* This is a bit of a hack to duplicate the content */
+  @page {
+    size: auto;
+    margin: 2mm;
+  }
+  .printable-section > .printable-content-wrapper {
+    position: relative;
+  }
+  .printable-section > .printable-content-wrapper::after,
+  .printable-section > .printable-content-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-image: var(--bg-image); /* This won't work for duplication */
+  }
+
+  /* We'll handle duplication in the component now */
+  .printable-section > .printable-content-wrapper + .printable-content-wrapper,
+  .printable-section > .printable-content-wrapper + .printable-content-wrapper + .printable-content-wrapper {
+      display: block;
+  }
+
+}
+
+html, body {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
