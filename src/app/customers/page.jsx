@@ -37,7 +37,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin, Share2 } from "lucide-react";
 import dynamic from "next/dynamic";
-import "../leaflet.css";
+import "./leaflet.css";
 
 const MapPicker = dynamic(() => import("@/components/map-picker"), { 
     ssr: false,
@@ -399,8 +399,8 @@ export default function CustomerPage() {
                       </FormItem>
                     )}
                   />
-                   <div className="space-y-2 pt-4">
-                    <Label>Set Location</Label>
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Set Location</FormLabel>
                      <div className="grid grid-cols-2 gap-4">
                         <FormField
                             control={form.control}
@@ -423,15 +423,16 @@ export default function CustomerPage() {
                             )}
                         />
                     </div>
-                     <div className="h-64 mt-2">
-                        <MapPicker 
-                           key={isSheetOpen ? "open" : "closed"} 
-                           latitude={watchedLatitude} 
-                           longitude={watchedLongitude}
-                           onLocationSelect={handleLocationSelect}
+                     <div className="h-64 rounded-md overflow-hidden border mt-2">
+                        <MapPicker
+                          id="mapid-1"
+                          latitude={watchedLatitude}
+                          longitude={watchedLongitude}
+                          onLocationSelect={handleLocationSelect}
                         />
+
                     </div>
-                  </div>
+                  </FormItem>
               </div>
 
               <SheetFooter className="mt-auto">
