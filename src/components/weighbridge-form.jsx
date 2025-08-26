@@ -144,7 +144,7 @@ export function WeighbridgeForm() {
   useEffect(() => {
     setIsClient(true);
     fetchNewSerialNumber();
-    updateDateTime(); // Set date and time on initial load
+    updateDateTime();
   }, []);
 
   const firstWeight = form.watch("firstWeight");
@@ -196,7 +196,7 @@ export function WeighbridgeForm() {
     setNetWeight(0);
     if (isClient) {
       fetchNewSerialNumber();
-      updateDateTime(); // Update date and time on reset
+      updateDateTime();
     }
   };
 
@@ -297,6 +297,7 @@ Thank you!
       
       toast(toastMessage);
       handlePrint();
+      handleReset(); // Reset the form after successful submission
 
     } catch (error) {
       console.error("Failed to save or send bill:", error);
@@ -684,9 +685,6 @@ Thank you!
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <Button type="button" variant="outline" onClick={handleReset} className="w-full sm:w-auto">
-              Reset Form
-            </Button>
             <Button
               type="submit"
               style={{
