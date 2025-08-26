@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -95,12 +96,15 @@ export function WeighbridgeForm() {
 
   useEffect(() => {
     if (isClient) {
-        // This check ensures code only runs on the client
         const generateInitialData = () => {
             setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
-            setDateTime(new Date().toLocaleString('en-IN', { hour12: true }));
+            setDateTime(new Date().toLocaleString('en-IN', { hour12: true, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
         };
         generateInitialData();
+        const intervalId = setInterval(() => {
+             setDateTime(new Date().toLocaleString('en-IN', { hour12: true, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
+        }, 60000); // Update every minute
+        return () => clearInterval(intervalId);
     }
   }, [isClient]);
 
@@ -112,10 +116,11 @@ export function WeighbridgeForm() {
   }, [firstWeight, secondWeight]);
 
   useEffect(() => {
-    if (charges > 0) {
+    const numericCharges = Number(charges);
+    if (numericCharges > 0) {
       const upiID = "sathishkumar1781@oksbi";
       const businessName = "Amman Weighing Home";
-      const upiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&am=${charges.toFixed(2)}&cu=INR`;
+      const upiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&am=${numericCharges.toFixed(2)}&cu=INR`;
 
       const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiURL)}&size=128x128&margin=0`;
       setQrCodeUrl(apiUrl);
@@ -134,7 +139,7 @@ export function WeighbridgeForm() {
     setQrCodeUrl("");
     if (isClient) {
         setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
-        setDateTime(new Date().toLocaleString('en-IN', { hour12: true }));
+        setDateTime(new Date().toLocaleString('en-IN', { hour12: true, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
     }
   };
 
@@ -412,3 +417,5 @@ Thank you!
     </Card>
   );
 }
+
+    
