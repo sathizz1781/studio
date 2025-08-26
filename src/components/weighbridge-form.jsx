@@ -4,7 +4,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -25,6 +25,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import {
@@ -53,6 +58,7 @@ import {
   Scale,
   RefreshCcw,
   Edit,
+  ChevronDown,
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
 
@@ -96,6 +102,9 @@ export function WeighbridgeForm() {
   const [reprintSerial, setReprintSerial] = useState("");
   const [currentWeight, setCurrentWeight] = useState(0);
   const [isManualMode, setIsManualMode] = useState(false);
+  const [currentTime, setCurrentTime] = useState("");
+  const [previousWeights, setPreviousWeights] = useState(null);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   const upiID = "sathishkumar1781@oksbi";
   const businessName = "Amman Weighing Home";
@@ -119,15 +128,13 @@ export function WeighbridgeForm() {
     },
   });
 
-  const { setValue, watch } = form;
+  const { setValue, watch, getValues } = form;
   const firstWeight = watch("firstWeight");
   const secondWeight = watch("secondWeight");
   const charges = watch("charges");
   const serialNumber = watch("serialNumber");
-  const dateTime = watch("dateTime");
-
-
-  const fetchNewSerialNumber = async () => {
+  
+  const fetchNewSerialNumber = useCallback(async () => {
     try {
       const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill");
       if (!response.ok) {
@@ -139,34 +146,39 @@ export function WeighbridgeForm() {
       console.error("Error fetching last bill:", error);
       setValue("serialNumber", `WB-${Date.now().toString().slice(-6)}`);
     }
-  };
+  }, [setValue]);
 
-  const updateDateTime = () => {
-    setValue(
-      "dateTime",
-      new Date().toLocaleString("en-IN", {
-        hour12: true,
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      })
-    );
-  };
-  
-  const initializeForm = () => {
-    if (!isManualMode) {
-        fetchNewSerialNumber();
-        updateDateTime();
+  const updateDateTime = useCallback(() => {
+    const now = new Date();
+    const formattedDateTime = now.toLocaleString("en-IN", {
+      hour12: true,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+     if (!isManualMode) {
+      setValue("dateTime", formattedDateTime);
     }
-  };
+    setCurrentTime(now.toLocaleTimeString('en-IN', { hour12: true }));
+  }, [setValue, isManualMode]);
+  
+  const initializeForm = useCallback(() => {
+    if (!isManualMode) {
+      fetchNewSerialNumber();
+    }
+    updateDateTime();
+  }, [isManualMode, fetchNewSerialNumber, updateDateTime]);
 
   useEffect(() => {
     setIsClient(true);
     initializeForm();
-  }, [isManualMode]);
+    const timer = setInterval(updateDateTime, 1000);
+    return () => clearInterval(timer);
+  }, [initializeForm]);
+
 
   useEffect(() => {
     if (typeof firstWeight !== "undefined" && typeof secondWeight !== "undefined") {
@@ -193,7 +205,7 @@ export function WeighbridgeForm() {
     window.print();
   };
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     form.reset({
       vehicleNumber: "",
       partyName: "",
@@ -205,10 +217,11 @@ export function WeighbridgeForm() {
       paymentStatus: "Paid",
     });
     setNetWeight(0);
+    setPreviousWeights(null);
     if (isClient) {
       initializeForm();
     }
-  };
+  }, [form, isClient, initializeForm]);
 
   const findBill = async () => {
     if (!isClient || !reprintSerial) return;
@@ -247,6 +260,40 @@ export function WeighbridgeForm() {
       toast({ variant: "destructive", title: "Error", description: "Could not retrieve bill data." });
     }
   };
+  
+  const handleVehicleBlur = async () => {
+    const vehicleNo = getValues("vehicleNumber");
+    if (!vehicleNo) return;
+
+    try {
+      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getprevweightofvehicle", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vehicleNo }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch previous weights.');
+      }
+      const result = await response.json();
+      if (result.data && result.data.length > 0) {
+        setPreviousWeights(result.data[0]);
+        setIsPopoverOpen(true);
+      } else {
+        setPreviousWeights(null);
+      }
+    } catch (error) {
+      console.error("Error fetching previous weights:", error);
+      setPreviousWeights(null);
+    }
+  };
+  
+  const handleWeightSelection = (selectedWeight) => {
+    const liveWeight = currentWeight;
+    setValue("firstWeight", Math.max(selectedWeight, liveWeight));
+    setValue("secondWeight", Math.min(selectedWeight, liveWeight));
+    setIsPopoverOpen(false);
+  };
+
 
   async function onSubmit(values) {
     const [date, time] = values.dateTime.split(', ');
@@ -272,7 +319,8 @@ export function WeighbridgeForm() {
       });
 
       if (!saveResponse.ok) {
-        throw new Error('Failed to save the bill.');
+        const errorData = await saveResponse.json();
+        throw new Error(errorData.message || 'Failed to save the bill.');
       }
 
 
@@ -311,11 +359,11 @@ Thank you!
       
       toast(toastMessage);
       handlePrint();
-      handleReset(); // Reset the form after successful submission
+      handleReset(); 
 
     } catch (error) {
       console.error("Failed to save or send bill:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not save the bill." });
+      toast({ variant: "destructive", title: "Error", description: `Could not save the bill. ${error.message}` });
     }
   }
 
@@ -338,7 +386,14 @@ Thank you!
           <Switch
             id="manual-mode"
             checked={isManualMode}
-            onCheckedChange={setIsManualMode}
+            onCheckedChange={(checked) => {
+              setIsManualMode(checked);
+              if (!checked) {
+                // When turning off manual mode, re-initialize to get latest data
+                fetchNewSerialNumber();
+                updateDateTime();
+              }
+            }}
           />
         </div>
 
@@ -370,7 +425,7 @@ Thank you!
                         {isManualMode ? (
                             <Input {...field} />
                         ) : (
-                            <p className="p-3 bg-muted rounded-lg text-sm text-foreground">{field.value}</p>
+                             <p className="p-3 bg-muted rounded-lg text-sm text-foreground">{field.value}</p>
                         )}
                     </FormControl>
                     <FormMessage />
@@ -391,11 +446,37 @@ Thank you!
                 Vehicle Number
               </FormLabel>
               <FormControl>
-                <Input
-                  placeholder="e.g., MH12AB1234"
-                  {...field}
-                  onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                />
+                <div className="relative flex items-center">
+                    <Input
+                      placeholder="e.g., MH12AB1234"
+                      {...field}
+                      onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                      onBlur={handleVehicleBlur}
+                    />
+                     {previousWeights && (
+                        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="absolute right-1 h-8 w-8">
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-2">
+                             <div className="flex flex-col gap-2">
+                               <p className="text-sm font-semibold">Select Previous Weight:</p>
+                               <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.first_weight)}>
+                                 1st: {previousWeights.first_weight} kg
+                               </Button>
+                               <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.second_weight)}>
+                                 2nd: {previousWeights.second_weight} kg
+                               </Button>
+                               <Button variant="outline" onClick={() => handleWeightSelection(currentWeight)}>
+                                  Use Live Wt: {currentWeight} kg
+                               </Button>
+                             </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -565,89 +646,96 @@ Thank you!
     </>
   );
 
-  const PrintableBill = () => (
-    <div className="grid grid-cols-1 gap-4">
-      <div className="flex items-center gap-2">
-        <Hash className="h-5 w-5 text-primary" />
-        <p className="text-sm">
-          <strong>Serial:</strong> {serialNumber}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Calendar className="h-5 w-5 text-primary" />
-        <p className="text-sm">
-          <strong>Date:</strong> {dateTime}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Truck className="h-5 w-5 text-primary" />
-        <p className="text-sm">
-          <strong>Vehicle:</strong> {form.getValues("vehicleNumber")}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <User className="h-5 w-5 text-primary" />
-        <p className="text-sm">
-          <strong>Party:</strong> {form.getValues("partyName")}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Package className="h-5 w-5 text-primary" />
-        <p className="text-sm">
-          <strong>Material:</strong> {form.getValues("materialName")}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <CircleDollarSign className="h-5 w-5 text-primary" />
-        <p className="text-sm">
-          <strong>Charges:</strong> ₹{form.getValues("charges") || 0}
-        </p>
-      </div>
+  const PrintableBill = () => {
+    const values = getValues();
+    return (
+      <div className="grid grid-cols-1 gap-4">
         <div className="flex items-center gap-2">
-        <CircleDollarSign className="h-5 w-5 text-primary" />
-        <p className="text-sm">
-          <strong>Status:</strong> {form.getValues("paymentStatus")}
-        </p>
-      </div>
-      <Separator className="my-1" />
-      <div className="flex items-center gap-2">
-        <Weight className="h-5 w-5" />
-        <p className="text-sm">
-          <strong>First Wt:</strong> {form.getValues("firstWeight")} kg
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Weight className="h-5 w-5" />
-        <p className="text-sm">
-          <strong>Second Wt:</strong> {form.getValues("secondWeight")} kg
-        </p>
-      </div>
-      <Separator className="my-1" />
-      <div className="flex items-center gap-2">
-        <Scale className="h-5 w-5 text-primary" />
-        <p className="text-sm">
-          <strong>Net Wt:</strong> {netWeight} kg
-        </p>
-      </div>
-      {qrCodeUrl && Number(charges) > 0 && (
-        <div className="mt-2 flex flex-col items-center">
-          <Image
-            src={qrCodeUrl}
-            alt="QR Code for UPI Payment"
-            width={96}
-            height={96}
-            unoptimized
-          />
+          <Hash className="h-5 w-5 text-primary" />
+          <p className="text-sm">
+            <strong>Serial:</strong> {values.serialNumber}
+          </p>
         </div>
-      )}
-    </div>
-  );
+        <div className="flex items-center gap-2">
+          <Calendar className="h-5 w-5 text-primary" />
+          <p className="text-sm">
+            <strong>Date:</strong> {values.dateTime}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Truck className="h-5 w-5 text-primary" />
+          <p className="text-sm">
+            <strong>Vehicle:</strong> {values.vehicleNumber}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <User className="h-5 w-5 text-primary" />
+          <p className="text-sm">
+            <strong>Party:</strong> {values.partyName}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Package className="h-5 w-5 text-primary" />
+          <p className="text-sm">
+            <strong>Material:</strong> {values.materialName}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <CircleDollarSign className="h-5 w-5 text-primary" />
+          <p className="text-sm">
+            <strong>Charges:</strong> ₹{values.charges || 0}
+          </p>
+        </div>
+          <div className="flex items-center gap-2">
+          <CircleDollarSign className="h-5 w-5 text-primary" />
+          <p className="text-sm">
+            <strong>Status:</strong> {values.paymentStatus}
+          </p>
+        </div>
+        <Separator className="my-1" />
+        <div className="flex items-center gap-2">
+          <Weight className="h-5 w-5" />
+          <p className="text-sm">
+            <strong>First Wt:</strong> {values.firstWeight} kg
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Weight className="h-5 w-5" />
+          <p className="text-sm">
+            <strong>Second Wt:</strong> {values.secondWeight} kg
+          </p>
+        </div>
+        <Separator className="my-1" />
+        <div className="flex items-center gap-2">
+          <Scale className="h-5 w-5 text-primary" />
+          <p className="text-sm">
+            <strong>Net Wt:</strong> {netWeight} kg
+          </p>
+        </div>
+        {qrCodeUrl && Number(charges) > 0 && (
+          <div className="mt-2 flex flex-col items-center">
+            <Image
+              src={qrCodeUrl}
+              alt="QR Code for UPI Payment"
+              width={96}
+              height={96}
+              unoptimized
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
 
   return (
     <Card className="w-full max-w-4xl printable-card shadow-2xl">
       <CardHeader className="no-print">
-        <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center gap-2">
-          <Scale /> WeighBridge Biller
+        <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Scale /> WeighBridge Biller
+          </div>
+           {isClient && <div className="text-lg font-mono text-accent">{currentTime}</div>}
         </CardTitle>
         <CardDescription>
           Fill in the details below to generate a new bill.
@@ -748,5 +836,7 @@ Thank you!
     </Card>
   );
 }
+
+    
 
     
