@@ -144,11 +144,7 @@ export function WeighbridgeForm() {
   useEffect(() => {
     setIsClient(true);
     fetchNewSerialNumber();
-    
-    updateDateTime();
-    const intervalId = setInterval(updateDateTime, 1000);
-    
-    return () => clearInterval(intervalId);
+    updateDateTime(); // Set date and time on initial load
   }, []);
 
   const firstWeight = form.watch("firstWeight");
@@ -200,6 +196,7 @@ export function WeighbridgeForm() {
     setNetWeight(0);
     if (isClient) {
       fetchNewSerialNumber();
+      updateDateTime(); // Update date and time on reset
     }
   };
 
@@ -703,5 +700,3 @@ Thank you!
     </Card>
   );
 }
-
-    
