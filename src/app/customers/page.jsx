@@ -39,7 +39,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2,
-  User,
   Users,
   MapPin,
   PlusCircle,
@@ -68,181 +67,10 @@ const customerSchema = z.object({
     .max(180),
 });
 
-// Dynamically import Leaflet and React-Leaflet components
-const MapContainer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.MapContainer),
-  { ssr: false }
-);
-const TileLayer = dynamic(
-  () => import("react-leaflet").then((mod) => mod.TileLayer),
-  { ssr: false }
-);
-const Marker = dynamic(
-  () => import("react-leaflet").then((mod) => mod.Marker),
-  { ssr: false }
-);
-const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), {
+const MapPicker = dynamic(() => import('@/components/map-picker'), {
   ssr: false,
+  loading: () => <div className="h-[400px] w-full rounded-md bg-muted flex items-center justify-center"><p>Loading map...</p></div>,
 });
-const useMap = dynamic(() => import("react-leaflet").then((mod) => mod.useMap), {
-  ssr: false,
-});
-
-
-// A wrapper component for the marker
-const DraggableMarker = ({ position, setPosition, onPositionChange }) => {
-  const map = useMap();
-  const markerRef = React.useRef(null);
-  const [L, setL] = useState(null);
-
-  useEffect(() => {
-    import("leaflet").then((leaflet) => {
-      setL(leaflet);
-      delete leaflet.Icon.Default.prototype._getIconUrl;
-      leaflet.Icon.Default.mergeOptions({
-        iconRetinaUrl:
-          "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-        iconUrl:
-          "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-        shadowUrl:
-          "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-      });
-    });
-  }, []);
-
-  const eventHandlers = useMemo(
-    () => ({
-      dragend() {
-        const marker = markerRef.current;
-        if (marker != null) {
-          const { lat, lng } = marker.getLatLng();
-          const newPos = { lat, lng };
-          setPosition(newPos);
-          if (onPositionChange) onPositionChange(newPos);
-          map.setView(newPos);
-        }
-      },
-    }),
-    [map, setPosition, onPositionChange]
-  );
-
-  useEffect(() => {
-    if (position?.lat && position?.lng) {
-      map.setView(position, map.getZoom());
-    }
-  }, [position, map]);
-
-  if (!position?.lat || !position?.lng || !L) return null;
-
-  return (
-    <Marker
-      draggable={true}
-      eventHandlers={eventHandlers}
-      position={position}
-      ref={markerRef}
-    >
-      <Popup>Drag to select the exact location</Popup>
-    </Marker>
-  );
-};
-
-// A wrapper for the search control
-const SearchControl = ({ setPosition, onPositionChange }) => {
-  const map = useMap();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    let isMounted = true;
-    Promise.all([
-      import("leaflet"),
-      import("leaflet-control-geocoder"),
-      import("leaflet/dist/leaflet.css"),
-      import("leaflet-control-geocoder/dist/Control.Geocoder.css"),
-    ]).then(([L, Geocoder]) => {
-      if (!isMounted) return;
-
-      const geocoder = L.Control.Geocoder.nominatim();
-      const control = L.Control.geocoder({
-        geocoder: geocoder,
-        defaultMarkGeocode: false,
-        position: "topright",
-        placeholder: "Search for a location...",
-      })
-        .on("markgeocode", function (e) {
-          const { center, name } = e.geocode;
-          map.setView(center, 15);
-          setPosition(center);
-          if (onPositionChange) onPositionChange(center);
-          toast({
-            title: "Location Found",
-            description: name,
-          });
-        })
-        .addTo(map);
-
-      // Cleanup function to remove control when component unmounts
-      return () => {
-        if (map && control) {
-          map.removeControl(control);
-        }
-      };
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [map, setPosition, onPositionChange, toast]);
-
-  return null;
-};
-
-const MapPicker = ({ form, initialPosition }) => {
-  const [position, setPosition] = useState(initialPosition);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const onPositionChange = (newPos) => {
-    form.setValue("latitude", newPos.lat, { shouldValidate: true });
-    form.setValue("longitude", newPos.lng, { shouldValidate: true });
-  };
-  
-  return (
-    <div className="h-[400px] w-full rounded-md overflow-hidden border relative">
-      <div className={`h-full w-full transition-opacity duration-500 ${isClient ? 'opacity-100' : 'opacity-0'}`}>
-        <MapContainer
-          center={position}
-          zoom={13}
-          style={{ height: "100%", width: "100%" }}
-          whenCreated={(map) => {
-            setTimeout(() => map.invalidateSize(), 200);
-          }}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          <DraggableMarker
-            position={position}
-            setPosition={setPosition}
-            onPositionChange={onPositionChange}
-          />
-          <SearchControl
-            setPosition={setPosition}
-            onPositionChange={onPositionChange}
-          />
-        </MapContainer>
-      </div>
-       {!isClient && (
-         <div className="absolute inset-0 bg-muted flex items-center justify-center">
-            <p>Loading map...</p>
-         </div>
-       )}
-    </div>
-  );
-};
 
 
 const CustomerPage = () => {
@@ -463,7 +291,7 @@ const CustomerPage = () => {
               <FormItem>
                 <FormLabel>Latitude</FormLabel>
                 <FormControl>
-                  <Input type="number" {...field} disabled />
+                  <Input type="number" {...field} readOnly />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -476,7 +304,7 @@ const CustomerPage = () => {
               <FormItem>
                 <FormLabel>Longitude</FormLabel>
                 <FormControl>
-                  <Input type="number" {...field} disabled />
+                  <Input type="number" {...field} readOnly />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -599,9 +427,13 @@ const CustomerPage = () => {
                        <h3 className="text-lg font-medium">Location</h3>
                        <MapPicker form={editForm} initialPosition={{ lat: editForm.getValues("latitude"), lng: editForm.getValues("longitude") }} />
                         <div className="grid md:grid-cols-2 gap-4">
-                            <FormField control={editForm.control} name="latitude" render={({ field }) => ( <FormItem> <FormLabel>Latitude</FormLabel> <FormControl> <Input type="number" {...field} disabled /> </FormControl> <FormMessage /> </FormItem> )}/>
-                            <FormField control={editForm.control} name="longitude" render={({ field }) => ( <FormItem> <FormLabel>Longitude</FormLabel> <FormControl> <Input type="number" {...field} disabled /> </FormControl> <FormMessage /> </FormItem> )}/>
+                            <FormField control={editForm.control} name="latitude" render={({ field }) => ( <FormItem> <FormLabel>Latitude</FormLabel> <FormControl> <Input type="number" {...field} readOnly /> </FormControl> <FormMessage /> </FormItem> )}/>
+                            <FormField control={editForm.control} name="longitude" render={({ field }) => ( <FormItem> <FormLabel>Longitude</FormLabel> <FormControl> <Input type="number" {...field} readOnly /> </FormControl> <FormMessage /> </FormItem> )}/>
                         </div>
+                         <Button type="submit" disabled={isSubmitting}>
+                           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                           Save Changes
+                         </Button>
                     </form>
                   </Form>
                 ) : (
@@ -613,44 +445,33 @@ const CustomerPage = () => {
                     <div className="text-sm"><strong>WhatsApp:</strong> {selectedCustomer.whatsappNumber}</div>
                     <Separator />
                     <h3 className="text-lg font-medium">Location</h3>
-                    <div className="h-[300px] w-full rounded-md overflow-hidden border">
-                         <iframe
-                           width="100%"
-                           height="100%"
-                           style={{ border: 0 }}
-                           loading="lazy"
-                           allowFullScreen
-                           src={`https://maps.google.com/maps?q=${selectedCustomer.latitude},${selectedCustomer.longitude}&hl=es&z=14&output=embed`}
-                         ></iframe>
-                    </div>
+                     {(selectedCustomer.latitude && selectedCustomer.longitude) ? (
+                        <div className="h-[300px] w-full rounded-md overflow-hidden border">
+                             <iframe
+                               width="100%"
+                               height="100%"
+                               style={{ border: 0 }}
+                               loading="lazy"
+                               allowFullScreen
+                               src={`https://maps.google.com/maps?q=${selectedCustomer.latitude},${selectedCustomer.longitude}&hl=es&z=14&output=embed`}
+                             ></iframe>
+                        </div>
+                    ) : <p className="text-sm text-muted-foreground">No location provided.</p>
+                    }
                   </div>
                 )}
               </div>
 
-              <SheetFooter>
-                {editMode ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => setEditMode(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={editForm.handleSubmit(handleUpdateCustomer)}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      Save Changes
-                    </Button>
-                  </>
-                ) : (
-                  <Button onClick={() => setEditMode(true)}>
+              <SheetFooter className="mt-auto pt-6">
+                {!editMode ? (
+                   <Button onClick={() => setEditMode(true)}>
                     <Pencil className="mr-2 h-4 w-4" />
                     Edit Customer
                   </Button>
+                ) : (
+                   <Button variant="outline" onClick={() => setEditMode(false)}>
+                      Cancel
+                   </Button>
                 )}
                 <SheetClose asChild>
                   <Button variant="secondary">Close</Button>
@@ -666,3 +487,4 @@ const CustomerPage = () => {
 
 export default CustomerPage;
 
+    
