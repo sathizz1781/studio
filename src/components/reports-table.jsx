@@ -143,7 +143,7 @@ export function ReportsTable() {
     if (checked) {
       // Select only credit items
       const creditRecordIds = data
-        .filter(item => !item.paid_status)
+        .filter(item => item.paid_status === false)
         .map(item => item.sl_no);
       setSelectedRows(new Set(creditRecordIds));
     } else {
@@ -184,19 +184,22 @@ export function ReportsTable() {
           "Status"
         ],
       ],
-      body: data.map((item) => [
-        item.sl_no,
-        item.date,
-        item.time,
-        item.vehicle_no,
-        item.party_name,
-        item.material_name,
-        item.first_weight,
-        item.second_weight,
-        item.net_weight,
-        item.charges,
-        item.paid_status ? "Paid" : "Credit",
-      ]),
+      body: data.map((item) => {
+        const isPaid = item.paid_status !== false;
+        return [
+            item.sl_no,
+            item.date,
+            item.time,
+            item.vehicle_no,
+            item.party_name,
+            item.material_name,
+            item.first_weight,
+            item.second_weight,
+            item.net_weight,
+            item.charges,
+            isPaid ? "Paid" : "Credit",
+        ];
+      }),
       startY: 20,
     });
     doc.save("weighbridge-report.pdf");
@@ -204,27 +207,30 @@ export function ReportsTable() {
 
   const handleExportExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
-      data.map((item) => ({
-        "Serial No": item.sl_no,
-        Date: item.date,
-        Time: item.time,
-        "Vehicle No": item.vehicle_no,
-        "Party Name": item.party_name,
-        Material: item.material_name,
-        "First Weight": item.first_weight,
-        "Second Weight": item.second_weight,
-        "Net Weight": item.net_weight,
-        Charges: item.charges,
-        "Paid Status": item.paid_status ? "Paid" : "Credit",
-        "WhatsApp No": item.whatsapp,
-      }))
+      data.map((item) => {
+        const isPaid = item.paid_status !== false;
+        return {
+            "Serial No": item.sl_no,
+            Date: item.date,
+            Time: item.time,
+            "Vehicle No": item.vehicle_no,
+            "Party Name": item.party_name,
+            Material: item.material_name,
+            "First Weight": item.first_weight,
+            "Second Weight": item.second_weight,
+            "Net Weight": item.net_weight,
+            Charges: item.charges,
+            "Paid Status": isPaid ? "Paid" : "Credit",
+            "WhatsApp No": item.whatsapp,
+        };
+    })
     );
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Reports");
     XLSX.writeFile(workbook, "weighbridge-report.xlsx");
   };
   
-  const unPaidRecords = data.filter(item => !item.paid_status).length;
+  const unPaidRecords = data.filter(item => item.paid_status === false).length;
 
 
   return (
@@ -341,14 +347,16 @@ export function ReportsTable() {
                 </TableCell>
               </TableRow>
             ) : data.length > 0 ? (
-              data.map((item) => (
+              data.map((item) => {
+                const isPaid = item.paid_status !== false;
+                return (
                 <TableRow key={item._id} data-state={selectedRows.has(item.sl_no) && "selected"}>
                   <TableCell>
                      <Checkbox
                         checked={selectedRows.has(item.sl_no)}
                         onCheckedChange={() => handleRowSelect(item.sl_no)}
                         aria-label={`Select row ${item.sl_no}`}
-                        disabled={item.paid_status}
+                        disabled={isPaid}
                       />
                   </TableCell>
                   <TableCell className="font-medium">{item.sl_no}</TableCell>
@@ -362,12 +370,12 @@ export function ReportsTable() {
                   <TableCell>{item.net_weight}</TableCell>
                   <TableCell>{item.charges}</TableCell>
                   <TableCell>
-                     <Badge variant={item.paid_status ? "secondary" : "destructive"}>
-                        {item.paid_status ? "Paid" : "Credit"}
+                     <Badge variant={isPaid ? "secondary" : "destructive"}>
+                        {isPaid ? "Paid" : "Credit"}
                      </Badge>
                   </TableCell>
                 </TableRow>
-              ))
+              )})
             ) : (
               <TableRow>
                 <TableCell colSpan={10} className="h-24 text-center">
@@ -388,3 +396,5 @@ export function ReportsTable() {
     </div>
   );
 }
+
+    
