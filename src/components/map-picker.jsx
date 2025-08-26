@@ -1,57 +1,17 @@
-
-"use client";
-
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet-control-geocoder';
 
-// Fix for default icon paths in Next.js
+// Fix for default icon paths not working in Next.js
 delete L.Icon.Default.prototype._getIconUrl;
-
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-
-const DraggableMarker = ({ position, onPositionChange }) => {
-    const markerRef = useRef(null);
-    const map = useMap();
-
-    const eventHandlers = useMemo(
-        () => ({
-            dragend() {
-                const marker = markerRef.current;
-                if (marker != null) {
-                    const { lat, lng } = marker.getLatLng();
-                    onPositionChange({ lat, lng });
-                }
-            },
-        }),
-        [onPositionChange],
-    );
-
-    useEffect(() => {
-        if(position) {
-            map.setView(position, map.getZoom());
-        }
-    }, [position, map]);
-
-
-    return (
-        <Marker
-            draggable={true}
-            eventHandlers={eventHandlers}
-            position={position}
-            ref={markerRef}>
-            <Popup>Drag to select the exact location</Popup>
-        </Marker>
-    );
-}
-
-const AddSearchControl = ({ onPositionChange }) => {
+const SearchControl = ({ onLocationSelect }) => {
     const map = useMap();
 
     useEffect(() => {
@@ -60,15 +20,11 @@ const AddSearchControl = ({ onPositionChange }) => {
             geocoder,
             position: 'topright',
             placeholder: 'Search for a location...',
-            defaultMarkGeocode: false // We handle the marker ourselves
-        });
-
-        searchControl.on('markgeocode', (e) => {
+            defaultMarkGeocode: false,
+        }).on('markgeocode', function(e) {
             const { center } = e.geocode;
-            if (center) {
-                map.setView(center, 15);
-                onPositionChange(center);
-            }
+            map.setView(center, 13);
+            onLocationSelect({ lat: center.lat, lng: center.lng });
         });
 
         map.addControl(searchControl);
@@ -76,45 +32,67 @@ const AddSearchControl = ({ onPositionChange }) => {
         return () => {
             map.removeControl(searchControl);
         };
-    }, [map, onPositionChange]);
+    }, [map, onLocationSelect]);
 
     return null;
-}
-
+};
 
 const MapPicker = ({ latitude, longitude, onLocationSelect }) => {
     const initialPosition = [latitude || 11.3410, longitude || 77.7172];
-    const [position, setPosition] = useState(initialPosition);
+    const [markerPosition, setMarkerPosition] = useState(initialPosition);
+    const markerRef = useRef(null);
 
     useEffect(() => {
-        setPosition([latitude, longitude]);
+        // This ensures the marker moves when latitude/longitude props change from the form
+        setMarkerPosition([latitude || 11.3410, longitude || 77.7172]);
     }, [latitude, longitude]);
+    
+    const eventHandlers = useMemo(
+        () => ({
+            dragend() {
+                const marker = markerRef.current;
+                if (marker != null) {
+                    const { lat, lng } = marker.getLatLng();
+                    onLocationSelect({ lat, lng });
+                }
+            },
+        }),
+        [onLocationSelect]
+    );
 
-    const handlePositionChange = (newPos) => {
-        setPosition([newPos.lat, newPos.lng]);
-        onLocationSelect(newPos);
-    };
+    const handleMapClick = useCallback((e) => {
+        const { lat, lng } = e.latlng;
+        setMarkerPosition([lat, lng]);
+        onLocationSelect({ lat, lng });
+    }, [onLocationSelect]);
+    
+    const MapEvents = () => {
+        useMap().on('click', handleMapClick);
+        return null;
+    }
+
 
     return (
-        <div className="h-full w-full rounded-md overflow-hidden border">
-            <MapContainer 
-                center={position} 
-                zoom={13} 
-                style={{ height: '100%', width: '100%' }}
-                // This key forces re-initialization when the component is reused
-                key={`${latitude}-${longitude}`} 
+        <MapContainer 
+            center={initialPosition} 
+            zoom={13} 
+            style={{ height: '100%', width: '100%' }}
+        >
+            <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <Marker
+                draggable={true}
+                eventHandlers={eventHandlers}
+                position={markerPosition}
+                ref={markerRef}
             >
-                <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-                <DraggableMarker 
-                    position={position} 
-                    onPositionChange={handlePositionChange} 
-                />
-                <AddSearchControl onPositionChange={handlePositionChange} />
-            </MapContainer>
-        </div>
+                <Popup>Drag to select location</Popup>
+            </Marker>
+            <SearchControl onLocationSelect={onLocationSelect} />
+            <MapEvents />
+        </MapContainer>
     );
 };
 

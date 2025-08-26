@@ -425,6 +425,7 @@ export default function CustomerPage() {
                     </div>
                      <div className="h-64 mt-2">
                         <MapPicker 
+                           key={isSheetOpen ? "open" : "closed"} 
                            latitude={watchedLatitude} 
                            longitude={watchedLongitude}
                            onLocationSelect={handleLocationSelect}
