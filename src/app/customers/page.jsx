@@ -6,6 +6,7 @@ import axios from "axios";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import dynamic from 'next/dynamic';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -34,7 +36,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe } from "lucide-react";
+import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin, Share2 } from "lucide-react";
+
+// Dynamically import the MapPicker component to ensure it's client-side only
+const MapPicker = dynamic(() => import('@/components/map-picker'), { 
+  ssr: false,
+  loading: () => <div className="h-[400px] w-full flex items-center justify-center bg-muted rounded-md"><Loader2 className="h-8 w-8 animate-spin" /></div>
+});
+
 
 const customerSchema = z.object({
   contactPerson: z.string().min(1, "Contact person is required"),
@@ -42,6 +51,8 @@ const customerSchema = z.object({
   whatsappNumber: z.string().min(1, "WhatsApp number is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   locationUrl: z.string().url("Invalid URL").optional().or(z.literal('')),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 });
 
 export default function CustomerPage() {
@@ -60,6 +71,8 @@ export default function CustomerPage() {
       whatsappNumber: "",
       email: "",
       locationUrl: "",
+      latitude: 11.3410, // Default location (Erode)
+      longitude: 77.7172,
     },
   });
 
@@ -67,9 +80,7 @@ export default function CustomerPage() {
     setIsLoading(true);
     try {
       const response = await axios.get("https://bend-mqjz.onrender.com/api/user/userlist", {
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
       setCustomers(response.data.users || []);
     } catch (error) {
@@ -98,6 +109,8 @@ export default function CustomerPage() {
         whatsappNumber: customer.whatsappNumber || "",
         email: customer.email || "",
         locationUrl: customer.locationUrl || "",
+        latitude: customer.latitude || 11.3410,
+        longitude: customer.longitude || 77.7172,
       });
     } else {
       form.reset({
@@ -106,6 +119,8 @@ export default function CustomerPage() {
         whatsappNumber: "",
         email: "",
         locationUrl: "",
+        latitude: 11.3410,
+        longitude: 77.7172,
       });
     }
     setIsSheetOpen(true);
@@ -121,14 +136,12 @@ export default function CustomerPage() {
     const apiEndpoint = editingCustomer
       ? `https://bend-mqjz.onrender.com/api/user/updateuser/${editingCustomer.customerId}`
       : "https://bend-mqjz.onrender.com/api/user/createuser";
-    const apiMethod = editingCustomer ? "post" : "post";
+    const apiMethod = "post";
     
-    // Auto-generate customerId for new customers
     const payload = editingCustomer 
         ? data 
         : { ...data, customerId: `CUST${10000 + (customers.length + 1)}` };
-
-
+        
     try {
       await axios[apiMethod](apiEndpoint, payload);
       toast({
@@ -173,7 +186,9 @@ export default function CustomerPage() {
       (customer.whatsappNumber && customer.whatsappNumber.includes(searchTerm))
   );
   
-  const { formState: { isSubmitting } } = form;
+  const { formState: { isSubmitting }, setValue, watch } = form;
+  const watchedLatitude = watch("latitude");
+  const watchedLongitude = watch("longitude");
 
   return (
     <div className="container mx-auto py-4">
@@ -228,9 +243,17 @@ export default function CustomerPage() {
                     <p className="flex items-center gap-2 truncate">
                         <Globe size={14}/> 
                         <a href={customer.locationUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                           {customer.locationUrl}
+                           Location Link
                         </a>
                     </p>
+                )}
+                 {customer.latitude && customer.longitude && (
+                   <div className="flex items-center gap-2 text-primary hover:underline">
+                        <MapPin size={14}/> 
+                        <a href={`https://www.google.com/maps/search/?api=1&query=${customer.latitude},${customer.longitude}`} target="_blank" rel="noopener noreferrer">
+                           View on Google Maps
+                        </a>
+                   </div>
                 )}
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
@@ -254,7 +277,7 @@ export default function CustomerPage() {
       )}
 
       <Sheet open={isSheetOpen} onOpenChange={handleSheetClose}>
-        <SheetContent className="sm:max-w-lg w-full">
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
               <SheetHeader>
@@ -264,7 +287,7 @@ export default function CustomerPage() {
                 </SheetDescription>
               </SheetHeader>
               
-              <div className="flex-1 overflow-y-auto py-6 px-1 space-y-4">
+              <div className="flex-1 py-6 px-1 space-y-4">
                  <FormField
                     control={form.control}
                     name="companyName"
@@ -330,9 +353,25 @@ export default function CustomerPage() {
                       </FormItem>
                     )}
                   />
+
+                  <div className="space-y-2 pt-4">
+                    <Label>Select Location on Map</Label>
+                    <MapPicker
+                      latitude={watchedLatitude}
+                      longitude={watchedLongitude}
+                      onLocationChange={(lat, lng) => {
+                        setValue('latitude', lat);
+                        setValue('longitude', lng);
+                      }}
+                    />
+                     <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                        <p>Latitude: {watchedLatitude.toFixed(4)}</p>
+                        <p>Longitude: {watchedLongitude.toFixed(4)}</p>
+                     </div>
+                  </div>
               </div>
 
-              <SheetFooter>
+              <SheetFooter className="mt-auto">
                 <SheetClose asChild>
                   <Button type="button" variant="outline" onClick={handleSheetClose}>Cancel</Button>
                 </SheetClose>
