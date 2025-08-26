@@ -751,31 +751,31 @@ Thank you!
     </>
   );
 
-  const PrintableBill = ({ billData, copyType }) => {
+  const PrintableBill = ({ billData }) => {
     const values = billData || getValues();
     const isReprint = !!billData;
-  
+
     const currentNetWeight = isReprint ? values.net_weight : netWeight;
-    const dateTime = values.dateTime || `${values.date}, ${values.time}`;
+    const dateTime = isReprint ? `${values.date}, ${values.time}` : values.dateTime;
     const [date, time] = dateTime.split(', ');
     const firstWeightValue = isReprint ? values.first_weight : values.firstWeight;
     const secondWeightValue = isReprint ? values.second_weight : values.secondWeight;
     const vehicleNumber = isReprint ? values.vehicle_no : values.vehicleNumber;
-    const materialName = isReprint ? values.material_name : values.materialName;
-    const partyName = isReprint ? values.party_name : values.partyName;
-  
+    const materialName = isReprint ? (values.material_name || values.material) : values.materialName;
+    const partyName = isReprint ? (values.party_name || values.party) : values.partyName;
+    const serialNumber = isReprint ? values.sl_no : values.serialNumber;
+
     return (
       <div className="grid grid-cols-1 gap-1 text-xs">
-        <p>{values.sl_no || values.serialNumber}</p>
+        <p>{serialNumber}</p>
         <p>{date}</p>
         <p>{time}</p>
         <p>{vehicleNumber}</p>
         <p>{materialName}</p>
         <p>{partyName}</p>
-        <p>{firstWeightValue} kg</p>
-        <p>{secondWeightValue} kg</p>
-        <p>{currentNetWeight} kg</p>
-        <p>{copyType}</p>
+        <p>{firstWeightValue}</p>
+        <p>{secondWeightValue}</p>
+        <p>{currentNetWeight}</p>
       </div>
     );
   };
