@@ -9,6 +9,7 @@ import 'leaflet-control-geocoder';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 // Fix for default icon issue with webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -23,7 +24,10 @@ const DraggableMarker = ({ position, setPosition, onLocationSelect }) => {
     const map = useMap();
   
     useEffect(() => {
-        map.setView(position, map.getZoom());
+        // Center the map on the marker's position when it changes.
+        if(position) {
+            map.setView(position, map.getZoom());
+        }
     }, [position, map]);
 
     const eventHandlers = React.useMemo(
@@ -54,6 +58,7 @@ const DraggableMarker = ({ position, setPosition, onLocationSelect }) => {
 export const MapPicker = ({ onLocationSelect, initialPosition }) => {
   const [position, setPosition] = useState(initialPosition || [11.3410, 77.7172]); // Default to Erode, Tamil Nadu
   const [searchTerm, setSearchTerm] = useState('');
+  const { toast } = useToast();
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -67,10 +72,24 @@ export const MapPicker = ({ onLocationSelect, initialPosition }) => {
         setPosition(newPos);
         onLocationSelect(lat, lng);
       } else {
-        alert('Location not found. Please try a different search term.');
+        toast({
+            variant: "destructive",
+            title: "Location Not Found",
+            description: "Please try a different search term.",
+        });
       }
     });
   };
+  
+  // Set initial location for the form
+  useEffect(() => {
+    if(initialPosition) {
+        onLocationSelect(initialPosition[0], initialPosition[1]);
+    } else {
+        onLocationSelect(11.3410, 77.7172); // Default coords
+    }
+  }, []);
+
 
   return (
     <div className="space-y-4">

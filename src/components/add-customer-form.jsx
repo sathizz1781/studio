@@ -12,14 +12,17 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2 } from "lucide-react";
 import dynamic from 'next/dynamic';
 
-const MapPicker = dynamic(() => import('./map-picker').then(mod => mod.MapPicker), { ssr: false });
+const MapPicker = dynamic(() => import('./map-picker').then(mod => mod.MapPicker), { 
+    ssr: false,
+    loading: () => <p>Loading map...</p>
+});
 
 const formSchema = z.object({
   companyName: z.string().min(1, "Company name is required."),
   contactPerson: z.string().min(1, "Contact person is required."),
   gstNo: z.string().min(1, "GST number is required."),
-  whatsappNumber: z.string().regex(/^\d{10,15}$/, "Please enter a valid WhatsApp number."),
-  email: z.string().email("Please enter a valid email address."),
+  whatsappNumber: z.string().regex(/^\d{10,15}$/, "Please enter a valid WhatsApp number.").optional().or(z.literal('')),
+  email: z.string().email("Please enter a valid email address.").optional().or(z.literal('')),
   locationUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
   latitude: z.number({ required_error: "Please select a location on the map." }),
   longitude: z.number({ required_error: "Please select a location on the map." }),
@@ -41,10 +44,8 @@ export function AddCustomerForm({ onAddCustomer }) {
   });
 
   const handleLocationSelect = (lat, lng) => {
-    form.setValue("latitude", lat);
-    form.setValue("longitude", lng);
-    form.clearErrors("latitude");
-    form.clearErrors("longitude");
+    form.setValue("latitude", lat, { shouldValidate: true });
+    form.setValue("longitude", lng, { shouldValidate: true });
   };
 
   async function onSubmit(values) {
@@ -110,7 +111,7 @@ export function AddCustomerForm({ onAddCustomer }) {
                 name="whatsappNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>WhatsApp Number</FormLabel>
+                    <FormLabel>WhatsApp Number (Optional)</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., 9876543210" {...field} />
                     </FormControl>
@@ -123,7 +124,7 @@ export function AddCustomerForm({ onAddCustomer }) {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email Address</FormLabel>
+                    <FormLabel>Email Address (Optional)</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., contact@acme.com" {...field} />
                     </FormControl>
@@ -155,7 +156,7 @@ export function AddCustomerForm({ onAddCustomer }) {
                     <FormControl>
                         <MapPicker onLocationSelect={handleLocationSelect} />
                     </FormControl>
-                     <FormMessage />
+                     <FormMessage>{form.formState.errors.latitude?.message || form.formState.errors.longitude?.message}</FormMessage>
                   </FormItem>
                 )}
               />

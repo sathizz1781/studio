@@ -45,8 +45,8 @@ export default function CustomersPage() {
 
   const handleAddCustomer = async (values) => {
     try {
+      // Use a more robust way to generate a customer ID on the backend if possible
       const customerData = {
-         customerId: `CUST${10000 + (customers.length + 1)}`, // Auto-generated
         ...values,
       };
       
@@ -61,7 +61,9 @@ export default function CustomersPage() {
       }
       
       const result = await response.json();
-      setCustomers([result.user, ...customers]);
+      
+      // Use the returned user which should have the final customerId
+      setCustomers(prev => [result.user, ...prev]);
 
       toast({
         title: "Success",
