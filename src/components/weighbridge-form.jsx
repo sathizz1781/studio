@@ -164,10 +164,15 @@ export function WeighbridgeForm() {
         throw new Error('Network response was not ok');
       }
       const data = await response.json();
-      setValue("serialNumber", (data.data.sl_no + 1).toString());
+      const lastSerialNumber = data?.data?.sl_no;
+      const nextSerialNumber = (typeof lastSerialNumber === 'number' && !isNaN(lastSerialNumber))
+        ? lastSerialNumber + 1
+        : 1;
+      setValue("serialNumber", nextSerialNumber.toString());
     } catch (error) {
       console.error("Error fetching last bill:", error);
-      setValue("serialNumber", `WB-${Date.now().toString().slice(-6)}`);
+       // Fallback to 1 if API fails
+      setValue("serialNumber", "1");
     }
   }, [setValue]);
 
@@ -942,3 +947,5 @@ Thank you!
     </div>
   );
 }
+
+    
