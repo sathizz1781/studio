@@ -12,10 +12,11 @@
  * @param {string} [queryParams.startDate] - The start date in 'YYYY-MM-DD' format.
  * @param {string} [queryParams.endDate] - The end date in 'YYYY-MM-DD' format.
  * @param {string} [queryParams.vehicleNumber] - The vehicle number to filter by.
+ * @param {string} [queryParams.partyName] - The party name to filter by (regex).
  * @returns {Promise<Array<object>>} A promise that resolves to an array of records.
  */
 async function getWeighbridgeRecords(queryParams) {
-  const { startDate, endDate, vehicleNumber } = queryParams;
+  const { startDate, endDate, vehicleNumber, partyName } = queryParams;
 
   // --- Database Logic Placeholder ---
   // In your actual backend, you would replace this with a database query.
@@ -24,22 +25,28 @@ async function getWeighbridgeRecords(queryParams) {
   /*
   const filter = {};
 
-  if (startDate && endDate) {
-    // Note: You need to handle date formatting carefully.
-    // The incoming 'date' field is 'D/M/YYYY'. It's better to store dates in ISO format.
-    // For this example, we assume you have a way to query by your date string format.
-    // A more robust solution is to convert your stored dates or the query dates.
-    filter.date = {
-      // This is a simplified example. Date range queries on string fields are tricky.
-      // It is HIGHLY recommended to store dates in a proper Date type in your DB.
-      $gte: convertToYourDateFormat(startDate),
-      $lte: convertToYourDateFormat(endDate),
+  if (startDate) {
+    // If you store dates as proper Date objects in MongoDB, you can do this:
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = endDate ? new Date(endDate) : start;
+    end.setHours(23, 59, 59, 999);
+
+    filter.createdAt = { // Assuming you have a 'createdAt' field of type Date
+      $gte: start,
+      $lte: end,
     };
   }
 
   if (vehicleNumber) {
     // Using a regex for a case-insensitive 'contains' search
     filter.vehicle_no = { $regex: vehicleNumber, $options: 'i' };
+  }
+  
+  if (partyName) {
+    // Using a regex for a case-insensitive 'contains' search
+    filter.party_name = { $regex: partyName, $options: 'i' };
   }
 
   // Assuming 'WbModel' is your Mongoose model
@@ -50,7 +57,7 @@ async function getWeighbridgeRecords(queryParams) {
 
   // For demonstration, we'll return a hardcoded empty array.
   // Replace this with your actual database call.
-  console.log("Fetching records with filters:", { startDate, endDate, vehicleNumber });
+  console.log("Fetching records with filters:", { startDate, endDate, vehicleNumber, partyName });
   return Promise.resolve([]);
 }
 

@@ -24,7 +24,7 @@ import {
   Loader2,
   Search,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -38,16 +38,19 @@ export function ReportsTable() {
   const [filteredData, setFilteredData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
-    from: undefined,
-    to: undefined,
+    from: startOfDay(new Date()),
+    to: endOfDay(new Date()),
   });
   const [vehicleNumberFilter, setVehicleNumberFilter] = useState("");
+  const [partyNameFilter, setPartyNameFilter] = useState("");
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       // In a real app, you'd pass filter params to the API
+      // For this example, we fetch all and filter client-side.
+      // A more performant approach is to send filters to the backend.
       const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getallrecords");
       if (!response.ok) {
         throw new Error("Failed to fetch data");
@@ -66,22 +69,28 @@ export function ReportsTable() {
     }
   }, [toast]);
 
+  // Initial data fetch
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
+  // Client-side filtering logic
   useEffect(() => {
     let result = data;
 
-    if (dateRange.from && dateRange.to) {
-      result = result.filter((item) => {
-        const itemDate = new Date(
-          item.date.split("/").reverse().join("-")
-        );
-        return itemDate >= dateRange.from && itemDate <= dateRange.to;
-      });
+    // Filter by date range
+    if (dateRange?.from) {
+        result = result.filter((item) => {
+            const itemDateParts = item.date.split('/');
+            // DD/MM/YYYY to YYYY-MM-DD for correct Date object creation
+            const itemDate = new Date(`${itemDateParts[2]}-${itemDateParts[1]}-${itemDateParts[0]}`);
+            const fromDate = startOfDay(dateRange.from);
+            const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+            return itemDate >= fromDate && itemDate <= toDate;
+        });
     }
 
+    // Filter by vehicle number
     if (vehicleNumberFilter) {
       result = result.filter((item) =>
         item.vehicle_no
@@ -90,8 +99,17 @@ export function ReportsTable() {
       );
     }
 
+    // Filter by party name
+    if (partyNameFilter) {
+      result = result.filter((item) =>
+        item.party_name
+          .toLowerCase()
+          .includes(partyNameFilter.toLowerCase())
+      );
+    }
+
     setFilteredData(result);
-  }, [data, dateRange, vehicleNumberFilter]);
+  }, [data, dateRange, vehicleNumberFilter, partyNameFilter]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
@@ -153,7 +171,7 @@ export function ReportsTable() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex flex-col md:flex-row items-center gap-2 w-full">
+        <div className="flex flex-col md:flex-row flex-wrap items-center gap-2 w-full">
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -194,14 +212,24 @@ export function ReportsTable() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Filter by vehicle number..."
+              placeholder="Filter by vehicle..."
               className="pl-8 w-full md:w-[250px]"
               value={vehicleNumberFilter}
-              onChange={(e) => setVehicleNumberFilter(e.target.value)}
+              onChange={(e) => setVehicleNumberFilter(e.target.value.toUpperCase())}
+            />
+          </div>
+           <div className="relative w-full md:w-auto">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Filter by party name..."
+              className="pl-8 w-full md:w-[250px]"
+              value={partyNameFilter}
+              onChange={(e) => setPartyNameFilter(e.target.value)}
             />
           </div>
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full md:w-auto flex-shrink-0">
           <Button onClick={handleExportPDF} variant="outline" className="w-full">
             <FileText className="mr-2 h-4 w-4" />
             Export PDF
