@@ -5,12 +5,8 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import "leaflet-control-geocoder/dist/Control.Geocoder.css";
-import "leaflet-control-geocoder";
+import dynamic from 'next/dynamic';
 import axios from "axios";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -44,16 +40,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, User, Users, MapPin, Search as SearchIcon, ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
-
-// Fix for default icon issues with webpack
-if (typeof window !== "undefined") {
-    delete L.Icon.Default.prototype._getIconUrl;
-    L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-        iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-    });
-}
+// Dynamically import Leaflet and React-Leaflet components
+const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
+const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
+const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false });
+const useMap = dynamic(() => import('react-leaflet').then(mod => mod.useMap), { ssr: false });
 
 const customerSchema = z.object({
   companyName: z.string().min(1, "Company name is required"),
@@ -65,11 +57,24 @@ const customerSchema = z.object({
   longitude: z.number(),
 });
 
-
+// A wrapper component for the marker to handle Leaflet icon issue
 const DraggableMarker = ({ position, setPosition, onPositionChange }) => {
     const map = useMap();
     const markerRef = React.useRef(null);
-  
+    const [L, setL] = useState(null);
+
+    useEffect(() => {
+        import('leaflet').then(leaflet => {
+            setL(leaflet);
+            delete leaflet.Icon.Default.prototype._getIconUrl;
+            leaflet.Icon.Default.mergeOptions({
+                iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+                iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+                shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+            });
+        });
+    }, []);
+
     const eventHandlers = useMemo(() => ({
       dragend() {
         const marker = markerRef.current;
@@ -89,7 +94,7 @@ const DraggableMarker = ({ position, setPosition, onPositionChange }) => {
         }
     }, [position, map]);
 
-    if (!position?.lat || !position?.lng) return null;
+    if (!position?.lat || !position?.lng || !L) return null;
 
     return (
       <Marker
@@ -103,32 +108,51 @@ const DraggableMarker = ({ position, setPosition, onPositionChange }) => {
     );
 };
 
+// A wrapper for the search control
 const SearchControl = ({ setPosition, onPositionChange, toast }) => {
     const map = useMap();
   
     useEffect(() => {
-      const geocoder = L.Control.Geocoder.nominatim();
-      const control = L.Control.geocoder({
-        geocoder: geocoder,
-        defaultMarkGeocode: false,
-        position: 'topright',
-        placeholder: 'Search for a location...',
-      })
-      .on('markgeocode', function(e) {
-        const { center, name } = e.geocode;
-        map.setView(center, 15);
-        setPosition(center);
-        onPositionChange(center);
-        toast({
-            title: "Location Found",
-            description: name,
+        let isMounted = true;
+        Promise.all([
+            import('leaflet'),
+            import('leaflet-control-geocoder')
+        ]).then(([L, Geocoder]) => {
+            if (!isMounted) return;
+
+            // Import CSS files here
+            import('leaflet/dist/leaflet.css');
+            import('leaflet-control-geocoder/dist/Control.Geocoder.css');
+
+            const geocoder = L.Control.Geocoder.nominatim();
+            const control = L.Control.geocoder({
+                geocoder: geocoder,
+                defaultMarkGeocode: false,
+                position: 'topright',
+                placeholder: 'Search for a location...',
+            })
+            .on('markgeocode', function(e) {
+                const { center, name } = e.geocode;
+                map.setView(center, 15);
+                setPosition(center);
+                onPositionChange(center);
+                toast({
+                    title: "Location Found",
+                    description: name,
+                });
+            })
+            .addTo(map);
+
+            return () => {
+                if (map && control) {
+                    map.removeControl(control);
+                }
+            };
         });
-      })
-      .addTo(map);
-  
-      return () => {
-        map.removeControl(control);
-      };
+
+        return () => {
+            isMounted = false;
+        };
     }, [map, setPosition, onPositionChange, toast]);
   
     return null;
@@ -143,7 +167,12 @@ const CustomerPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [editMode, setEditMode] = useState(false);
+    const [isClient, setIsClient] = useState(false);
     
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     const { toast } = useToast();
 
     // --- FORMS ---
@@ -239,7 +268,7 @@ const CustomerPage = () => {
     };
     
     const MapDisplay = ({ lat, lng }) => {
-        if (typeof window === 'undefined' || !lat || !lng) {
+        if (!isClient || !lat || !lng) {
             return (
                 <div className="h-[300px] w-full bg-muted rounded-md flex items-center justify-center">
                     <p className="text-muted-foreground">Location not available</p>
@@ -268,6 +297,10 @@ const CustomerPage = () => {
             form.setValue('longitude', newPos.lng);
         };
         
+        if (!isClient) {
+            return <div className="h-[400px] w-full bg-muted rounded-md flex items-center justify-center">Loading map...</div>;
+        }
+
         return(
             <div className="h-[400px] w-full rounded-md overflow-hidden border">
                  <MapContainer
@@ -275,7 +308,6 @@ const CustomerPage = () => {
                   zoom={13}
                   style={{ height: "100%", width: "100%" }}
                   whenCreated={map => {
-                      // Invalidate size after a short delay to ensure correct rendering inside tabs/sheets
                       setTimeout(() => map.invalidateSize(), 200);
                   }}
               >
@@ -466,3 +498,5 @@ const CustomerPage = () => {
 };
 
 export default CustomerPage;
+
+    
