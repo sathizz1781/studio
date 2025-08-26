@@ -56,14 +56,16 @@ const GoogleMapView = ({ latitude, longitude, className }) => {
         );
     }
 
-    const mapSrc = `https://www.google.com/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&center=${latitude},${longitude}&zoom=15`;
+    const mapSrc = `https://www.google.com/maps?q=${latitude},${longitude}&hl=es;z=14&output=embed`;
     
     return (
         <iframe
             className={`w-full h-full border-0 rounded-md ${className}`}
             loading="lazy"
             allowFullScreen
-            src={mapSrc}>
+            src={mapSrc}
+            title="Customer Location"
+            >
         </iframe>
     );
 };
@@ -432,3 +434,5 @@ export default function CustomerPage() {
     </div>
   );
 }
+
+    
