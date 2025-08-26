@@ -186,12 +186,10 @@ export function WeighbridgeForm() {
   }, [initializeForm]);
 
   useEffect(() => {
-    if (typeof firstWeight !== "undefined" && typeof secondWeight !== "undefined") {
-      const fw = Number(firstWeight) || 0;
-      const sw = Number(secondWeight) || 0;
-      const newNetWeight = Math.abs(fw - sw);
-      setNetWeight(parseFloat(newNetWeight.toFixed(3)));
-    }
+    const fw = Number(firstWeight) || 0;
+    const sw = Number(secondWeight) || 0;
+    const newNetWeight = Math.abs(fw - sw);
+    setNetWeight(parseFloat(newNetWeight.toFixed(3)));
   }, [firstWeight, secondWeight]);
   
   useEffect(() => {
@@ -476,19 +474,23 @@ Thank you!
                               <ChevronDown className="h-4 w-4" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-2">
-                             <div className="flex flex-col gap-2">
-                               <p className="text-sm font-semibold">Select Previous Weight:</p>
-                               <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.first_weight)}>
+                          <PopoverContent className="w-auto p-4">
+                            <div className="flex flex-col gap-3">
+                                <p className="text-sm font-semibold">Previous Entry Found:</p>
+                                <div className="text-xs text-muted-foreground">
+                                    <p><strong>Bill:</strong> {previousWeights.sl_no}</p>
+                                    <p><strong>Date:</strong> {previousWeights.date} {previousWeights.time}</p>
+                                </div>
+                                <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.first_weight)}>
                                  1st: {previousWeights.first_weight} kg
-                               </Button>
-                               <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.second_weight)}>
+                                </Button>
+                                <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.second_weight)}>
                                  2nd: {previousWeights.second_weight} kg
-                               </Button>
-                               <Button variant="outline" onClick={() => handleWeightSelection(currentWeight)}>
-                                  Use Live Wt: {currentWeight} kg
-                               </Button>
-                             </div>
+                                </Button>
+                                <Button variant="secondary" onClick={() => handleWeightSelection(currentWeight)}>
+                                  Use Live: {currentWeight} kg
+                                </Button>
+                            </div>
                           </PopoverContent>
                         </Popover>
                       )}
@@ -852,5 +854,7 @@ Thank you!
     </Card>
   );
 }
+
+    
 
     
