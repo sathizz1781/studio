@@ -149,8 +149,8 @@ export function AddCustomerForm({ onAddCustomer }) {
             
             <FormField
                 control={form.control}
-                name="latitude"
-                render={({ field }) => (
+                name="latitude" // This field is just for validation trigger
+                render={() => (
                   <FormItem>
                     <FormLabel>Location</FormLabel>
                     <FormControl>

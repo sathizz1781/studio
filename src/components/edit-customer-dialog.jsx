@@ -43,6 +43,8 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
       whatsappNumber: "",
       email: "",
       locationUrl: "",
+      latitude: undefined,
+      longitude: undefined,
     },
   });
   
@@ -187,11 +189,11 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
 
             <FormField
                 control={form.control}
-                name="latitude"
-                render={({ field }) => (
+                name="latitude" // This field is just for validation trigger
+                render={() => (
                   <FormItem>
                     <FormLabel className="flex justify-between items-center">
-                      <span className="flex items-center gap-2"><MapPin /> Location</span>
+                      <span className="flex items-center gap-2"><MapPin className="h-4 w-4" /> Location</span>
                        <Button type="button" variant="ghost" size="sm" onClick={() => setIsMapEditMode(!isMapEditMode)}>
                          <Edit className="mr-2 h-4 w-4" />
                          {isMapEditMode ? "View Map" : "Edit Location"}
