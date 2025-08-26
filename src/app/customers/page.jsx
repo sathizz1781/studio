@@ -5,7 +5,6 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import dynamic from "next/dynamic";
 import axios from "axios";
 
 import { Button } from "@/components/ui/button";
@@ -40,14 +39,11 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2,
   Users,
-  MapPin,
   PlusCircle,
   Pencil,
-  Mail,
-  Phone,
   Building,
   FileText,
-  Link as LinkIcon,
+  Phone,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
@@ -57,21 +53,7 @@ const customerSchema = z.object({
   gstNo: z.string().min(1, "GST number is required"),
   whatsappNumber: z.string().regex(/^\d{10,15}$/, "Enter a valid number"),
   email: z.string().email("Enter a valid email address"),
-  latitude: z
-    .number({ invalid_type_error: "Latitude is required." })
-    .min(-90)
-    .max(90),
-  longitude: z
-    .number({ invalid_type_error: "Longitude is required." })
-    .min(-180)
-    .max(180),
 });
-
-const MapPicker = dynamic(() => import('@/components/map-picker'), {
-  ssr: false,
-  loading: () => <div className="h-[400px] w-full rounded-md bg-muted flex items-center justify-center"><p>Loading map...</p></div>,
-});
-
 
 const CustomerPage = () => {
   const [activeTab, setActiveTab] = useState("list");
@@ -92,8 +74,6 @@ const CustomerPage = () => {
       gstNo: "",
       whatsappNumber: "",
       email: "",
-      latitude: 11.341,
-      longitude: 77.7172,
     },
   });
 
@@ -191,8 +171,6 @@ const CustomerPage = () => {
       gstNo: customer.gstNo,
       whatsappNumber: customer.whatsappNumber,
       email: customer.email,
-      latitude: customer.latitude || 11.341,
-      longitude: customer.longitude || 77.7172,
     });
     setEditMode(false);
     setIsSheetOpen(true);
@@ -268,43 +246,6 @@ const CustomerPage = () => {
                 <FormLabel>Email Address</FormLabel>
                 <FormControl>
                   <Input placeholder="Enter email address" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <Separator />
-        <h3 className="text-lg font-medium">Location</h3>
-        <MapPicker
-          form={form}
-          initialPosition={{
-            lat: form.getValues("latitude"),
-            lng: form.getValues("longitude"),
-          }}
-        />
-        <div className="grid md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="latitude"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Latitude</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} readOnly />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="longitude"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Longitude</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} readOnly />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -423,13 +364,6 @@ const CustomerPage = () => {
                           <FormField control={editForm.control} name="whatsappNumber" render={({ field }) => ( <FormItem> <FormLabel>WhatsApp Number</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
                           <FormField control={editForm.control} name="email" render={({ field }) => ( <FormItem className="md:col-span-2"> <FormLabel>Email</FormLabel> <FormControl> <Input {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
                         </div>
-                       <Separator />
-                       <h3 className="text-lg font-medium">Location</h3>
-                       <MapPicker form={editForm} initialPosition={{ lat: editForm.getValues("latitude"), lng: editForm.getValues("longitude") }} />
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <FormField control={editForm.control} name="latitude" render={({ field }) => ( <FormItem> <FormLabel>Latitude</FormLabel> <FormControl> <Input type="number" {...field} readOnly /> </FormControl> <FormMessage /> </FormItem> )}/>
-                            <FormField control={editForm.control} name="longitude" render={({ field }) => ( <FormItem> <FormLabel>Longitude</FormLabel> <FormControl> <Input type="number" {...field} readOnly /> </FormControl> <FormMessage /> </FormItem> )}/>
-                        </div>
                          <Button type="submit" disabled={isSubmitting}>
                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                            Save Changes
@@ -443,21 +377,6 @@ const CustomerPage = () => {
                     <div className="text-sm"><strong>GST No:</strong> {selectedCustomer.gstNo}</div>
                     <div className="text-sm"><strong>Email:</strong> {selectedCustomer.email}</div>
                     <div className="text-sm"><strong>WhatsApp:</strong> {selectedCustomer.whatsappNumber}</div>
-                    <Separator />
-                    <h3 className="text-lg font-medium">Location</h3>
-                     {(selectedCustomer.latitude && selectedCustomer.longitude) ? (
-                        <div className="h-[300px] w-full rounded-md overflow-hidden border">
-                             <iframe
-                               width="100%"
-                               height="100%"
-                               style={{ border: 0 }}
-                               loading="lazy"
-                               allowFullScreen
-                               src={`https://maps.google.com/maps?q=${selectedCustomer.latitude},${selectedCustomer.longitude}&hl=es&z=14&output=embed`}
-                             ></iframe>
-                        </div>
-                    ) : <p className="text-sm text-muted-foreground">No location provided.</p>
-                    }
                   </div>
                 )}
               </div>
