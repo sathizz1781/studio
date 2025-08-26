@@ -112,7 +112,7 @@ export function WeighbridgeForm() {
       const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(partyName)}&am=${charges.toFixed(2)}&cu=INR`;
       
       // Use a public API for QR code generation
-      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiUrl)}&size=128x128`;
+      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiUrl)}&size=128x128&margin=0`;
       setQrCodeUrl(apiUrl);
     } else {
       setQrCodeUrl("");
@@ -160,14 +160,14 @@ Thank you!
     });
   }
   
-  const BillContent = () => (
+  const BillContent = ({ isPrint }: { isPrint?: boolean }) => (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className={`grid ${isPrint ? 'grid-cols-1' : 'md:grid-cols-3'} gap-4 mb-6`}>
           <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
             <Hash className="h-5 w-5 text-primary" />
             <div>
               <p className="text-sm font-medium">Serial Number</p>
-              <p className="text-sm text-foreground">{serialNumber}</p>
+              <p className="text-lg font-bold text-foreground">{serialNumber}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
@@ -186,7 +186,7 @@ Thank you!
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
+        <div className={`grid ${isPrint ? 'grid-cols-1' : 'md:grid-cols-2'} gap-x-8 gap-y-6 mb-6`}>
           <FormField
             control={form.control}
             name="vehicleNumber"
@@ -241,7 +241,7 @@ Thank you!
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+        <div className={`grid ${isPrint ? 'grid-cols-1' : 'md:grid-cols-3'} gap-x-8 gap-y-6`}>
            <FormField
             control={form.control}
             name="firstWeight"
@@ -280,7 +280,7 @@ Thank you!
           <div className="mt-6 flex flex-col items-center">
             <h3 className="text-lg font-medium text-accent mb-2">Scan to Pay</h3>
             <div className="bg-white p-2 rounded-lg border">
-                <Image src={qrCodeUrl} alt="QR Code for UPI Payment" width={128} height={128} />
+                <Image src={qrCodeUrl} alt="QR Code for UPI Payment" width={128} height={128} unoptimized />
             </div>
             <p className="text-sm text-muted-foreground mt-2">
               Pay ₹{charges} using any UPI app
@@ -310,9 +310,9 @@ Thank you!
             
             {/* This is for the print view only */}
             <div className="print-only printable-section">
-                <div className="printable-content-wrapper"><BillContent /></div>
-                <div className="printable-content-wrapper"><BillContent /></div>
-                <div className="printable-content-wrapper"><BillContent /></div>
+                <div className="printable-content-wrapper"><BillContent isPrint={true} /></div>
+                <div className="printable-content-wrapper"><BillContent isPrint={true} /></div>
+                <div className="printable-content-wrapper"><BillContent isPrint={true} /></div>
             </div>
             
             <Separator className="my-8 no-print" />
