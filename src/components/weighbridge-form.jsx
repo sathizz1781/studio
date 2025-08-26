@@ -61,10 +61,24 @@ import {
   ChevronDown,
   Loader2,
   ArrowDown,
-  BarChart2
+  BarChart2,
+  Users,
+  Check,
+  ChevronsUpDown,
+  MapPin,
+  Share2
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   serialNumber: z.string().min(1, "Serial number is required."),
@@ -88,6 +102,7 @@ const formSchema = z.object({
   paymentStatus: z.enum(["Paid", "Credit"], {
     required_error: "You need to select a payment status.",
   }),
+  customerId: z.string().optional(),
 });
 
 const WhatsAppIcon = (props) => (
@@ -111,6 +126,31 @@ const LiveClock = () => {
   return <div className="text-lg font-mono text-accent">{time}</div>;
 };
 
+const GoogleMapView = ({ latitude, longitude, className }) => {
+    if (!latitude || !longitude) {
+        return null;
+    }
+
+    const mapSrc = `https://www.google.com/maps?q=${latitude},${longitude}&hl=es;z=14&output=embed`;
+    
+    return (
+      <div className={cn("space-y-2", className)}>
+        <Label>Customer Location</Label>
+        <div className="aspect-video w-full rounded-md overflow-hidden border">
+           <iframe
+              className="w-full h-full border-0"
+              loading="lazy"
+              allowFullScreen
+              src={mapSrc}
+              title="Customer Location"
+            >
+          </iframe>
+        </div>
+      </div>
+       
+    );
+};
+
 export function WeighbridgeForm() {
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -123,8 +163,10 @@ export function WeighbridgeForm() {
   const [isLoadingReprint, setIsLoadingReprint] = useState(false);
   const [reprintData, setReprintData] = useState(null);
   const [isReprintDialogOpen, setIsReprintDialogOpen] = useState(false);
-
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+
   const touchStartY = useRef(0);
   const PULL_THRESHOLD = 70;
 
@@ -149,6 +191,7 @@ export function WeighbridgeForm() {
       secondWeight: 0,
       whatsappNumber: "",
       paymentStatus: "Paid",
+      customerId: "",
     },
   });
 
@@ -171,10 +214,22 @@ export function WeighbridgeForm() {
       setValue("serialNumber", nextSerialNumber.toString());
     } catch (error) {
       console.error("Error fetching last bill:", error);
-       // Fallback to 1 if API fails
       setValue("serialNumber", "1");
     }
   }, [setValue]);
+
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const response = await fetch("https://bend-mqjz.onrender.com/api/user/userlist");
+      if(response.ok) {
+        const data = await response.json();
+        setCustomers(data.users || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch customers:", error);
+      setCustomers([]);
+    }
+  }, []);
 
   const setInitialDateTime = useCallback(() => {
     const now = new Date();
@@ -193,7 +248,8 @@ export function WeighbridgeForm() {
   const initializeForm = useCallback(() => {
     fetchNewSerialNumber();
     setInitialDateTime();
-  }, [fetchNewSerialNumber, setInitialDateTime]);
+    fetchCustomers();
+  }, [fetchNewSerialNumber, setInitialDateTime, fetchCustomers]);
 
   useEffect(() => {
     setIsClient(true);
@@ -267,9 +323,11 @@ export function WeighbridgeForm() {
       secondWeight: 0,
       whatsappNumber: "",
       paymentStatus: "Paid",
+      customerId: ""
     });
     setNetWeight(0);
     setPreviousWeights(null);
+    setSelectedCustomer(null);
     if (isClient) {
       initializeForm();
     }
@@ -375,6 +433,7 @@ export function WeighbridgeForm() {
       secondWeight: values.secondWeight,
       netWeight: netWeight,
       whatsappNumber: values.whatsappNumber || "",
+      customerId: values.customerId || ""
     };
 
     try {
@@ -453,6 +512,18 @@ Thank you!
     setIsRefreshing(false);
     touchStartY.current = 0;
   };
+  
+  const handleCustomerSelect = (customerId) => {
+    const customer = customers.find(c => c.customerId === customerId);
+    if (customer) {
+        setSelectedCustomer(customer);
+        setValue("customerId", customer.customerId);
+        setValue("partyName", customer.companyName);
+        setValue("whatsappNumber", customer.whatsappNumber);
+        // You could also set vehicle number if it's stored with the customer
+    }
+  };
+
 
   const BillContent = () => (
     <>
@@ -519,6 +590,68 @@ Thank you!
             )}
         />
       </div>
+      
+      <div className="no-print">
+        <FormField
+            control={control}
+            name="customerId"
+            render={({ field }) => (
+            <FormItem className="mb-6">
+              <FormLabel className="flex items-center gap-2"><Users size={16} /> Select Customer</FormLabel>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                        )}
+                        >
+                        {field.value
+                            ? customers.find(c => c.customerId === field.value)?.companyName
+                            : "Select a customer"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command>
+                        <CommandInput placeholder="Search customer..." />
+                        <CommandList>
+                            <CommandEmpty>No customer found.</CommandEmpty>
+                            <CommandGroup>
+                                {customers.map((customer) => (
+                                <CommandItem
+                                    value={customer.customerId}
+                                    key={customer.customerId}
+                                    onSelect={() => {
+                                        handleCustomerSelect(customer.customerId)
+                                    }}
+                                >
+                                    <Check
+                                    className={cn(
+                                        "mr-2 h-4 w-4",
+                                        customer.customerId === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                    />
+                                    {customer.companyName}
+                                </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                    </PopoverContent>
+                </Popover>
+               <FormMessage />
+            </FormItem>
+            )}
+        />
+       </div>
+
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
         <FormField
@@ -684,58 +817,80 @@ Thank you!
         </FormItem>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center justify-between mt-6 gap-6">
-         <FormField
-          control={control}
-          name="paymentStatus"
-          render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel>Payment Status</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  className="flex items-center space-x-4"
-                >
-                  <FormItem className="flex items-center space-x-2 space-y-0">
+      <div className="flex flex-col md:flex-row items-start justify-between mt-6 gap-6 no-print">
+         <div className="flex-1 space-y-4">
+            <FormField
+              control={control}
+              name="paymentStatus"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Payment Status</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex items-center space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="Paid" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Paid</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="Credit" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Credit</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+                control={control}
+                name="whatsappNumber"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                    <WhatsAppIcon className="h-4 w-4" />
+                    WhatsApp Number
+                    </FormLabel>
                     <FormControl>
-                      <RadioGroupItem value="Paid" />
+                    <Input placeholder="e.g., 9876543210" {...field} />
                     </FormControl>
-                    <FormLabel className="font-normal">Paid</FormLabel>
-                  </FormItem>
-                  <FormItem className="flex items-center space-x-2 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="Credit" />
-                    </FormControl>
-                    <FormLabel className="font-normal">Credit</FormLabel>
-                  </FormItem>
-                </RadioGroup>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+         </div>
 
-        {qrCodeUrl && (
-          <div className="flex flex-col items-center">
-            <h3 className="text-lg font-medium text-accent mb-2">Scan to Pay</h3>
-            <div className="bg-white p-2 rounded-lg border">
-              <Image
-                src={qrCodeUrl}
-                alt="QR Code for UPI Payment"
-                width={128}
-                height={128}
-                unoptimized
-              />
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Pay ₹{Number(charges) || "0"} using any UPI app
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              UPI ID: {upiID}
-            </p>
-          </div>
-        )}
+        <div className="flex-1 grid grid-cols-2 gap-4">
+            {qrCodeUrl && (
+              <div className="flex flex-col items-center space-y-2">
+                <h3 className="text-sm font-medium text-accent">Scan to Pay</h3>
+                <div className="bg-white p-2 rounded-lg border">
+                  <Image
+                    src={qrCodeUrl}
+                    alt="QR Code for UPI Payment"
+                    width={128}
+                    height={128}
+                    unoptimized
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Pay ₹{Number(charges) || "0"} via UPI
+                </p>
+              </div>
+            )}
+             {selectedCustomer && (
+                <div className="no-print">
+                     <GoogleMapView latitude={selectedCustomer.latitude} longitude={selectedCustomer.longitude} />
+                </div>
+             )}
+        </div>
       </div>
     </>
   );
@@ -859,32 +1014,6 @@ Thank you!
 
               <div className="print-only" id="print-section"></div>
 
-              <Separator className="my-8 no-print" />
-
-              <div className="no-print">
-                <h3 className="text-lg font-medium text-accent mb-2">
-                  Send via WhatsApp
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Enter a WhatsApp number to send the bill details.
-                </p>
-                <FormField
-                  control={control}
-                  name="whatsappNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <WhatsAppIcon className="h-4 w-4" />
-                        WhatsApp Number
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., 9876543210" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
             </CardContent>
             <CardFooter className="flex flex-col sm:flex-row sm:flex-wrap justify-end gap-2 sm:gap-4 no-print mt-4">
                <Link href="/reports" passHref>
@@ -947,5 +1076,3 @@ Thank you!
     </div>
   );
 }
-
-    

@@ -37,7 +37,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin, Share2 } from "lucide-react";
 import dynamic from "next/dynamic";
-import "./leaflet.css";
+import "../leaflet.css";
 
 const MapPicker = dynamic(() => import("@/components/map-picker"), { 
     ssr: false,
