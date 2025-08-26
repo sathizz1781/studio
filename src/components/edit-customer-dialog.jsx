@@ -1,0 +1,199 @@
+
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
+import dynamic from 'next/dynamic';
+
+const MapPicker = dynamic(() => import('./map-picker').then(mod => mod.MapPicker), { ssr: false });
+
+
+const formSchema = z.object({
+  companyName: z.string().min(1, "Company name is required."),
+  contactPerson: z.string().min(1, "Contact person is required."),
+  gstNo: z.string().min(1, "GST number is required."),
+  whatsappNumber: z.string().regex(/^\d{10,15}$/, "Please enter a valid WhatsApp number."),
+  email: z.string().email("Please enter a valid email address."),
+  locationUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
+  latitude: z.number({ required_error: "Please select a location on the map." }),
+  longitude: z.number({ required_error: "Please select a location on the map." }),
+});
+
+
+export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustomer }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      companyName: "",
+      contactPerson: "",
+      gstNo: "",
+      whatsappNumber: "",
+      email: "",
+      locationUrl: "",
+    },
+  });
+  
+  useEffect(() => {
+    if (customer) {
+      form.reset({
+        companyName: customer.companyName,
+        contactPerson: customer.contactPerson,
+        gstNo: customer.gstNo,
+        whatsappNumber: customer.whatsappNumber,
+        email: customer.email,
+        locationUrl: customer.locationUrl,
+        latitude: customer.latitude,
+        longitude: customer.longitude
+      });
+    }
+  }, [customer, form]);
+
+  const handleLocationSelect = (lat, lng) => {
+    form.setValue("latitude", lat);
+    form.setValue("longitude", lng);
+    form.clearErrors("latitude");
+    form.clearErrors("longitude");
+  };
+
+  async function onSubmit(values) {
+    setIsSubmitting(true);
+    await onUpdateCustomer(values);
+    setIsSubmitting(false);
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit Customer: {customer?.companyName}</DialogTitle>
+          <DialogDescription>Update the customer details below.</DialogDescription>
+        </DialogHeader>
+         <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
+             <div className="grid md:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="companyName"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Company Name</FormLabel>
+                        <FormControl>
+                        <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="contactPerson"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Contact Person</FormLabel>
+                        <FormControl>
+                        <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="gstNo"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>GST Number</FormLabel>
+                        <FormControl>
+                        <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="whatsappNumber"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>WhatsApp Number</FormLabel>
+                        <FormControl>
+                        <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Email Address</FormLabel>
+                        <FormControl>
+                        <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="locationUrl"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Location URL (Optional)</FormLabel>
+                        <FormControl>
+                        <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+            </div>
+
+            <FormField
+                control={form.control}
+                name="latitude"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                       <MapPicker 
+                          onLocationSelect={handleLocationSelect} 
+                          initialPosition={customer ? [customer.latitude, customer.longitude] : undefined}
+                        />
+                    </FormControl>
+                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button type="button" variant="secondary">Cancel</Button>
+                </DialogClose>
+                <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                    <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                    </>
+                ) : (
+                    "Save Changes"
+                )}
+                </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}

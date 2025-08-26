@@ -1,10 +1,11 @@
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, BarChart2, Menu } from "lucide-react";
+import { Home, BarChart2, Menu, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const fontInter = Inter({
@@ -56,6 +57,12 @@ export default function RootLayout({ children }) {
               >
                 Reports
               </Link>
+              <Link
+                href="/customers"
+                className="text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Customers
+              </Link>
             </nav>
             <Sheet>
               <SheetTrigger asChild>
@@ -85,6 +92,12 @@ export default function RootLayout({ children }) {
                     className="text-muted-foreground hover:text-foreground"
                   >
                     Reports
+                  </Link>
+                  <Link
+                    href="/customers"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Customers
                   </Link>
                 </nav>
               </SheetContent>
