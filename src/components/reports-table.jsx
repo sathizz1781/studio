@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Table,
   TableHeader,
@@ -35,7 +35,6 @@ import * as XLSX from "xlsx";
 
 export function ReportsTable() {
   const [data, setData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
     from: startOfDay(new Date()),
@@ -45,18 +44,36 @@ export function ReportsTable() {
   const [partyNameFilter, setPartyNameFilter] = useState("");
   const { toast } = useToast();
 
-  const fetchData = useCallback(async () => {
+  const fetchRecords = useCallback(async () => {
     setIsLoading(true);
     try {
-      // In a real app, you'd pass filter params to the API
-      // For this example, we fetch all and filter client-side.
-      // A more performant approach is to send filters to the backend.
-      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getallrecords");
+      const query = {
+        // The API seems to expect DD/MM/YYYY format. date-fns uses 'dd/MM/yyyy'.
+        startDate: dateRange?.from ? format(dateRange.from, "dd/MM/yyyy") : null,
+        endDate: dateRange?.to ? format(dateRange.to, "dd/MM/yyyy") : null,
+      };
+
+      if (vehicleNumberFilter) {
+        query.vehicleNo = vehicleNumberFilter;
+      }
+      
+      if (partyNameFilter) {
+        query.partyName = partyNameFilter; // Backend will handle regex
+      }
+
+      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getrecords", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(query)
+      });
+      
       if (!response.ok) {
         throw new Error("Failed to fetch data");
       }
+      
       const result = await response.json();
-      setData(result.data || []);
+      setData(result.records || []);
+
     } catch (error) {
       console.error(error);
       toast({
@@ -64,52 +81,17 @@ export function ReportsTable() {
         title: "Error fetching data",
         description: "Could not load reports. Please try again later.",
       });
+      setData([]); // Clear data on error
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [dateRange, vehicleNumberFilter, partyNameFilter, toast]);
 
-  // Initial data fetch
+  // Fetch data on initial load and when filters change
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchRecords();
+  }, [fetchRecords]);
 
-  // Client-side filtering logic
-  useEffect(() => {
-    let result = data;
-
-    // Filter by date range
-    if (dateRange?.from) {
-        result = result.filter((item) => {
-            const itemDateParts = item.date.split('/');
-            // DD/MM/YYYY to YYYY-MM-DD for correct Date object creation
-            const itemDate = new Date(`${itemDateParts[2]}-${itemDateParts[1]}-${itemDateParts[0]}`);
-            const fromDate = startOfDay(dateRange.from);
-            const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-            return itemDate >= fromDate && itemDate <= toDate;
-        });
-    }
-
-    // Filter by vehicle number
-    if (vehicleNumberFilter) {
-      result = result.filter((item) =>
-        item.vehicle_no
-          .toLowerCase()
-          .includes(vehicleNumberFilter.toLowerCase())
-      );
-    }
-
-    // Filter by party name
-    if (partyNameFilter) {
-      result = result.filter((item) =>
-        item.party_name
-          .toLowerCase()
-          .includes(partyNameFilter.toLowerCase())
-      );
-    }
-
-    setFilteredData(result);
-  }, [data, dateRange, vehicleNumberFilter, partyNameFilter]);
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
@@ -129,7 +111,7 @@ export function ReportsTable() {
           "Charges",
         ],
       ],
-      body: filteredData.map((item) => [
+      body: data.map((item) => [
         item.sl_no,
         item.date,
         item.time,
@@ -148,7 +130,7 @@ export function ReportsTable() {
 
   const handleExportExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
-      filteredData.map((item) => ({
+      data.map((item) => ({
         "Serial No": item.sl_no,
         Date: item.date,
         Time: item.time,
@@ -259,8 +241,8 @@ export function ReportsTable() {
                   <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
                 </TableCell>
               </TableRow>
-            ) : filteredData.length > 0 ? (
-              filteredData.map((item) => (
+            ) : data.length > 0 ? (
+              data.map((item) => (
                 <TableRow key={item._id}>
                   <TableCell className="font-medium">{item.sl_no}</TableCell>
                   <TableCell>
