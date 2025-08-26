@@ -189,11 +189,9 @@ export function WeighbridgeForm() {
   }, [setValue]);
   
   const initializeForm = useCallback(() => {
-    if (!isManualMode) {
-      fetchNewSerialNumber();
-      setInitialDateTime();
-    }
-  }, [isManualMode, fetchNewSerialNumber, setInitialDateTime]);
+    fetchNewSerialNumber();
+    setInitialDateTime();
+  }, [fetchNewSerialNumber, setInitialDateTime]);
 
   useEffect(() => {
     setIsClient(true);
@@ -722,7 +720,7 @@ Thank you!
   const PrintableBill = ({billData, netWt}) => {
     const values = billData || getValues();
     const currentNetWeight = netWt !== undefined ? netWt : netWeight;
-    const paymentStatus = values.paid_status ? "Paid" : "Credit";
+    const paymentStatus = values.paidStatus !== undefined ? (values.paid_status ? "Paid" : "Credit") : values.paymentStatus;
     
     return (
       <div className="grid grid-cols-1 gap-4">
@@ -765,7 +763,7 @@ Thank you!
           <div className="flex items-center gap-2">
           <CircleDollarSign className="h-5 w-5 text-primary" />
           <p className="text-sm">
-            <strong>Status:</strong> {values.paymentStatus || paymentStatus}
+            <strong>Status:</strong> {paymentStatus}
           </p>
         </div>
         <Separator className="my-1" />
@@ -804,55 +802,81 @@ Thank you!
   }
 
   const ReprintDialog = () => {
-    const handleReprintPrint = () => {
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write('<html><head><title>Print Bill</title>');
-        // In-line styles that roughly match the globals.css for printing
-        printWindow.document.write(`
-            <style>
-                body { font-family: sans-serif; }
-                .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-                .printable-content-wrapper { flex: 1 1 32%; min-width: 0; border: 1px dashed #ccc; padding: 0.5rem; font-size: 9px; }
-                .printable-content-wrapper .text-sm { font-size: 8px; }
-                .printable-content-wrapper .text-lg { font-size: 10px; }
-                .printable-content-wrapper .grid { display: grid; gap: 0.25rem; }
-                .printable-content-wrapper .separator { border-top: 1px solid #ccc; margin: 4px 0; }
-                .printable-content-wrapper .flex { display: flex; align-items: center; }
-                .printable-content-wrapper .gap-2 { gap: 0.5rem; }
-                 .printable-content-wrapper .h-5 { height: 12px; }
-                 .printable-content-wrapper .w-5 { width: 12px; }
-            </style>
-        `);
-        printWindow.document.write('</head><body>');
-        const content = document.getElementById('reprint-content').innerHTML;
-        printWindow.document.write(content);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-        printWindow.print();
-    };
-
-    return (
-        <Dialog open={isReprintDialogOpen} onOpenChange={setIsReprintDialogOpen}>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle>Reprint Bill - #{reprintData?.sl_no}</DialogTitle>
-                    <DialogDescription>
-                        Showing details for the requested bill. Click print to get a copy.
-                    </DialogDescription>
-                </DialogHeader>
-                <div id="reprint-content" className="printable-section">
-                     <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-                     <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-                     <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-                </div>
-                <DialogFooter className="no-print">
-                     <Button variant="outline" onClick={() => setIsReprintDialogOpen(false)}>Close</Button>
-                     <Button onClick={handleReprintPrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-};
+      const handleReprintPrint = () => {
+          const printWindow = window.open('', '_blank');
+          printWindow.document.write('<html><head><title>Print Bill</title>');
+          printWindow.document.write(`
+              <style>
+                  body { font-family: sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                  @page { size: auto; margin: 0mm; }
+                  .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
+                  .printable-content-wrapper { flex: 1 1 32%; min-width: 0; border: 1px dashed #ccc; padding: 0.5rem; font-size: 9px; }
+                  .text-primary { color: #4f46e5; }
+                  .separator { border-top: 1px solid #eee; margin: 4px 0; }
+                  .flex { display: flex; align-items: center; }
+                  .gap-2 { gap: 0.5rem; }
+                  .h-5 { height: 12px; } .w-5 { width: 12px; }
+                  .grid { display: grid; } .gap-4 { gap: 1rem; }
+                  .text-sm { font-size: 9px; } 
+                  p { margin: 0; }
+                  strong { font-weight: bold; }
+              </style>
+          `);
+          printWindow.document.write('</head><body>');
+  
+          // Create a container for the printable content
+          const container = document.createElement('div');
+          
+          const printableContent = (
+              <div className="printable-section">
+                  <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+                  <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+                  <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+              </div>
+          );
+  
+          // Use ReactDOMServer to render the React component to a static HTML string
+          const ReactDOMServer = require('react-dom/server');
+          printWindow.document.write(ReactDOMServer.renderToStaticMarkup(printableContent));
+  
+          printWindow.document.write('</body></html>');
+          printWindow.document.close();
+          printWindow.focus();
+          // Use a timeout to ensure content is loaded before printing
+          setTimeout(() => {
+              printWindow.print();
+              printWindow.close();
+          }, 250);
+      };
+  
+      if (!reprintData) return null;
+  
+      return (
+          <Dialog open={isReprintDialogOpen} onOpenChange={setIsReprintDialogOpen}>
+              <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                      <DialogTitle>Reprint Bill #{reprintData.sl_no}</DialogTitle>
+                      <DialogDescription>
+                          Confirm the details below before re-printing.
+                      </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4 text-sm">
+                      <p><strong>Date:</strong> {reprintData.date} {reprintData.time}</p>
+                      <p><strong>Vehicle:</strong> {reprintData.vehicle_no}</p>
+                      <p><strong>Party:</strong> {reprintData.party_name}</p>
+                      <p><strong>Net Weight:</strong> {reprintData.net_weight} kg</p>
+                  </div>
+                  <DialogFooter className="sm:justify-end">
+                       <Button type="button" variant="secondary" onClick={() => setIsReprintDialogOpen(false)}>Close</Button>
+                       <Button type="button" onClick={handleReprintPrint}>
+                           <Printer className="mr-2 h-4 w-4" />
+                           Print
+                       </Button>
+                  </DialogFooter>
+              </DialogContent>
+          </Dialog>
+      );
+  };
 
 
   return (
@@ -957,7 +981,14 @@ Thank you!
                   </div>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={findBill} disabled={isLoadingReprint}>
+                    <AlertDialogAction onClick={() => {
+                       findBill();
+                       // We need to close the alert dialog ourselves
+                       // as it does not close on its own when an action is taken.
+                       // A bit of a hack: find the cancel button and click it programmatically
+                       // This is needed because the reprint logic opens another dialog.
+                       document.querySelector('[data-radix-collection-item] button[aria-label="Cancel"]')?.click();
+                    }} disabled={isLoadingReprint}>
                       {isLoadingReprint && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Find Bill
                     </AlertDialogAction>
@@ -979,7 +1010,9 @@ Thank you!
           </form>
         </Form>
       </Card>
-      {reprintData && <ReprintDialog />}
+      {isReprintDialogOpen && <ReprintDialog />}
     </div>
   );
 }
+
+    
