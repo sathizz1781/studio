@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, Edit, MapPin } from "lucide-react";
 import dynamic from 'next/dynamic';
 
 const MapPicker = dynamic(() => import('./map-picker').then(mod => mod.MapPicker), { 
@@ -32,6 +32,7 @@ const formSchema = z.object({
 
 export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustomer }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMapEditMode, setIsMapEditMode] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -58,6 +59,8 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
         longitude: customer.longitude
       });
     }
+    // Reset map edit mode when dialog is opened or customer changes
+    setIsMapEditMode(false);
   }, [customer, form, isOpen]);
 
   const handleLocationSelect = (lat, lng) => {
@@ -70,6 +73,27 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
     await onUpdateCustomer(values);
     setIsSubmitting(false);
   }
+
+  const GoogleMapsEmbed = ({ lat, lng }) => {
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+        return <div className="h-80 w-full rounded-md border bg-muted flex items-center justify-center"><p>Location not available.</p></div>;
+    }
+    const embedUrl = `https://www.google.com/maps?q=${lat},${lng}&hl=en&z=14&output=embed`;
+    return (
+      <div className="h-80 w-full rounded-md border overflow-hidden">
+        <iframe
+          width="100%"
+          height="100%"
+          style={{ border: 0 }}
+          src={embedUrl}
+          allowFullScreen=""
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          title="Customer Location"
+        ></iframe>
+      </div>
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -166,12 +190,22 @@ export function EditCustomerDialog({ isOpen, setIsOpen, customer, onUpdateCustom
                 name="latitude"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Location</FormLabel>
+                    <FormLabel className="flex justify-between items-center">
+                      <span className="flex items-center gap-2"><MapPin /> Location</span>
+                       <Button type="button" variant="ghost" size="sm" onClick={() => setIsMapEditMode(!isMapEditMode)}>
+                         <Edit className="mr-2 h-4 w-4" />
+                         {isMapEditMode ? "View Map" : "Edit Location"}
+                       </Button>
+                    </FormLabel>
                     <FormControl>
-                       <MapPicker 
-                          onLocationSelect={handleLocationSelect} 
-                          initialPosition={customer && customer.latitude && customer.longitude ? [customer.latitude, customer.longitude] : undefined}
-                        />
+                        {isMapEditMode ? (
+                             <MapPicker 
+                                onLocationSelect={handleLocationSelect} 
+                                initialPosition={customer && customer.latitude && customer.longitude ? [customer.latitude, customer.longitude] : undefined}
+                              />
+                        ) : (
+                            <GoogleMapsEmbed lat={customer?.latitude} lng={customer?.longitude} />
+                        )}
                     </FormControl>
                      <FormMessage>{form.formState.errors.latitude?.message || form.formState.errors.longitude?.message}</FormMessage>
                   </FormItem>
