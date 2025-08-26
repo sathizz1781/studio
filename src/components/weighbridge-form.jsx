@@ -4,7 +4,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -35,6 +35,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
@@ -50,10 +52,13 @@ import {
   Weight,
   Scale,
   RefreshCcw,
+  Edit,
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
 
 const formSchema = z.object({
+  serialNumber: z.string().min(1, "Serial number is required."),
+  dateTime: z.string().min(1, "Date and time are required."),
   vehicleNumber: z.string().min(1, "Vehicle number is required."),
   partyName: z.string().min(1, "Party name is required."),
   materialName: z.string().min(1, "Material name is required."),
@@ -85,13 +90,12 @@ const WhatsAppIcon = (props) => (
 );
 
 export function WeighbridgeForm() {
-  const [serialNumber, setSerialNumber] = useState("");
-  const [dateTime, setDateTime] = useState("");
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
   const [reprintSerial, setReprintSerial] = useState("");
   const [currentWeight, setCurrentWeight] = useState(0);
+  const [isManualMode, setIsManualMode] = useState(false);
 
   const upiID = "sathishkumar1781@oksbi";
   const businessName = "Amman Weighing Home";
@@ -102,6 +106,8 @@ export function WeighbridgeForm() {
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      serialNumber: "",
+      dateTime: "",
       vehicleNumber: "",
       partyName: "",
       materialName: "",
@@ -113,6 +119,14 @@ export function WeighbridgeForm() {
     },
   });
 
+  const { setValue, watch } = form;
+  const firstWeight = watch("firstWeight");
+  const secondWeight = watch("secondWeight");
+  const charges = watch("charges");
+  const serialNumber = watch("serialNumber");
+  const dateTime = watch("dateTime");
+
+
   const fetchNewSerialNumber = async () => {
     try {
       const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill");
@@ -120,15 +134,16 @@ export function WeighbridgeForm() {
         throw new Error('Network response was not ok');
       }
       const data = await response.json();
-      setSerialNumber(data.data.sl_no + 1);
+      setValue("serialNumber", (data.data.sl_no + 1).toString());
     } catch (error) {
       console.error("Error fetching last bill:", error);
-      setSerialNumber(`WB-${Date.now().toString().slice(-6)}`);
+      setValue("serialNumber", `WB-${Date.now().toString().slice(-6)}`);
     }
   };
 
   const updateDateTime = () => {
-    setDateTime(
+    setValue(
+      "dateTime",
       new Date().toLocaleString("en-IN", {
         hour12: true,
         day: "2-digit",
@@ -140,16 +155,18 @@ export function WeighbridgeForm() {
       })
     );
   };
+  
+  const initializeForm = () => {
+    if (!isManualMode) {
+        fetchNewSerialNumber();
+        updateDateTime();
+    }
+  };
 
   useEffect(() => {
     setIsClient(true);
-    fetchNewSerialNumber();
-    updateDateTime();
-  }, []);
-
-  const firstWeight = form.watch("firstWeight");
-  const secondWeight = form.watch("secondWeight");
-  const charges = form.watch("charges");
+    initializeForm();
+  }, [isManualMode]);
 
   useEffect(() => {
     if (typeof firstWeight !== "undefined" && typeof secondWeight !== "undefined") {
@@ -163,17 +180,11 @@ export function WeighbridgeForm() {
   useEffect(() => {
     const numericCharges = Number(charges);
     if (numericCharges > 0) {
-      const upiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(
-        businessName
-      )}&am=${numericCharges.toFixed(2)}&cu=INR`;
-      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(
-        upiURL
-      )}&size=128x128&margin=0`;
+      const upiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&am=${numericCharges.toFixed(2)}&cu=INR`;
+      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiURL)}&size=128x128&margin=0`;
       setQrCodeUrl(apiUrl);
     } else {
-        const defaultQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(
-            defaultUpiURL
-        )}&size=128x128&margin=0`;
+        const defaultQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(defaultUpiURL)}&size=128x128&margin=0`;
         setQrCodeUrl(defaultQrCodeUrl);
     }
   }, [charges, defaultUpiURL, businessName, upiID]);
@@ -195,8 +206,7 @@ export function WeighbridgeForm() {
     });
     setNetWeight(0);
     if (isClient) {
-      fetchNewSerialNumber();
-      updateDateTime();
+      initializeForm();
     }
   };
 
@@ -217,6 +227,8 @@ export function WeighbridgeForm() {
       const billData = result.data;
       if (billData) {
         form.reset({
+            serialNumber: billData.sl_no,
+            dateTime: `${billData.date}, ${billData.time}`,
             vehicleNumber: billData.vehicle_no,
             partyName: billData.party_name,
             materialName: billData.material_name,
@@ -226,8 +238,6 @@ export function WeighbridgeForm() {
             whatsappNumber: billData.whatsappNumber || "", 
             paymentStatus: billData.paid_status ? "Paid" : "Credit",
         });
-        setSerialNumber(billData.sl_no);
-        setDateTime(`${billData.date}, ${billData.time}`);
         toast({ title: "Bill Found", description: `Data for bill ${reprintSerial} has been loaded.` });
       } else {
         toast({ variant: "destructive", title: "Bill Not Found", description: `No data found for serial number ${reprintSerial}.` });
@@ -239,9 +249,9 @@ export function WeighbridgeForm() {
   };
 
   async function onSubmit(values) {
-    const [date, time] = dateTime.split(', ');
+    const [date, time] = values.dateTime.split(', ');
     const billPayload = {
-        sl_no: serialNumber,
+        sl_no: values.serialNumber,
         date: date,
         time: time,
         vehicle_no: values.vehicleNumber,
@@ -255,12 +265,16 @@ export function WeighbridgeForm() {
     };
     
     try {
-      // Save bill to backend
-      await fetch("https://bend-mqjz.onrender.com/api/wb/postbill", {
+      const saveResponse = await fetch("https://bend-mqjz.onrender.com/api/wb/postbill", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(billPayload),
       });
+
+      if (!saveResponse.ok) {
+        throw new Error('Failed to save the bill.');
+      }
+
 
       let toastMessage = {
         title: "Bill Saved",
@@ -271,8 +285,8 @@ export function WeighbridgeForm() {
         const message = `
 *WeighBridge Bill*
 -------------------------
-*Serial No:* ${serialNumber}
-*Date:* ${dateTime}
+*Serial No:* ${values.serialNumber}
+*Date:* ${values.dateTime}
 *Vehicle No:* ${values.vehicleNumber}
 *Party Name:* ${values.partyName}
 *Material:* ${values.materialName}
@@ -317,22 +331,54 @@ Thank you!
             </CardContent>
         </Card>
       </div>
+       <div className="flex items-center justify-end space-x-2 mb-4">
+          <Label htmlFor="manual-mode" className="flex items-center gap-2 text-sm">
+            <Edit size={14} /> Manual Entry
+          </Label>
+          <Switch
+            id="manual-mode"
+            checked={isManualMode}
+            onCheckedChange={setIsManualMode}
+          />
+        </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg sm:col-span-1">
-          <Hash className="h-5 w-5 text-primary" />
-          <div>
-            <p className="text-sm font-medium">Serial Number</p>
-            <p className="text-lg font-bold text-foreground">{serialNumber}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg sm:col-span-2">
-          <Clock className="h-5 w-5 text-primary" />
-          <div>
-            <p className="text-sm font-medium">Date & Time</p>
-            <p className="text-sm text-foreground">{dateTime}</p>
-          </div>
-        </div>
+        <FormField
+            control={form.control}
+            name="serialNumber"
+            render={({ field }) => (
+                <FormItem className="sm:col-span-1">
+                    <FormLabel className="flex items-center gap-2"><Hash className="h-5 w-5 text-primary" /> Serial Number</FormLabel>
+                    <FormControl>
+                        {isManualMode ? (
+                            <Input {...field} />
+                        ) : (
+                            <p className="p-3 bg-muted rounded-lg text-lg font-bold text-foreground">{field.value}</p>
+                        )}
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+        <FormField
+            control={form.control}
+            name="dateTime"
+            render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                    <FormLabel className="flex items-center gap-2"><Clock className="h-5 w-5 text-primary" /> Date & Time</FormLabel>
+                     <FormControl>
+                        {isManualMode ? (
+                            <Input {...field} />
+                        ) : (
+                            <p className="p-3 bg-muted rounded-lg text-sm text-foreground">{field.value}</p>
+                        )}
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
       </div>
+
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
         <FormField
@@ -702,3 +748,5 @@ Thank you!
     </Card>
   );
 }
+
+    
