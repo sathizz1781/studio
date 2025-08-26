@@ -60,6 +60,7 @@ import {
   Edit,
   ChevronDown,
   Loader2,
+  ArrowDown,
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
 
@@ -99,6 +100,9 @@ const WhatsAppIcon = (props) => (
 const LiveClock = () => {
   const [time, setTime] = useState("");
   useEffect(() => {
+    // Set the initial time immediately
+    setTime(new Date().toLocaleTimeString('en-IN', { hour12: true }));
+    // Then set up the interval to update it
     const timerId = setInterval(() => {
       setTime(new Date().toLocaleTimeString('en-IN', { hour12: true }));
     }, 1000);
@@ -117,6 +121,12 @@ export function WeighbridgeForm() {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const [isLoadingReprint, setIsLoadingReprint] = useState(false);
+
+  // State for pull-to-refresh
+  const [pullPosition, setPullPosition] = useState(-50);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const PULL_THRESHOLD = 70; // How far the user needs to pull down in px
 
   const serialDataRef = useRef({ weight: 0 });
 
@@ -397,6 +407,38 @@ Thank you!
       toast({ variant: "destructive", title: "Error", description: `Could not save the bill. ${error.message}` });
     }
   }
+
+  // Pull to refresh handlers
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.targetTouches[0].clientY;
+  };
+
+  const handleTouchMove = (e) => {
+    const touchY = e.targetTouches[0].clientY;
+    const pullDistance = touchY - touchStartY.current;
+
+    if (window.scrollY === 0 && pullDistance > 0) {
+      // Prevent default browser refresh action
+      e.preventDefault();
+      const newPullPosition = Math.min(pullDistance, PULL_THRESHOLD + 20) - 50;
+      setPullPosition(newPullPosition);
+      
+      if (pullDistance > PULL_THRESHOLD) {
+        setIsRefreshing(true);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (isRefreshing) {
+      handleReset();
+      toast({ title: "Refreshed", description: "New bill ready." });
+    }
+    // Reset states
+    setIsRefreshing(false);
+    setPullPosition(-50);
+    touchStartY.current = 0;
+  };
 
   const BillContent = () => (
     <>
@@ -769,115 +811,128 @@ Thank you!
 
 
   return (
-    <Card className="w-full max-w-4xl printable-card shadow-2xl">
-      <CardHeader className="no-print">
-        <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Scale /> WeighBridge Biller
-          </div>
-           {isClient && <LiveClock />}
-        </CardTitle>
-        <CardDescription>
-          Fill in the details below to generate a new bill.
-        </CardDescription>
-      </CardHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent>
-            {/* This is for the screen view */}
-            <div className="no-print">
-              <BillContent />
-            </div>
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      className="relative"
+    >
+      <div
+        className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 text-muted-foreground transition-all duration-200"
+        style={{ top: `${pullPosition}px` }}
+      >
+        {isRefreshing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowDown className="h-5 w-5" />}
+        <span className="text-sm">{isRefreshing ? 'Refreshing...' : 'Pull to refresh'}</span>
+      </div>
 
-            {/* This is for the print view only */}
-            <div className="print-only printable-section">
-              <div className="printable-content-wrapper">
-                <PrintableBill />
-              </div>
-              <div className="printable-content-wrapper">
-                <PrintableBill />
-              </div>
-              <div className="printable-content-wrapper">
-                <PrintableBill />
-              </div>
+      <Card className="w-full max-w-4xl printable-card shadow-2xl">
+        <CardHeader className="no-print">
+          <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Scale /> WeighBridge Biller
             </div>
+            {isClient && <LiveClock />}
+          </CardTitle>
+          <CardDescription>
+            Fill in the details below to generate a new bill.
+          </CardDescription>
+        </CardHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardContent>
+              {/* This is for the screen view */}
+              <div className="no-print">
+                <BillContent />
+              </div>
 
-            <Separator className="my-8 no-print" />
-
-            {/* Non-Printable Section */}
-            <div className="no-print">
-              <h3 className="text-lg font-medium text-accent mb-2">
-                Send via WhatsApp
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Enter a WhatsApp number to send the bill details.
-              </p>
-              <FormField
-                control={control}
-                name="whatsappNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <WhatsAppIcon className="h-4 w-4" />
-                      WhatsApp Number
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., 9876543210" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col sm:flex-row sm:flex-wrap justify-end gap-2 sm:gap-4 no-print mt-4">
-             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button type="button" variant="outline" className="w-full sm:w-auto">
-                   <RefreshCcw className="mr-2 h-4 w-4" />
-                   Reprint Bill
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Reprint Bill</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Enter the serial number of the bill you want to reprint.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="flex items-center space-x-2">
-                    <Input 
-                      id="reprint-serial" 
-                      placeholder="e.g., WB-123456" 
-                      value={reprintSerial}
-                      onChange={(e) => setReprintSerial(e.target.value)}
-                    />
+              {/* This is for the print view only */}
+              <div className="print-only printable-section">
+                <div className="printable-content-wrapper">
+                  <PrintableBill />
                 </div>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={findBill} disabled={isLoadingReprint}>
-                    {isLoadingReprint && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Find Bill
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button
-              type="submit"
-              style={{
-                backgroundColor: "hsl(var(--accent))",
-                color: "hsl(var(--accent-foreground))",
-              }}
-               className="w-full sm:w-auto"
-            >
-              <Printer className="mr-2 h-4 w-4" />
-              Send &amp; Print
-            </Button>
-          </CardFooter>
-        </form>
-      </Form>
-    </Card>
+                <div className="printable-content-wrapper">
+                  <PrintableBill />
+                </div>
+                <div className="printable-content-wrapper">
+                  <PrintableBill />
+                </div>
+              </div>
+
+              <Separator className="my-8 no-print" />
+
+              {/* Non-Printable Section */}
+              <div className="no-print">
+                <h3 className="text-lg font-medium text-accent mb-2">
+                  Send via WhatsApp
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Enter a WhatsApp number to send the bill details.
+                </p>
+                <FormField
+                  control={control}
+                  name="whatsappNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <WhatsAppIcon className="h-4 w-4" />
+                        WhatsApp Number
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., 9876543210" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col sm:flex-row sm:flex-wrap justify-end gap-2 sm:gap-4 no-print mt-4">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="outline" className="w-full sm:w-auto">
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Reprint Bill
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reprint Bill</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Enter the serial number of the bill you want to reprint.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="flex items-center space-x-2">
+                      <Input 
+                        id="reprint-serial" 
+                        placeholder="e.g., WB-123456" 
+                        value={reprintSerial}
+                        onChange={(e) => setReprintSerial(e.target.value)}
+                      />
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={findBill} disabled={isLoadingReprint}>
+                      {isLoadingReprint && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Find Bill
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button
+                type="submit"
+                style={{
+                  backgroundColor: "hsl(var(--accent))",
+                  color: "hsl(var(--accent-foreground))",
+                }}
+                className="w-full sm:w-auto"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Send &amp; Print
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
+      </Card>
+    </div>
   );
 }
-
-    
