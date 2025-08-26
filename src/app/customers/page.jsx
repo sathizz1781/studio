@@ -70,7 +70,11 @@ export default function CustomerPage() {
   const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get("https://bend-mqjz.onrender.com/api/customers");
+      const response = await axios.get("https://bend-mqjz.onrender.com/api/user/userlist", {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
       setCustomers(response.data.data || []);
     } catch (error) {
       console.error("Failed to fetch customers:", error);
@@ -123,8 +127,8 @@ export default function CustomerPage() {
 
   const onSubmit = async (data) => {
     const apiEndpoint = editingCustomer
-      ? `https://bend-mqjz.onrender.com/api/customers/${editingCustomer._id}`
-      : "https://bend-mqjz.onrender.com/api/customers";
+      ? `https://bend-mqjz.onrender.com/api/user/edituser/${editingCustomer._id}`
+      : "https://bend-mqjz.onrender.com/api/user/createuser";
     const apiMethod = editingCustomer ? "patch" : "post";
 
     try {
@@ -148,7 +152,7 @@ export default function CustomerPage() {
   const handleDelete = async (customerId) => {
      if (!window.confirm("Are you sure you want to delete this customer?")) return;
       try {
-        await axios.delete(`https://bend-mqjz.onrender.com/api/customers/${customerId}`);
+        await axios.delete(`https://bend-mqjz.onrender.com/api/user/deleteuser/${customerId}`);
         toast({
           title: "Success",
           description: "Customer deleted successfully.",
@@ -381,3 +385,5 @@ export default function CustomerPage() {
     </div>
   );
 }
+
+    
