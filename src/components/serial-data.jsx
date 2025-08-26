@@ -1,9 +1,10 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 
-export const SerialDataComponent = ({ setCurrentWeight }) => {
+export const SerialDataComponent = ({ serialDataRef }) => {
   const [serialData, setSerialData] = useState("000000");
 
   useEffect(() => {
@@ -18,7 +19,9 @@ export const SerialDataComponent = ({ setCurrentWeight }) => {
       const sanitizedOutput = output.replace(/\s/g, ''); // Remove whitespace
       if (sanitizedOutput.length === 6 && /^\d+$/.test(sanitizedOutput)) {
         setSerialData(sanitizedOutput);
-        setCurrentWeight(Number(sanitizedOutput));
+        if (serialDataRef && serialDataRef.current) {
+          serialDataRef.current.weight = Number(sanitizedOutput);
+        }
       }
     });
 
@@ -30,7 +33,7 @@ export const SerialDataComponent = ({ setCurrentWeight }) => {
     return () => {
       socket.disconnect();
     };
-  }, [setCurrentWeight]);
+  }, [serialDataRef]);
 
   return (
     <p
@@ -40,3 +43,5 @@ export const SerialDataComponent = ({ setCurrentWeight }) => {
     </p>
   );
 };
+
+    

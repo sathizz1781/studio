@@ -117,6 +117,7 @@ export function WeighbridgeForm() {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   const popoverTriggerRef = useRef(null);
+  const serialDataRef = useRef({ weight: 0 });
 
   const upiID = "sathishkumar1781@oksbi";
   const businessName = "Amman Weighing Home";
@@ -301,7 +302,7 @@ export function WeighbridgeForm() {
   };
   
   const handleWeightSelection = (selectedWeight) => {
-    const liveWeight = currentWeight;
+    const liveWeight = serialDataRef.current.weight;
     setValue("firstWeight", Math.max(selectedWeight, liveWeight));
     setValue("secondWeight", Math.min(selectedWeight, liveWeight));
     setIsPopoverOpen(false);
@@ -388,7 +389,7 @@ Thank you!
                 <CardTitle className="text-center text-md sm:text-lg">Live Weight</CardTitle>
             </CardHeader>
             <CardContent className="p-2 sm:p-3">
-                 <SerialDataComponent setCurrentWeight={setCurrentWeight} />
+                 <SerialDataComponent serialDataRef={serialDataRef} />
             </CardContent>
         </Card>
       </div>
@@ -487,8 +488,8 @@ Thank you!
                                 <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.second_weight)}>
                                  2nd: {previousWeights.second_weight} kg
                                 </Button>
-                                <Button variant="secondary" onClick={() => handleWeightSelection(currentWeight)}>
-                                  Use Live: {currentWeight} kg
+                                <Button variant="secondary" onClick={() => handleWeightSelection(serialDataRef.current.weight)}>
+                                  Use Live: {serialDataRef.current.weight} kg
                                 </Button>
                             </div>
                           </PopoverContent>
@@ -854,6 +855,8 @@ Thank you!
     </Card>
   );
 }
+
+    
 
     
 
