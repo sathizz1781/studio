@@ -950,7 +950,7 @@ Thank you!
           </CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="no-print mb-6">
+           <div className="no-print mb-6">
                 <div className="space-y-2">
                     <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
                     <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
@@ -1076,4 +1076,3 @@ Thank you!
   );
 }
 
-    
