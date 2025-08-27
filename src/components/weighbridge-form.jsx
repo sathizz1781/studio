@@ -227,7 +227,6 @@ export function WeighbridgeForm() {
   const [isReprintDialogOpen, setIsReprintDialogOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
   const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
   
@@ -391,7 +390,6 @@ export function WeighbridgeForm() {
     });
     setNetWeight(0);
     setPreviousWeights(null);
-    setSelectedCustomer(null);
     setSelectedCustomerForDisplay(null);
     setChargeExtremes(null);
     if (isClient) {
@@ -680,37 +678,45 @@ Thank you!
         />
       </div>
       
-      <div className="space-y-2 no-print mb-6">
-          <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
-           <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
-              <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" aria-expanded={isCustomerPopoverOpen} className="w-full justify-between">
-                     {selectedCustomerForDisplay ? selectedCustomerForDisplay.companyName : "Select customer..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <Command>
-                      <CommandInput placeholder="Search customer..." />
-                      <CommandList>
-                          <CommandEmpty>No customer found.</CommandEmpty>
-                          <CommandGroup>
-                              {customers.map((customer) => (
-                                  <CommandItem
-                                      key={customer.customerId}
-                                      value={customer.customerId}
-                                      onSelect={() => handleCustomerSelect(customer.customerId)}
-                                  >
-                                      <Check className={cn("mr-2 h-4 w-4", selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0")} />
-                                      {customer.companyName}
-                                  </CommandItem>
-                              ))}
-                          </CommandGroup>
-                      </CommandList>
-                  </Command>
-              </PopoverContent>
-            </Popover>
-       </div>
+       <div className="space-y-2 no-print mb-6">
+        <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
+        <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" role="combobox" aria-expanded={isCustomerPopoverOpen} className="w-full justify-between">
+              {selectedCustomerForDisplay ? selectedCustomerForDisplay.companyName : "Select customer..."}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+            <Command
+              filter={(value, search) => {
+                const customer = customers.find(c => c.customerId === value);
+                if (customer) {
+                    return customer.companyName.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                }
+                return 0;
+              }}
+            >
+              <CommandInput placeholder="Search customer..." />
+              <CommandList>
+                <CommandEmpty>No customer found.</CommandEmpty>
+                <CommandGroup>
+                  {customers.map((customer) => (
+                    <CommandItem
+                      key={customer.customerId}
+                      value={customer.customerId}
+                      onSelect={() => handleCustomerSelect(customer.customerId)}
+                    >
+                      <Check className={cn("mr-2 h-4 w-4", selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0")} />
+                      {customer.companyName}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      </div>
 
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">

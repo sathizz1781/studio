@@ -1,0 +1,43 @@
+
+{
+    "title": "WeighBridge Biller",
+    "description": "A simple weighbridge billing application.",
+    "nav": {
+        "biller": "Biller",
+        "reports": "Reports",
+        "customers": "Customers"
+    },
+    "weighbridge_form": {
+        "title": "WeighBridge Biller",
+        "description": "Fill in the details below to generate a new bill.",
+        "live_weight": "Live Weight",
+        "manual_entry": "Manual Entry",
+        "serial_number": "Serial Number",
+        "date_time": "Date & Time",
+        "select_customer": "Select Customer",
+        "search_customer": "Search customer...",
+        "no_customer_found": "No customer found.",
+        "vehicle_number": "Vehicle Number",
+        "party_name": "Party Name",
+        "material_name": "Material Name",
+        "charges": "Charges (₹)",
+        "first_weight": "First Weight",
+        "second_weight": "Second Weight",
+        "net_weight": "Net Weight",
+        "payment_status": "Payment Status",
+        "paid": "Paid",
+        "credit": "Credit",
+        "whatsapp_number": "WhatsApp Number",
+        "scan_to_pay": "Scan to Pay",
+        "pay_via_upi": "Pay ₹{amount} via UPI",
+        "customer_location": "Customer Location",
+        "share_location": "Share Location",
+        "view_reports": "View Reports",
+        "reprint_bill": "Reprint Bill",
+        "send_print": "Send & Print",
+        "previous_entry_found": "Previous Entry Found:",
+        "bill": "Bill",
+        "date": "Date",
+        "use_live": "Use Live"
+    }
+}

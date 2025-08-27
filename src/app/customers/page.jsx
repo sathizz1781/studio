@@ -399,7 +399,7 @@ export default function CustomerPage() {
                       </FormItem>
                     )}
                   />
-                  <FormItem className="flex flex-col">
+                  <FormItem className="flex flex-col space-y-2">
                     <FormLabel>Set Location</FormLabel>
                      <div className="grid grid-cols-2 gap-4">
                         <FormField

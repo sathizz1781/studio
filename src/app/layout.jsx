@@ -7,24 +7,77 @@ import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, Menu } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { usePathname } from 'next/navigation';
+import { Home, Menu, Moon, Sun, Globe } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetClose,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { usePathname } from "next/navigation";
+import React, { useState, useEffect, createContext, useContext } from "react";
+import en from "@/lib/locales/en.json";
 
 const fontInter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
 
-// Metadata is not supported in client components, but we can keep the export for static analysis if needed.
-// It's better to move this to a server component layout if possible, but for this fix, we'll keep it simple.
-// export const metadata = {
-//   title: "WeighBridge Biller",
-//   description: "A simple weighbridge billing application.",
-// };
+const AppContext = createContext();
+
+export const useAppContext = () => useContext(AppContext);
+
+const AppProvider = ({ children }) => {
+  const [theme, setTheme] = useState("light");
+  const [language, setLanguage] = useState("en");
+  const [translations, setTranslations] = useState(en);
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("theme") || "light";
+    setTheme(storedTheme);
+  }, []);
+
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+  };
+
+  const value = {
+    theme,
+    toggleTheme,
+    language,
+    setLanguage,
+    translations,
+  };
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
 
 export default function RootLayout({ children }) {
+  return (
+    <AppProvider>
+      <LayoutContent>{children}</LayoutContent>
+    </AppProvider>
+  );
+}
+
+function LayoutContent({ children }) {
   const pathname = usePathname();
+  const { toggleTheme, theme, translations, setLanguage } = useAppContext();
 
   const navLinks = [
     { href: "/", label: "Biller" },
@@ -33,10 +86,10 @@ export default function RootLayout({ children }) {
   ];
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <title>WeighBridge Biller</title>
-        <meta name="description" content="A simple weighbridge billing application." />
+        <title>{translations.title}</title>
+        <meta name="description" content={translations.description} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -72,7 +125,7 @@ export default function RootLayout({ children }) {
                       : "text-muted-foreground"
                   )}
                 >
-                  {link.label}
+                  {translations.nav[link.label.toLowerCase()]}
                 </Link>
               ))}
             </nav>
@@ -89,7 +142,7 @@ export default function RootLayout({ children }) {
               </SheetTrigger>
               <SheetContent side="left">
                 <nav className="grid gap-6 text-lg font-medium">
-                  <Link
+                   <Link
                     href="/"
                     className="flex items-center gap-2 text-lg font-semibold"
                   >
@@ -97,22 +150,45 @@ export default function RootLayout({ children }) {
                     <span className="sr-only">Weighbridge</span>
                   </Link>
                   {navLinks.map((link) => (
-                     <Link
-                        key={link.href}
+                    <SheetClose asChild key={link.href}>
+                      <Link
                         href={link.href}
                         className={cn(
                           "transition-colors hover:text-foreground",
-                           pathname === link.href
+                          pathname === link.href
                             ? "text-foreground font-semibold"
                             : "text-muted-foreground"
                         )}
                       >
-                        {link.label}
+                         {translations.nav[link.label.toLowerCase()]}
                       </Link>
+                    </SheetClose>
                   ))}
                 </nav>
               </SheetContent>
             </Sheet>
+            <div className="ml-auto flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Globe className="h-[1.2rem] w-[1.2rem]" />
+                    <span className="sr-only">Change Language</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setLanguage("en")}>
+                    English
+                  </DropdownMenuItem>
+                  {/* Add other languages here */}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button variant="outline" size="icon" onClick={toggleTheme}>
+                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <span className="sr-only">Toggle theme</span>
+              </Button>
+            </div>
           </header>
           <main className="flex flex-1 flex-col gap-2 p-2 md:gap-4 md:p-4">
             {children}
