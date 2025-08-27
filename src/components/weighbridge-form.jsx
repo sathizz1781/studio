@@ -71,7 +71,6 @@ import {
   TrendingDown
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
-import { VehicleInfo } from "./vehicle-info";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Command,
@@ -231,7 +230,6 @@ export function WeighbridgeForm() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
   const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
-  const [vehicleInfo, setVehicleInfo] = useState(null);
   
   const touchStartY = useRef(0);
   const PULL_THRESHOLD = 70;
@@ -396,7 +394,6 @@ export function WeighbridgeForm() {
     setSelectedCustomer(null);
     setSelectedCustomerForDisplay(null);
     setChargeExtremes(null);
-    setVehicleInfo(null);
     if (isClient) {
       initializeForm();
     }
@@ -445,12 +442,10 @@ export function WeighbridgeForm() {
       setPreviousWeights(null);
       setChargeExtremes(null);
       setIsVehiclePopoverOpen(false);
-      setVehicleInfo(null);
       return;
     }
     
     setIsLoadingVehicle(true);
-    setVehicleInfo(null); // Reset previous info
 
     try {
         const [weightsResponse, chargesResponse] = await Promise.all([
@@ -489,34 +484,13 @@ export function WeighbridgeForm() {
             setChargeExtremes(null);
             setIsChargesPopoverOpen(false);
         }
-        
-        // Simulate API call for vehicle info
-        setTimeout(() => {
-             const mockApiData = {
-                "TATA ACE": { make: "Tata", model: "Ace Gold", fuel: "Diesel", variant: "CX", avgPrice: "₹4.41 Lakh" },
-                "TN39BY5131": { make: "Ashok Leyland", model: "Dost+", fuel: "Diesel", variant: "LE", avgPrice: "₹7.75 Lakh" },
-             };
-             const platePrefix = vehicleNo.substring(0, 2).toUpperCase();
-             const stateMap = { TN: "Tamil Nadu", KA: "Karnataka", KL: "Kerala", AP: "Andhra Pradesh", MH: "Maharashtra" };
-             const decodedState = stateMap[platePrefix] || "Unknown State";
-             const enrichedData = mockApiData[vehicleNo] || mockApiData["TATA ACE"];
-
-             setVehicleInfo({
-                ...enrichedData,
-                plate: vehicleNo,
-                region: decodedState,
-             });
-
-        }, 1000);
-
 
     } catch (error) {
         console.error("Error fetching vehicle data:", error);
         setPreviousWeights(null);
         setChargeExtremes(null);
     } finally {
-        // Delay setting loading to false to account for simulated API call
-        setTimeout(() => setIsLoadingVehicle(false), 1000);
+        setIsLoadingVehicle(false);
     }
   };
   
@@ -706,7 +680,7 @@ Thank you!
         />
       </div>
       
-       <div className="space-y-2 no-print mb-6">
+      <div className="space-y-2 no-print mb-6">
           <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
            <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
               <PopoverTrigger asChild>
@@ -725,9 +699,7 @@ Thank you!
                                   <CommandItem
                                       key={customer.customerId}
                                       value={customer.customerId}
-                                      onSelect={() => {
-                                          handleCustomerSelect(customer.customerId);
-                                      }}
+                                      onSelect={() => handleCustomerSelect(customer.customerId)}
                                   >
                                       <Check className={cn("mr-2 h-4 w-4", selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0")} />
                                       {customer.companyName}
@@ -852,17 +824,19 @@ Thank you!
                             <div className="flex flex-col gap-3">
                                 <p className="text-sm font-semibold">Charge Suggestions</p>
                                 {chargeExtremes.highest && (
-                                     <Button variant="outline" className="justify-between" onClick={() => handleChargeSelection(chargeExtremes.highest.charges)}>
+                                     <Button variant="outline" className="justify-between gap-4" onClick={() => handleChargeSelection(chargeExtremes.highest.charges)}>
                                          <div className="flex items-center gap-2">
-                                            <TrendingUp className="h-4 w-4 text-green-500"/> Highest: ₹{chargeExtremes.highest.charges}
+                                            <TrendingUp className="h-4 w-4 text-green-500"/> Highest: 
                                          </div>
+                                          <span>₹{chargeExtremes.highest.charges}</span>
                                      </Button>
                                 )}
                                 {chargeExtremes.lowest && (
-                                     <Button variant="outline" className="justify-between" onClick={() => handleChargeSelection(chargeExtremes.lowest.charges)}>
+                                     <Button variant="outline" className="justify-between gap-4" onClick={() => handleChargeSelection(chargeExtremes.lowest.charges)}>
                                          <div className="flex items-center gap-2">
-                                             <TrendingDown className="h-4 w-4 text-red-500"/> Lowest: ₹{chargeExtremes.lowest.charges}
+                                             <TrendingDown className="h-4 w-4 text-red-500"/> Lowest:
                                          </div>
+                                          <span>₹{chargeExtremes.lowest.charges}</span>
                                      </Button>
                                 )}
                             </div>
@@ -876,12 +850,6 @@ Thank you!
           )}
         />
       </div>
-
-       {vehicleInfo && (
-            <div className="mb-6 no-print">
-                <VehicleInfo data={vehicleInfo} isLoading={isLoadingVehicle} />
-            </div>
-       )}
 
       <div className="grid md:grid-cols-3 gap-x-8 gap-y-6">
         <FormField
