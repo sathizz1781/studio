@@ -725,12 +725,12 @@ Net Weight: ${netWeight}
         <Popover>
   <PopoverTrigger asChild>
     <Button variant="outline" className="w-full justify-between">
-      {selectedCustomer?.companyName || "Select Customer"}
-      {selectedCustomer && (
+      {selectedCustomerForDisplay?.companyName || "Select Customer"}
+      {selectedCustomerForDisplay && (
         <span
           onClick={(e) => {
             e.stopPropagation(); // prevent reopening popover
-            setSelectedCustomer(null);
+            setSelectedCustomerForDisplay(null);
             setValue("customerId", "");
             setValue("partyName", "");
             setValue("whatsappNumber", "");
