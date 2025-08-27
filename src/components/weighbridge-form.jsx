@@ -206,7 +206,7 @@ const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast, translatio
     );
 };
 
-const PrintableBill = ({ billData, getValues, netWeight }) => {
+const PrintableBill = React.forwardRef(({ billData, getValues, netWeight }, ref) => {
     const values = billData || getValues();
     const isReprint = !!billData;
 
@@ -221,7 +221,7 @@ const PrintableBill = ({ billData, getValues, netWeight }) => {
     const serialNumber = isReprint ? values.sl_no : values.serialNumber;
 
     return (
-      <div className="grid grid-cols-1 gap-1 text-xs">
+      <div ref={ref} className="grid grid-cols-1 gap-1 text-xs">
         <p>{serialNumber}</p>
         <p>{date}</p>
         <p>{time}</p>
@@ -233,7 +233,8 @@ const PrintableBill = ({ billData, getValues, netWeight }) => {
         <p>{currentNetWeight}</p>
       </div>
     );
-};
+});
+PrintableBill.displayName = 'PrintableBill';
 
 
 export function WeighbridgeForm() {
@@ -261,6 +262,7 @@ export function WeighbridgeForm() {
   const PULL_THRESHOLD = 70;
 
   const serialDataRef = useRef({ weight: 0 });
+  const billPrintRef = useRef(null);
 
   const upiID = "sathishkumar1781@oksbi";
   const businessName = "Amman Weighing Home";
@@ -357,7 +359,7 @@ export function WeighbridgeForm() {
     const numericCharges = Number(charges);
     if (numericCharges > 0) {
       const upiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&am=${numericCharges.toFixed(2)}&cu=INR`;
-      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiURL)}&size=128x128&margin=0`;
+      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiURL)}&size=128x128&margin=0}`;
       setQrCodeUrl(apiUrl);
     } else {
         const defaultQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(defaultUpiURL)}&size=128x128&margin=0`;
@@ -375,9 +377,9 @@ export function WeighbridgeForm() {
     const ReactDOMServer = require('react-dom/server');
     const billHtml = ReactDOMServer.renderToStaticMarkup(
       <div className="printable-section">
-        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
-        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
-        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
+        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
+        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
+        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
       </div>
     );
     
@@ -402,6 +404,7 @@ export function WeighbridgeForm() {
         printWindow.close();
     }, 250);
   };
+
 
   const handleReset = useCallback(() => {
     reset({
@@ -532,7 +535,19 @@ export function WeighbridgeForm() {
   }
 
   async function onSubmit(values) {
-    const [date, time] = values.dateTime.split(', ');
+    const now = new Date();
+    const currentDateTime = now.toLocaleString("en-IN", {
+        hour12: true,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    });
+    setValue("dateTime", currentDateTime);
+    
+    const [date, time] = currentDateTime.split(', ');
     
     const billPayload = {
       billNo: Number(values.serialNumber),
@@ -572,7 +587,7 @@ export function WeighbridgeForm() {
 *WeighBridge Bill*
 -------------------------
 *Serial No:* ${values.serialNumber}
-*Date:* ${values.dateTime}
+*Date:* ${currentDateTime}
 *Vehicle No:* ${values.vehicleNumber.toUpperCase()}
 *Party Name:* ${values.partyName}
 *Material:* ${values.materialName}
@@ -1115,7 +1130,9 @@ Thank you!
                 <div className="no-print">
                     <BillContent />
                 </div>
-                <div className="print-only" id="print-section"></div>
+                <div className="print-only" id="print-section">
+                   {/* This is a placeholder for the print content that will be generated on the fly */}
+                </div>
                 <CardFooter className="flex flex-col sm:flex-row sm:flex-wrap justify-end gap-2 sm:gap-4 no-print mt-4">
                     <Link href="/reports" passHref>
                         <Button variant="outline" className="w-full sm:w-auto">
