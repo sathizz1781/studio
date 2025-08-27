@@ -43,7 +43,6 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import {
@@ -58,14 +57,11 @@ import {
   Scale,
   RefreshCcw,
   Edit,
-  ChevronDown,
   Loader2,
-  ArrowDown,
   BarChart2,
   Users,
   Check,
   ChevronsUpDown,
-  MapPin,
   Share2,
   TrendingUp,
   TrendingDown
@@ -82,7 +78,6 @@ import {
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils";
 import { useAppContext } from "@/app/layout";
-
 
 const formSchema = z.object({
   serialNumber: z.string().min(1, "Serial number is required."),
@@ -208,6 +203,35 @@ const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast, translatio
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    );
+};
+
+const PrintableBill = ({ billData, getValues, netWeight }) => {
+    const values = billData || getValues();
+    const isReprint = !!billData;
+
+    const currentNetWeight = isReprint ? values.net_weight : netWeight;
+    const dateTime = isReprint ? `${values.date}, ${values.time}` : values.dateTime;
+    const [date, time] = dateTime.split(', ');
+    const firstWeightValue = isReprint ? values.first_weight : values.firstWeight;
+    const secondWeightValue = isReprint ? values.second_weight : values.secondWeight;
+    const vehicleNumber = isReprint ? values.vehicle_no : values.vehicleNumber;
+    const materialName = isReprint ? (values.material_name || values.material) : values.materialName;
+    const partyName = isReprint ? (values.party_name || values.party) : values.partyName;
+    const serialNumber = isReprint ? values.sl_no : values.serialNumber;
+
+    return (
+      <div className="grid grid-cols-1 gap-1 text-xs">
+        <p>{serialNumber}</p>
+        <p>{date}</p>
+        <p>{time}</p>
+        <p>{vehicleNumber}</p>
+        <p>{materialName}</p>
+        <p>{partyName}</p>
+        <p>{firstWeightValue}</p>
+        <p>{secondWeightValue}</p>
+        <p>{currentNetWeight}</p>
+      </div>
     );
 };
 
@@ -347,6 +371,16 @@ export function WeighbridgeForm() {
       toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print bills." });
       return;
     }
+    
+    const ReactDOMServer = require('react-dom/server');
+    const billHtml = ReactDOMServer.renderToStaticMarkup(
+      <div className="printable-section">
+        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
+        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
+        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
+      </div>
+    );
+    
     printWindow.document.write('<html><head><title>Print Bill</title>');
     printWindow.document.write(`
         <style>
@@ -358,18 +392,8 @@ export function WeighbridgeForm() {
         </style>
     `);
     printWindow.document.write('</head><body>');
-    
-    const printContainer = printWindow.document.createElement('div');
-    window.document.body.appendChild(printContainer);
-
-    const ReactDOMServer = require('react-dom/server');
-    printContainer.innerHTML = ReactDOMServer.renderToStaticMarkup(
-      <div className="printable-section">
-        <div className="printable-content-wrapper"><PrintableBill /></div>
-        <div className="printable-content-wrapper"><PrintableBill /></div>
-        <div className="printable-content-wrapper"><PrintableBill /></div>
-      </div>
-    );
+    printWindow.document.write(billHtml);
+    printWindow.document.write('</body></html>');
     
     printWindow.document.close();
     printWindow.focus();
@@ -439,7 +463,7 @@ export function WeighbridgeForm() {
   
   const handleVehicleBlur = async (e) => {
     const vehicleNo = e.target.value;
-    if (!vehicleNo || vehicleNo.length < 4) { // Basic validation for vehicle number length
+    if (!vehicleNo || vehicleNo.length < 4) {
       setPreviousWeights(null);
       setChargeExtremes(null);
       setIsVehiclePopoverOpen(false);
@@ -611,7 +635,6 @@ Thank you!
           setValue("customerId", customer.customerId);
           setValue("partyName", customer.companyName);
           setValue("whatsappNumber", customer.whatsappNumber || "");
-          // Assuming vehicle number might be stored in customer doc; if not, this can be removed.
           if(customer.vehicleNumber) setValue("vehicleNumber", customer.vehicleNumber);
       }
       setIsCustomerPopoverOpen(false);
@@ -695,11 +718,9 @@ Thank you!
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
             <Command
               filter={(value, search) => {
-                const customer = customers.find(c => c.customerId.toLowerCase() === value.toLowerCase());
-                if(customer) {
-                    if (customer.companyName.toLowerCase().includes(search.toLowerCase())) return 1;
-                }
-                return 0;
+                  const customer = customers.find(c => c.customerId.toLowerCase() === value.toLowerCase());
+                  if (customer && customer.companyName.toLowerCase().includes(search.toLowerCase())) return 1;
+                  return 0;
               }}
             >
               <CommandInput placeholder={translations.weighbridge_form.search_customer} />
@@ -710,7 +731,7 @@ Thank you!
                     <CommandItem
                       key={customer.customerId}
                       value={customer.customerId}
-                      onSelect={handleCustomerSelect}
+                      onSelect={() => handleCustomerSelect(customer.customerId)}
                     >
                       <Check className={cn("mr-2 h-4 w-4", selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0")} />
                       {customer.companyName}
@@ -750,8 +771,8 @@ Thank you!
                      {previousWeights && !isLoadingVehicle && (
                         <Popover open={isVehiclePopoverOpen} onOpenChange={setIsVehiclePopoverOpen}>
                           <PopoverTrigger asChild>
-                            <Button variant="ghost" size="icon" className="absolute right-1 h-8 w-8">
-                              <ChevronDown className="h-4 w-4" />
+                             <Button variant="ghost" size="icon" className="absolute right-1 h-8 w-8">
+                                <ChevronsUpDown className="h-4 w-4" />
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-4">
@@ -1001,36 +1022,7 @@ Thank you!
       </div>
     </>
   );
-
-  const PrintableBill = ({ billData }) => {
-    const values = billData || getValues();
-    const isReprint = !!billData;
-
-    const currentNetWeight = isReprint ? values.net_weight : netWeight;
-    const dateTime = isReprint ? `${values.date}, ${values.time}` : values.dateTime;
-    const [date, time] = dateTime.split(', ');
-    const firstWeightValue = isReprint ? values.first_weight : values.firstWeight;
-    const secondWeightValue = isReprint ? values.second_weight : values.secondWeight;
-    const vehicleNumber = isReprint ? values.vehicle_no : values.vehicleNumber;
-    const materialName = isReprint ? (values.material_name || values.material) : values.materialName;
-    const partyName = isReprint ? (values.party_name || values.party) : values.partyName;
-    const serialNumber = isReprint ? values.sl_no : values.serialNumber;
-
-    return (
-      <div className="grid grid-cols-1 gap-1 text-xs">
-        <p>{serialNumber}</p>
-        <p>{date}</p>
-        <p>{time}</p>
-        <p>{vehicleNumber}</p>
-        <p>{materialName}</p>
-        <p>{partyName}</p>
-        <p>{firstWeightValue}</p>
-        <p>{secondWeightValue}</p>
-        <p>{currentNetWeight}</p>
-      </div>
-    );
-  };
-
+  
   const ReprintDialog = () => {
       const handleReprintPrint = () => {
           const printWindow = window.open('', '_blank');
@@ -1075,11 +1067,16 @@ Thank you!
                           Confirm the details below before re-printing.
                       </DialogDescription>
                   </DialogHeader>
-                  <div className="py-4 text-sm">
-                      <p><strong>Date:</strong> {reprintData.date} {reprintData.time}</p>
-                      <p><strong>Vehicle:</strong> {reprintData.vehicle_no}</p>
-                      <p><strong>Party:</strong> {reprintData.party_name}</p>
-                      <p><strong>Net Weight:</strong> {reprintData.net_weight}</p>
+                  <div className="py-4 text-sm space-y-1">
+                      <p><strong>Date & Time:</strong> {reprintData.date} {reprintData.time}</p>
+                      <p><strong>Vehicle No:</strong> {reprintData.vehicle_no}</p>
+                      <p><strong>Party Name:</strong> {reprintData.party_name}</p>
+                      <p><strong>Material:</strong> {reprintData.material_name}</p>
+                      <p><strong>Charges:</strong> ₹{reprintData.charges}</p>
+                      <p><strong>1st Weight:</strong> {reprintData.first_weight} kg</p>
+                      <p><strong>2nd Weight:</strong> {reprintData.second_weight} kg</p>
+                      <p><strong>Net Weight:</strong> {reprintData.net_weight} kg</p>
+                      <p><strong>Status:</strong> {reprintData.paid_status ? 'Paid' : 'Credit'}</p>
                   </div>
                   <DialogFooter className="sm:justify-end">
                        <Button type="button" variant="secondary" onClick={() => setIsReprintDialogOpen(false)}>Close</Button>
@@ -1152,8 +1149,7 @@ Thank you!
                         <AlertDialogFooter>
                             <AlertDialogCancel>{translations.weighbridge_form.cancel}</AlertDialogCancel>
                             <AlertDialogAction onClick={() => {
-                            findBill();
-                            document.querySelector('[data-radix-collection-item] button[type="button"]:not([aria-label="Close"])')?.click();
+                                findBill();
                             }} disabled={isLoadingReprint}>
                             {isLoadingReprint && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {translations.weighbridge_form.find_bill}
@@ -1178,13 +1174,15 @@ Thank you!
         </CardContent>
       </Card>
       {isReprintDialogOpen && <ReprintDialog />}
-      <ShareLocationDialog 
+      {selectedCustomerForDisplay && 
+        <ShareLocationDialog 
           isOpen={isShareLocationOpen}
           onOpenChange={setIsShareLocationOpen}
           customer={selectedCustomerForDisplay}
           toast={toast}
           translations={translations}
-      />
+        />
+      }
     </div>
   );
 }
