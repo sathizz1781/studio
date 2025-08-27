@@ -38,6 +38,16 @@
         "previous_entry_found": "Previous Entry Found:",
         "bill": "Bill",
         "date": "Date",
-        "use_live": "Use Live"
+        "use_live": "Use Live",
+        "charge_suggestions": "Charge Suggestions",
+        "highest": "Highest",
+        "lowest": "Lowest",
+        "reprint_bill_description": "Enter the serial number of the bill you want to reprint.",
+        "cancel": "Cancel",
+        "find_bill": "Find Bill",
+        "share_location_description": "Enter a WhatsApp number to share the customer's location.",
+        "send": "Send"
     }
 }
+
+    

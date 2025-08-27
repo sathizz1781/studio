@@ -81,6 +81,8 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils";
+import { useAppContext } from "@/app/layout";
+
 
 const formSchema = z.object({
   serialNumber: z.string().min(1, "Serial number is required."),
@@ -128,7 +130,7 @@ const LiveClock = () => {
   return <div className="text-lg font-mono text-accent">{time}</div>;
 };
 
-const GoogleMapView = ({ latitude, longitude, className }) => {
+const GoogleMapView = ({ latitude, longitude, className, translations }) => {
     if (!latitude || !longitude) {
         return null;
     }
@@ -137,7 +139,7 @@ const GoogleMapView = ({ latitude, longitude, className }) => {
     
     return (
       <div className={cn("space-y-2", className)}>
-        <Label>Customer Location</Label>
+        <Label>{translations.weighbridge_form.customer_location}</Label>
         <div className="aspect-video w-full rounded-md overflow-hidden border">
            <iframe
               className="w-full h-full border-0"
@@ -153,7 +155,7 @@ const GoogleMapView = ({ latitude, longitude, className }) => {
     );
 };
 
-const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast }) => {
+const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast, translations }) => {
     const [shareWhatsappNumber, setShareWhatsappNumber] = useState("");
 
     const handleShareLocationViaWhatsapp = () => {
@@ -181,13 +183,13 @@ const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast }) => {
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Share Location</DialogTitle>
+                    <DialogTitle>{translations.weighbridge_form.share_location}</DialogTitle>
                     <DialogDescription>
-                        Enter a WhatsApp number to share the customer's location.
+                        {translations.weighbridge_form.share_location_description}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-2">
-                    <Label htmlFor="whatsapp-share-number">WhatsApp Number</Label>
+                    <Label htmlFor="whatsapp-share-number">{translations.weighbridge_form.whatsapp_number}</Label>
                     <Input
                         id="whatsapp-share-number"
                         type="tel"
@@ -198,10 +200,10 @@ const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast }) => {
                 </div>
                 <DialogFooter className="sm:justify-end">
                     <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
-                        Cancel
+                        {translations.weighbridge_form.cancel}
                     </Button>
                     <Button type="button" onClick={handleShareLocationViaWhatsapp}>
-                        <WhatsAppIcon className="mr-2 h-4 w-4" /> Send
+                        <WhatsAppIcon className="mr-2 h-4 w-4" /> {translations.weighbridge_form.send}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -211,6 +213,7 @@ const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast }) => {
 
 
 export function WeighbridgeForm() {
+  const { translations } = useAppContext();
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
@@ -600,14 +603,16 @@ Thank you!
     touchStartY.current = 0;
   };
   
-  const handleCustomerSelect = (customerId) => {
+  const handleCustomerSelect = (value) => {
+      const customerId = value;
       const customer = customers.find((c) => c.customerId === customerId);
       if (customer) {
           setSelectedCustomerForDisplay(customer);
           setValue("customerId", customer.customerId);
           setValue("partyName", customer.companyName);
           setValue("whatsappNumber", customer.whatsappNumber || "");
-          setValue("vehicleNumber", customer.vehicleNumber || ""); // Assuming vehicle number is stored in customer doc
+          // Assuming vehicle number might be stored in customer doc; if not, this can be removed.
+          if(customer.vehicleNumber) setValue("vehicleNumber", customer.vehicleNumber);
       }
       setIsCustomerPopoverOpen(false);
   };
@@ -617,7 +622,7 @@ Thank you!
       <div className="mb-6">
         <Card>
             <CardHeader className="p-3 sm:p-4">
-                <CardTitle className="text-center text-md sm:text-lg">Live Weight</CardTitle>
+                <CardTitle className="text-center text-md sm:text-lg">{translations.weighbridge_form.live_weight}</CardTitle>
             </CardHeader>
             <CardContent className="p-2 sm:p-3">
                  <SerialDataComponent serialDataRef={serialDataRef} />
@@ -626,7 +631,7 @@ Thank you!
       </div>
        <div className="flex items-center justify-end space-x-2 mb-4">
           <Label htmlFor="manual-mode" className="flex items-center gap-2 text-sm">
-            <Edit size={14} /> Manual Entry
+            <Edit size={14} /> {translations.weighbridge_form.manual_entry}
           </Label>
           <Switch
             id="manual-mode"
@@ -647,7 +652,7 @@ Thank you!
             name="serialNumber"
             render={({ field }) => (
                 <FormItem className="sm:col-span-1">
-                    <FormLabel className="flex items-center gap-2"><Hash className="h-5 w-5 text-primary" /> Serial Number</FormLabel>
+                    <FormLabel className="flex items-center gap-2"><Hash className="h-5 w-5 text-primary" /> {translations.weighbridge_form.serial_number}</FormLabel>
                     <FormControl>
                         {isManualMode ? (
                             <Input {...field} />
@@ -664,7 +669,7 @@ Thank you!
             name="dateTime"
             render={({ field }) => (
                 <FormItem className="sm:col-span-2">
-                    <FormLabel className="flex items-center gap-2"><Clock className="h-5 w-5 text-primary" /> Date & Time</FormLabel>
+                    <FormLabel className="flex items-center gap-2"><Clock className="h-5 w-5 text-primary" /> {translations.weighbridge_form.date_time}</FormLabel>
                      <FormControl>
                         {isManualMode ? (
                             <Input {...field} />
@@ -679,33 +684,33 @@ Thank you!
       </div>
       
        <div className="space-y-2 no-print mb-6">
-        <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
+        <Label className="flex items-center gap-2"><Users size={16} /> {translations.weighbridge_form.select_customer}</Label>
         <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" role="combobox" aria-expanded={isCustomerPopoverOpen} className="w-full justify-between">
-              {selectedCustomerForDisplay ? selectedCustomerForDisplay.companyName : "Select customer..."}
+              {selectedCustomerForDisplay ? selectedCustomerForDisplay.companyName : translations.weighbridge_form.select_customer}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
             <Command
               filter={(value, search) => {
-                const customer = customers.find(c => c.customerId === value);
-                if (customer) {
-                    return customer.companyName.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                const customer = customers.find(c => c.customerId.toLowerCase() === value.toLowerCase());
+                if(customer) {
+                    if (customer.companyName.toLowerCase().includes(search.toLowerCase())) return 1;
                 }
                 return 0;
               }}
             >
-              <CommandInput placeholder="Search customer..." />
+              <CommandInput placeholder={translations.weighbridge_form.search_customer} />
               <CommandList>
-                <CommandEmpty>No customer found.</CommandEmpty>
+                <CommandEmpty>{translations.weighbridge_form.no_customer_found}</CommandEmpty>
                 <CommandGroup>
                   {customers.map((customer) => (
                     <CommandItem
                       key={customer.customerId}
                       value={customer.customerId}
-                      onSelect={() => handleCustomerSelect(customer.customerId)}
+                      onSelect={handleCustomerSelect}
                     >
                       <Check className={cn("mr-2 h-4 w-4", selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0")} />
                       {customer.companyName}
@@ -727,7 +732,7 @@ Thank you!
             <FormItem>
               <FormLabel className="flex items-center gap-2">
                 <Truck size={16} />
-                Vehicle Number
+                {translations.weighbridge_form.vehicle_number}
               </FormLabel>
               <FormControl>
                 <div className="relative flex items-center">
@@ -751,10 +756,10 @@ Thank you!
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-4">
                             <div className="flex flex-col gap-3">
-                                <p className="text-sm font-semibold">Previous Entry Found:</p>
+                                <p className="text-sm font-semibold">{translations.weighbridge_form.previous_entry_found}</p>
                                 <div className="text-xs text-muted-foreground">
-                                    <p><strong>Bill:</strong> {previousWeights.sl_no}</p>
-                                    <p><strong>Date:</strong> {previousWeights.date} {previousWeights.time}</p>
+                                    <p><strong>{translations.weighbridge_form.bill}:</strong> {previousWeights.sl_no}</p>
+                                    <p><strong>{translations.weighbridge_form.date}:</strong> {previousWeights.date} {previousWeights.time}</p>
                                 </div>
                                 <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.first_weight)}>
                                  1st: {previousWeights.first_weight}
@@ -763,7 +768,7 @@ Thank you!
                                  2nd: {previousWeights.second_weight}
                                 </Button>
                                 <Button variant="secondary" onClick={() => handleWeightSelection(serialDataRef.current.weight)}>
-                                  Use Live: {serialDataRef.current.weight}
+                                  {translations.weighbridge_form.use_live}: {serialDataRef.current.weight}
                                 </Button>
                             </div>
                           </PopoverContent>
@@ -782,7 +787,7 @@ Thank you!
             <FormItem>
               <FormLabel className="flex items-center gap-2">
                 <User size={16} />
-                Party Name
+                {translations.weighbridge_form.party_name}
               </FormLabel>
               <FormControl>
                 <Input placeholder="e.g., John Doe" {...field} />
@@ -798,7 +803,7 @@ Thank you!
             <FormItem>
               <FormLabel className="flex items-center gap-2">
                 <Package size={16} />
-                Material Name
+                {translations.weighbridge_form.material_name}
               </FormLabel>
               <FormControl>
                 <Input placeholder="e.g., Sand, Gravel" {...field} />
@@ -814,7 +819,7 @@ Thank you!
             <FormItem>
               <FormLabel className="flex items-center gap-2">
                 <CircleDollarSign size={16} />
-                Charges (₹)
+                {translations.weighbridge_form.charges}
               </FormLabel>
                <FormControl>
                 <div className="relative flex items-center">
@@ -828,11 +833,11 @@ Thank you!
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-4">
                             <div className="flex flex-col gap-3">
-                                <p className="text-sm font-semibold">Charge Suggestions</p>
+                                <p className="text-sm font-semibold">{translations.weighbridge_form.charge_suggestions}</p>
                                 {chargeExtremes.highest && (
                                      <Button variant="outline" className="justify-between gap-4" onClick={() => handleChargeSelection(chargeExtremes.highest.charges)}>
                                          <div className="flex items-center gap-2">
-                                            <TrendingUp className="h-4 w-4 text-green-500"/> Highest: 
+                                            <TrendingUp className="h-4 w-4 text-green-500"/> {translations.weighbridge_form.highest}: 
                                          </div>
                                           <span>₹{chargeExtremes.highest.charges}</span>
                                      </Button>
@@ -840,7 +845,7 @@ Thank you!
                                 {chargeExtremes.lowest && (
                                      <Button variant="outline" className="justify-between gap-4" onClick={() => handleChargeSelection(chargeExtremes.lowest.charges)}>
                                          <div className="flex items-center gap-2">
-                                             <TrendingDown className="h-4 w-4 text-red-500"/> Lowest:
+                                             <TrendingDown className="h-4 w-4 text-red-500"/> {translations.weighbridge_form.lowest}:
                                          </div>
                                           <span>₹{chargeExtremes.lowest.charges}</span>
                                      </Button>
@@ -865,7 +870,7 @@ Thank you!
             <FormItem>
               <FormLabel className="flex items-center gap-2">
                 <Weight size={16} />
-                First Weight
+                {translations.weighbridge_form.first_weight}
               </FormLabel>
               <FormControl>
                 <Input
@@ -886,7 +891,7 @@ Thank you!
             <FormItem>
               <FormLabel className="flex items-center gap-2">
                 <Weight size={16} />
-                Second Weight
+                {translations.weighbridge_form.second_weight}
               </FormLabel>
               <FormControl>
                 <Input
@@ -903,7 +908,7 @@ Thank you!
         <FormItem>
           <FormLabel className="flex items-center gap-2">
             <Scale size={16} />
-            Net Weight
+            {translations.weighbridge_form.net_weight}
           </FormLabel>
           <FormControl>
             <Input
@@ -922,7 +927,7 @@ Thank you!
               name="paymentStatus"
               render={({ field }) => (
                 <FormItem className="space-y-3">
-                  <FormLabel>Payment Status</FormLabel>
+                  <FormLabel>{translations.weighbridge_form.payment_status}</FormLabel>
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
@@ -933,13 +938,13 @@ Thank you!
                         <FormControl>
                           <RadioGroupItem value="Paid" />
                         </FormControl>
-                        <FormLabel className="font-normal">Paid</FormLabel>
+                        <FormLabel className="font-normal">{translations.weighbridge_form.paid}</FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
                           <RadioGroupItem value="Credit" />
                         </FormControl>
-                        <FormLabel className="font-normal">Credit</FormLabel>
+                        <FormLabel className="font-normal">{translations.weighbridge_form.credit}</FormLabel>
                       </FormItem>
                     </RadioGroup>
                   </FormControl>
@@ -954,7 +959,7 @@ Thank you!
                 <FormItem>
                     <FormLabel className="flex items-center gap-2">
                     <WhatsAppIcon className="h-4 w-4" />
-                    WhatsApp Number
+                    {translations.weighbridge_form.whatsapp_number}
                     </FormLabel>
                     <FormControl>
                     <Input placeholder="e.g., 9876543210" {...field} />
@@ -968,7 +973,7 @@ Thank you!
         <div className="flex-1 grid grid-cols-2 gap-4">
             {qrCodeUrl && (
               <div className="flex flex-col items-center space-y-2">
-                <h3 className="text-sm font-medium text-accent">Scan to Pay</h3>
+                <h3 className="text-sm font-medium text-accent">{translations.weighbridge_form.scan_to_pay}</h3>
                 <div className="bg-white p-2 rounded-lg border">
                   <Image
                     src={qrCodeUrl}
@@ -979,16 +984,16 @@ Thank you!
                   />
                 </div>
                 <p className="text-xs text-muted-foreground text-center">
-                  Pay ₹{Number(charges) || "0"} via UPI
+                  {translations.weighbridge_form.pay_via_upi.replace('{amount}', Number(charges) || "0")}
                 </p>
               </div>
             )}
              {selectedCustomerForDisplay && selectedCustomerForDisplay.latitude && selectedCustomerForDisplay.longitude && (
                 <div className="no-print space-y-2">
-                     <GoogleMapView latitude={selectedCustomerForDisplay.latitude} longitude={selectedCustomerForDisplay.longitude} />
+                     <GoogleMapView latitude={selectedCustomerForDisplay.latitude} longitude={selectedCustomerForDisplay.longitude} translations={translations} />
                      <Button variant="outline" size="sm" className="w-full" onClick={() => setIsShareLocationOpen(true)}>
                         <Share2 className="mr-2 h-3 w-3" />
-                        Share Location
+                        {translations.weighbridge_form.share_location}
                      </Button>
                 </div>
              )}
@@ -1099,12 +1104,12 @@ Thank you!
         <CardHeader className="no-print">
           <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Scale /> WeighBridge Biller
+              <Scale /> {translations.weighbridge_form.title}
             </div>
             {isClient && <LiveClock />}
           </CardTitle>
           <CardDescription>
-            Fill in the details below to generate a new bill.
+            {translations.weighbridge_form.description}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1118,21 +1123,21 @@ Thank you!
                     <Link href="/reports" passHref>
                         <Button variant="outline" className="w-full sm:w-auto">
                         <BarChart2 className="mr-2 h-4 w-4" />
-                        View Reports
+                        {translations.weighbridge_form.view_reports}
                         </Button>
                     </Link>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                         <Button type="button" variant="outline" className="w-full sm:w-auto">
                             <RefreshCcw className="mr-2 h-4 w-4" />
-                            Reprint Bill
+                            {translations.weighbridge_form.reprint_bill}
                         </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Reprint Bill</AlertDialogTitle>
+                            <AlertDialogTitle>{translations.weighbridge_form.reprint_bill}</AlertDialogTitle>
                             <AlertDialogDescription>
-                            Enter the serial number of the bill you want to reprint.
+                                {translations.weighbridge_form.reprint_bill_description}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <div className="flex items-center space-x-2">
@@ -1145,13 +1150,13 @@ Thank you!
                             />
                         </div>
                         <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{translations.weighbridge_form.cancel}</AlertDialogCancel>
                             <AlertDialogAction onClick={() => {
                             findBill();
                             document.querySelector('[data-radix-collection-item] button[type="button"]:not([aria-label="Close"])')?.click();
                             }} disabled={isLoadingReprint}>
                             {isLoadingReprint && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Find Bill
+                            {translations.weighbridge_form.find_bill}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                         </AlertDialogContent>
@@ -1165,7 +1170,7 @@ Thank you!
                         className="w-full sm:w-auto"
                     >
                         <Printer className="mr-2 h-4 w-4" />
-                        Send &amp; Print
+                        {translations.weighbridge_form.send_print}
                     </Button>
                 </CardFooter>
             </form>
@@ -1178,7 +1183,10 @@ Thank you!
           onOpenChange={setIsShareLocationOpen}
           customer={selectedCustomerForDisplay}
           toast={toast}
+          translations={translations}
       />
     </div>
   );
 }
+
+    
