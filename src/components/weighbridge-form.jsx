@@ -595,6 +595,59 @@ Thank you!
             )}
         />
       </div>
+      
+      <div className="space-y-2 no-print mb-6">
+        <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
+        <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between"
+                >
+                {selectedCustomerForDisplay
+                    ? selectedCustomerForDisplay.companyName
+                    : "Select a customer"}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+            <Command
+                filter={(value, search) => {
+                    const customer = customers.find(c => c.customerId.toLowerCase() === value);
+                    if (customer && customer.companyName.toLowerCase().includes(search.toLowerCase())) {
+                        return 1;
+                    }
+                    return 0;
+                }}
+            >
+                <CommandInput placeholder="Search customer..." />
+                <CommandList>
+                    <CommandEmpty>No customer found.</CommandEmpty>
+                    <CommandGroup>
+                        {customers.map((customer) => (
+                        <CommandItem
+                            value={customer.customerId.toLowerCase()}
+                            key={customer.customerId}
+                            onSelect={() => handleCustomerSelect(customer.customerId)}
+                        >
+                            <Check
+                            className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedCustomerForDisplay?.customerId === customer.customerId
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                            />
+                            {customer.companyName}
+                        </CommandItem>
+                        ))}
+                    </CommandGroup>
+                </CommandList>
+            </Command>
+            </PopoverContent>
+        </Popover>
+     </div>
 
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
@@ -950,63 +1003,6 @@ Thank you!
           </CardDescription>
         </CardHeader>
         <CardContent>
-           <div className="no-print mb-6">
-                <div className="space-y-2">
-                    <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
-                    <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
-                        <PopoverTrigger asChild>
-                            <Button
-                            variant="outline"
-                            role="combobox"
-                            className="w-full justify-between"
-                            >
-                            {selectedCustomerForDisplay
-                                ? selectedCustomerForDisplay.companyName
-                                : "Select a customer"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command
-                            filter={(value, search) => {
-                                const customer = customers.find(c => c.customerId.toLowerCase() === value);
-                                if (customer && customer.companyName.toLowerCase().includes(search.toLowerCase())) {
-                                    return 1;
-                                }
-                                return 0;
-                            }}
-                        >
-                            <CommandInput placeholder="Search customer..." />
-                            <CommandList>
-                                <CommandEmpty>No customer found.</CommandEmpty>
-                                <CommandGroup>
-                                    {customers.map((customer) => (
-                                    <CommandItem
-                                        value={customer.customerId.toLowerCase()}
-                                        key={customer.customerId}
-                                        onSelect={() => {
-                                            handleCustomerSelect(customer.customerId);
-                                        }}
-                                    >
-                                        <Check
-                                        className={cn(
-                                            "mr-2 h-4 w-4",
-                                            selectedCustomerForDisplay?.customerId === customer.customerId
-                                            ? "opacity-100"
-                                            : "opacity-0"
-                                        )}
-                                        />
-                                        {customer.companyName}
-                                    </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                            </CommandList>
-                        </Command>
-                        </PopoverContent>
-                    </Popover>
-                </div>
-            </div>
-
             <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="no-print">
@@ -1076,3 +1072,6 @@ Thank you!
   );
 }
 
+
+
+    
