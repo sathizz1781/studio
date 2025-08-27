@@ -480,11 +480,14 @@ export function WeighbridgeForm() {
             const result = await chargesResponse.json();
             if (result.data && (result.data.highest || result.data.lowest)) {
                 setChargeExtremes(result.data);
+                setIsChargesPopoverOpen(true);
             } else {
                 setChargeExtremes(null);
+                setIsChargesPopoverOpen(false);
             }
         } else {
             setChargeExtremes(null);
+            setIsChargesPopoverOpen(false);
         }
         
         // Simulate API call for vehicle info
@@ -722,8 +725,8 @@ Thank you!
                                   <CommandItem
                                       key={customer.customerId}
                                       value={customer.customerId}
-                                      onSelect={(currentValue) => {
-                                          handleCustomerSelect(currentValue);
+                                      onSelect={() => {
+                                          handleCustomerSelect(customer.customerId);
                                       }}
                                   >
                                       <Check className={cn("mr-2 h-4 w-4", selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0")} />
@@ -853,7 +856,6 @@ Thank you!
                                          <div className="flex items-center gap-2">
                                             <TrendingUp className="h-4 w-4 text-green-500"/> Highest: ₹{chargeExtremes.highest.charges}
                                          </div>
-                                         <span className="text-xs text-muted-foreground ml-2">{chargeExtremes.highest.route}</span>
                                      </Button>
                                 )}
                                 {chargeExtremes.lowest && (
@@ -861,7 +863,6 @@ Thank you!
                                          <div className="flex items-center gap-2">
                                              <TrendingDown className="h-4 w-4 text-red-500"/> Lowest: ₹{chargeExtremes.lowest.charges}
                                          </div>
-                                         <span className="text-xs text-muted-foreground ml-2">{chargeExtremes.lowest.route}</span>
                                      </Button>
                                 )}
                             </div>
