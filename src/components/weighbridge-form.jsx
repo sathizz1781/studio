@@ -66,7 +66,9 @@ import {
   Check,
   ChevronsUpDown,
   MapPin,
-  Share2
+  Share2,
+  TrendingUp,
+  TrendingDown
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -216,6 +218,8 @@ export function WeighbridgeForm() {
   const [isManualMode, setIsManualMode] = useState(false);
   const [previousWeights, setPreviousWeights] = useState(null);
   const [isVehiclePopoverOpen, setIsVehiclePopoverOpen] = useState(false);
+  const [isChargesPopoverOpen, setIsChargesPopoverOpen] = useState(false);
+  const [chargeExtremes, setChargeExtremes] = useState(null);
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const [isLoadingReprint, setIsLoadingReprint] = useState(false);
@@ -389,6 +393,7 @@ export function WeighbridgeForm() {
     setPreviousWeights(null);
     setSelectedCustomer(null);
     setSelectedCustomerForDisplay(null);
+    setChargeExtremes(null);
     if (isClient) {
       initializeForm();
     }
@@ -435,6 +440,7 @@ export function WeighbridgeForm() {
     const vehicleNo = e.target.value;
     if (!vehicleNo) {
       setPreviousWeights(null);
+      setChargeExtremes(null);
       setIsVehiclePopoverOpen(false);
       return;
     }
@@ -442,30 +448,44 @@ export function WeighbridgeForm() {
     setIsLoadingVehicle(true);
 
     try {
-      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getprevweightofvehicle", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vehicleNo }),
-      });
-      
-      if (!response.ok) {
-        setPreviousWeights(null);
-        setIsVehiclePopoverOpen(false);
-        return;
-      }
+        const [weightsResponse, chargesResponse] = await Promise.all([
+            fetch("https://bend-mqjz.onrender.com/api/wb/getprevweightofvehicle", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vehicleNo }),
+            }),
+            fetch(`https://bend-mqjz.onrender.com/api/wb/getchargeextremes/${vehicleNo}`)
+        ]);
 
-      const result = await response.json();
-      if (result.data && result.data.length > 0) {
-        setPreviousWeights(result.data[0]);
-        setIsVehiclePopoverOpen(true);
-      } else {
-        setPreviousWeights(null);
-        setIsVehiclePopoverOpen(false);
-      }
+        if (weightsResponse.ok) {
+            const result = await weightsResponse.json();
+            if (result.data && result.data.length > 0) {
+                setPreviousWeights(result.data[0]);
+                setIsVehiclePopoverOpen(true);
+            } else {
+                setPreviousWeights(null);
+                setIsVehiclePopoverOpen(false);
+            }
+        } else {
+           setPreviousWeights(null);
+           setIsVehiclePopoverOpen(false);
+        }
+
+        if (chargesResponse.ok) {
+            const result = await chargesResponse.json();
+            if (result.data && (result.data.highest || result.data.lowest)) {
+                setChargeExtremes(result.data);
+            } else {
+                setChargeExtremes(null);
+            }
+        } else {
+            setChargeExtremes(null);
+        }
+
     } catch (error) {
-      console.error("Error fetching previous weights:", error);
-      setPreviousWeights(null);
-      setIsVehiclePopoverOpen(false);
+        console.error("Error fetching vehicle data:", error);
+        setPreviousWeights(null);
+        setChargeExtremes(null);
     } finally {
         setIsLoadingVehicle(false);
     }
@@ -477,6 +497,11 @@ export function WeighbridgeForm() {
     setValue("secondWeight", Math.min(selectedWeight, liveWeight));
     setIsVehiclePopoverOpen(false);
   };
+
+  const handleChargeSelection = (charge) => {
+    setValue("charges", charge);
+    setIsChargesPopoverOpen(false);
+  }
 
   async function onSubmit(values) {
     const [date, time] = values.dateTime.split(', ');
@@ -574,19 +599,16 @@ Thank you!
     touchStartY.current = 0;
   };
   
-  const handleCustomerSelect = (currentValue) => {
-    const customerId = currentValue;
-    const customer = customers.find(c => c.customerId.toLowerCase() === customerId.toLowerCase());
-    if (customer) {
-      setSelectedCustomer(customer);
-      setSelectedCustomerForDisplay(customer);
-  
-      setValue("customerId", customer.customerId);
-      setValue("partyName", customer.companyName);
-      setValue("whatsappNumber", customer.whatsappNumber || "");
-      setValue("vehicleNumber", customer.vehicleNumber || "");
-    }
-    setIsCustomerPopoverOpen(false);
+  const handleCustomerSelect = (customerId) => {
+      const customer = customers.find((c) => c.customerId === customerId);
+      if (customer) {
+          setSelectedCustomerForDisplay(customer);
+          setValue("customerId", customer.customerId);
+          setValue("partyName", customer.companyName);
+          setValue("whatsappNumber", customer.whatsappNumber || "");
+          setValue("vehicleNumber", customer.vehicleNumber || ""); // Assuming vehicle number is stored in customer doc
+      }
+      setIsCustomerPopoverOpen(false);
   };
   
   const BillContent = () => (
@@ -657,57 +679,36 @@ Thank you!
       
        <div className="space-y-2 no-print mb-6">
           <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
-          <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={isCustomerPopoverOpen}
-                className="w-full justify-between"
-              >
-                {selectedCustomerForDisplay
-                  ? selectedCustomerForDisplay.companyName
-                  : "Select a customer..."}
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-              <Command
-                filter={(value, search) => {
-                  const customer = customers.find(c => c.customerId.toLowerCase() === value.toLowerCase());
-                  if(customer){
-                      if (customer.companyName.toLowerCase().includes(search.toLowerCase())) return 1;
-                      if (customer.contactPerson.toLowerCase().includes(search.toLowerCase())) return 1;
-                  }
-                  return 0;
-                }}
-              >
-                <CommandInput placeholder="Search customer..." />
-                <CommandList>
-                  <CommandEmpty>No customer found.</CommandEmpty>
-                  <CommandGroup>
-                    {customers.map((customer) => (
-                      <CommandItem
-                        value={customer.customerId}
-                        key={customer.customerId}
-                        onSelect={handleCustomerSelect}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            selectedCustomer?.customerId === customer.customerId
-                              ? "opacity-100"
-                              : "opacity-0"
-                          )}
-                        />
-                        {customer.companyName}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+           <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+              <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" aria-expanded={isCustomerPopoverOpen} className="w-full justify-between">
+                     {selectedCustomerForDisplay ? selectedCustomerForDisplay.companyName : "Select customer..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                      <CommandInput placeholder="Search customer..." />
+                      <CommandList>
+                          <CommandEmpty>No customer found.</CommandEmpty>
+                          <CommandGroup>
+                              {customers.map((customer) => (
+                                  <CommandItem
+                                      key={customer.customerId}
+                                      value={customer.customerId}
+                                      onSelect={(currentValue) => {
+                                          handleCustomerSelect(currentValue);
+                                      }}
+                                  >
+                                      <Check className={cn("mr-2 h-4 w-4", selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0")} />
+                                      {customer.companyName}
+                                  </CommandItem>
+                              ))}
+                          </CommandGroup>
+                      </CommandList>
+                  </Command>
+              </PopoverContent>
+            </Popover>
        </div>
 
 
@@ -808,8 +809,40 @@ Thank you!
                 <CircleDollarSign size={16} />
                 Charges (₹)
               </FormLabel>
-              <FormControl>
-                <Input type="number" placeholder="e.g., 250" {...field} />
+               <FormControl>
+                <div className="relative flex items-center">
+                    <Input type="number" placeholder="e.g., 250" {...field} />
+                     {chargeExtremes && (
+                        <Popover open={isChargesPopoverOpen} onOpenChange={setIsChargesPopoverOpen}>
+                          <PopoverTrigger asChild>
+                             <Button variant="ghost" size="icon" className="absolute right-1 h-8 w-8">
+                                <ChevronsUpDown className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-4">
+                            <div className="flex flex-col gap-3">
+                                <p className="text-sm font-semibold">Charge Suggestions</p>
+                                {chargeExtremes.highest && (
+                                     <Button variant="outline" className="justify-between" onClick={() => handleChargeSelection(chargeExtremes.highest.charges)}>
+                                         <div className="flex items-center gap-2">
+                                            <TrendingUp className="h-4 w-4 text-green-500"/> Highest: ₹{chargeExtremes.highest.charges}
+                                         </div>
+                                         <span className="text-xs text-muted-foreground ml-2">{chargeExtremes.highest.route}</span>
+                                     </Button>
+                                )}
+                                {chargeExtremes.lowest && (
+                                     <Button variant="outline" className="justify-between" onClick={() => handleChargeSelection(chargeExtremes.lowest.charges)}>
+                                         <div className="flex items-center gap-2">
+                                             <TrendingDown className="h-4 w-4 text-red-500"/> Lowest: ₹{chargeExtremes.lowest.charges}
+                                         </div>
+                                         <span className="text-xs text-muted-foreground ml-2">{chargeExtremes.lowest.route}</span>
+                                     </Button>
+                                )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -943,9 +976,9 @@ Thank you!
                 </p>
               </div>
             )}
-             {selectedCustomer && selectedCustomer.latitude && selectedCustomer.longitude && (
+             {selectedCustomerForDisplay && selectedCustomerForDisplay.latitude && selectedCustomerForDisplay.longitude && (
                 <div className="no-print space-y-2">
-                     <GoogleMapView latitude={selectedCustomer.latitude} longitude={selectedCustomer.longitude} />
+                     <GoogleMapView latitude={selectedCustomerForDisplay.latitude} longitude={selectedCustomerForDisplay.longitude} />
                      <Button variant="outline" size="sm" className="w-full" onClick={() => setIsShareLocationOpen(true)}>
                         <Share2 className="mr-2 h-3 w-3" />
                         Share Location
@@ -1136,11 +1169,9 @@ Thank you!
       <ShareLocationDialog 
           isOpen={isShareLocationOpen}
           onOpenChange={setIsShareLocationOpen}
-          customer={selectedCustomer}
+          customer={selectedCustomerForDisplay}
           toast={toast}
       />
     </div>
   );
 }
-
-    
