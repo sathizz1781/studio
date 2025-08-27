@@ -1,0 +1,43 @@
+
+{
+    "title": "எடைப்பாலம் பில்லர்",
+    "description": "ஒரு எளிய எடைப்பாலம் பில்லிங் பயன்பாடு.",
+    "nav": {
+        "biller": "பில்லர்",
+        "reports": "அறிக்கைகள்",
+        "customers": "வாடிக்கையாளர்கள்"
+    },
+    "weighbridge_form": {
+        "title": "எடைப்பாலம் பில்லர்",
+        "description": "புதிய பில் உருவாக்க கீழே உள்ள விவரங்களை நிரப்பவும்.",
+        "live_weight": "நேரடி எடை",
+        "manual_entry": "கைமுறை உள்ளீடு",
+        "serial_number": "வரிசை எண்",
+        "date_time": "தேதி மற்றும் நேரம்",
+        "select_customer": "வாடிக்கையாளரைத் தேர்ந்தெடுக்கவும்",
+        "search_customer": "வாடிக்கையாளரைத் தேடு...",
+        "no_customer_found": "வாடிக்கையாளர் இல்லை.",
+        "vehicle_number": "வாகன எண்",
+        "party_name": "పార్టీ பெயர்",
+        "material_name": "பொருள் பெயர்",
+        "charges": "கட்டணங்கள் (₹)",
+        "first_weight": "முதல் எடை",
+        "second_weight": "இரண்டாவது எடை",
+        "net_weight": "நிகர எடை",
+        "payment_status": "பணம் செலுத்தும் நிலை",
+        "paid": "செலுத்தப்பட்டது",
+        "credit": "கடன்",
+        "whatsapp_number": "வாட்ஸ்அப் எண்",
+        "scan_to_pay": "பணம் செலுத்த ஸ்கேன் செய்யவும்",
+        "pay_via_upi": "UPI மூலம் ₹{amount} செலுத்தவும்",
+        "customer_location": "வாடிக்கையாளர் இடம்",
+        "share_location": "இடத்தைப் பகிரவும்",
+        "view_reports": "அறிக்கைகளைப் பார்க்கவும்",
+        "reprint_bill": "பில்லை மீண்டும் அச்சிடுக",
+        "send_print": "அனுப்பி அச்சிடுக",
+        "previous_entry_found": "முந்தைய பதிவு காணப்பட்டது:",
+        "bill": "பில்",
+        "date": "தேதி",
+        "use_live": "நேரலையைப் பயன்படுத்து"
+    }
+}

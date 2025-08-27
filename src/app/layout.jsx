@@ -22,12 +22,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePathname } from "next/navigation";
 import React, { useState, useEffect, createContext, useContext } from "react";
+
+// Locales
 import en from "@/lib/locales/en.json";
+import hi from "@/lib/locales/hi.json";
+import ta from "@/lib/locales/ta.json";
+import bn from "@/lib/locales/bn.json";
+
 
 const fontInter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
+
+const translations = { en, hi, ta, bn };
 
 const AppContext = createContext();
 
@@ -36,11 +44,13 @@ export const useAppContext = () => useContext(AppContext);
 const AppProvider = ({ children }) => {
   const [theme, setTheme] = useState("light");
   const [language, setLanguage] = useState("en");
-  const [translations, setTranslations] = useState(en);
+  const [currentTranslations, setCurrentTranslations] = useState(en);
 
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme") || "light";
     setTheme(storedTheme);
+    const storedLang = localStorage.getItem("language") || "en";
+    setLanguage(storedLang);
   }, []);
 
   useEffect(() => {
@@ -51,6 +61,11 @@ const AppProvider = ({ children }) => {
     }
     localStorage.setItem("theme", theme);
   }, [theme]);
+  
+  useEffect(() => {
+    setCurrentTranslations(translations[language] || en);
+    localStorage.setItem("language", language);
+  }, [language]);
 
   const toggleTheme = () => {
     setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
@@ -61,7 +76,7 @@ const AppProvider = ({ children }) => {
     toggleTheme,
     language,
     setLanguage,
-    translations,
+    translations: currentTranslations,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
@@ -179,7 +194,15 @@ function LayoutContent({ children }) {
                   <DropdownMenuItem onClick={() => setLanguage("en")}>
                     English
                   </DropdownMenuItem>
-                  {/* Add other languages here */}
+                   <DropdownMenuItem onClick={() => setLanguage("hi")}>
+                    Hindi (हिन्दी)
+                  </DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => setLanguage("ta")}>
+                    Tamil (தமிழ்)
+                  </DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => setLanguage("bn")}>
+                    Bengali (বাংলা)
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 

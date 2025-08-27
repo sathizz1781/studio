@@ -1,0 +1,43 @@
+
+{
+    "title": "ওয়েব্রিজ বিলার",
+    "description": "একটি সহজ ওয়েব্রিজ বিলিং অ্যাপ্লিকেশন।",
+    "nav": {
+        "biller": "বিলার",
+        "reports": "রিপোর্ট",
+        "customers": "গ্রাহক"
+    },
+    "weighbridge_form": {
+        "title": "ওয়েব্রিজ বিলার",
+        "description": "একটি নতুন বিল তৈরি করতে নীচের বিবরণগুলি পূরণ করুন।",
+        "live_weight": "লাইভ ওজন",
+        "manual_entry": "ম্যানুয়াল এন্ট্রি",
+        "serial_number": "ক্রমিক সংখ্যা",
+        "date_time": "তারিখ এবং সময়",
+        "select_customer": "গ্রাহক নির্বাচন করুন",
+        "search_customer": "গ্রাহক অনুসন্ধান করুন...",
+        "no_customer_found": "কোন গ্রাহক পাওয়া যায়নি।",
+        "vehicle_number": "গাড়ির নম্বর",
+        "party_name": "পার্টির নাম",
+        "material_name": "উপাদানের নাম",
+        "charges": "চার্জ (₹)",
+        "first_weight": "প্রথম ওজন",
+        "second_weight": "দ্বিতীয় ওজন",
+        "net_weight": "নেট ওজন",
+        "payment_status": "পেমেন্ট স্ট্যাটাস",
+        "paid": "भुगतान করা হয়েছে",
+        "credit": "ক্রেডিট",
+        "whatsapp_number": "হোয়াটসঅ্যাপ নম্বর",
+        "scan_to_pay": "স্ক্যান করে পরিশোধ করুন",
+        "pay_via_upi": "UPI এর মাধ্যমে ₹{amount} পরিশোধ করুন",
+        "customer_location": "গ্রাহকের অবস্থান",
+        "share_location": "অবস্থান শেয়ার করুন",
+        "view_reports": "রিপোর্ট দেখুন",
+        "reprint_bill": "बिल পুনরায় মুদ্রণ করুন",
+        "send_print": "পাঠান এবং মুদ্রণ করুন",
+        "previous_entry_found": "পূর্ববর্তী এন্ট্রি পাওয়া গেছে:",
+        "bill": "बिल",
+        "date": "তারিখ",
+        "use_live": "লাইভ ব্যবহার করুন"
+    }
+}

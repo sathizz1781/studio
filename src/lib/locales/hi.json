@@ -1,0 +1,43 @@
+
+{
+    "title": "वेब्रिज बिलर",
+    "description": "एक सरल वेब्रिज बिलिंग एप्लिकेशन।",
+    "nav": {
+        "biller": "बिलर",
+        "reports": "रिपोर्ट",
+        "customers": "ग्राहक"
+    },
+    "weighbridge_form": {
+        "title": "वेब्रिज बिलर",
+        "description": "एक नया बिल बनाने के लिए नीचे दिए गए विवरण भरें।",
+        "live_weight": "लाइव वजन",
+        "manual_entry": "मैनुअल एंट्री",
+        "serial_number": "क्रम संख्या",
+        "date_time": "दिनांक और समय",
+        "select_customer": "ग्राहक चुनें",
+        "search_customer": "ग्राहक खोजें...",
+        "no_customer_found": "कोई ग्राहक नहीं मिला।",
+        "vehicle_number": "वाहन संख्या",
+        "party_name": "पार्टी का नाम",
+        "material_name": "सामग्री का नाम",
+        "charges": "शुल्क (₹)",
+        "first_weight": "पहला वजन",
+        "second_weight": "दूसरा वजन",
+        "net_weight": "शुद्ध वजन",
+        "payment_status": "भुगतान की स्थिति",
+        "paid": "भुगतान किया गया",
+        "credit": "क्रेडिट",
+        "whatsapp_number": "व्हाट्सएप नंबर",
+        "scan_to_pay": "भुगतान करने के लिए स्कैन करें",
+        "pay_via_upi": "UPI के माध्यम से ₹{amount} का भुगतान करें",
+        "customer_location": "ग्राहक का स्थान",
+        "share_location": "स्थान साझा करें",
+        "view_reports": "रिपोर्ट देखें",
+        "reprint_bill": "बिल फिर से प्रिंट करें",
+        "send_print": "भेजें और प्रिंट करें",
+        "previous_entry_found": "पिछली प्रविष्टि मिली:",
+        "bill": "बिल",
+        "date": "दिनांक",
+        "use_live": "लाइव उपयोग करें"
+    }
+}
