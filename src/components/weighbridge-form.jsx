@@ -655,12 +655,14 @@ Thank you!
                     <CommandItem
                       value={customer.customerId}
                       key={customer.customerId}
-                      onSelect={() => handleCustomerSelect(customer.customerId)}
+                      onSelect={(currentValue) => {
+                         handleCustomerSelect(currentValue);
+                      }}
                     >
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          selectedCustomerForDisplay?.customerId === customer.customerId
+                          selectedCustomer?.customerId === customer.customerId
                             ? "opacity-100"
                             : "opacity-0"
                         )}
@@ -1135,7 +1137,3 @@ Thank you!
     </div>
   );
 }
-
-
-
-    
