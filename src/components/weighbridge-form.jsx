@@ -71,6 +71,7 @@ import {
   TrendingDown
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
+import { VehicleInfo } from "./vehicle-info";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Command,
@@ -230,6 +231,7 @@ export function WeighbridgeForm() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
   const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
+  const [vehicleInfo, setVehicleInfo] = useState(null);
   
   const touchStartY = useRef(0);
   const PULL_THRESHOLD = 70;
@@ -394,6 +396,7 @@ export function WeighbridgeForm() {
     setSelectedCustomer(null);
     setSelectedCustomerForDisplay(null);
     setChargeExtremes(null);
+    setVehicleInfo(null);
     if (isClient) {
       initializeForm();
     }
@@ -438,14 +441,16 @@ export function WeighbridgeForm() {
   
   const handleVehicleBlur = async (e) => {
     const vehicleNo = e.target.value;
-    if (!vehicleNo) {
+    if (!vehicleNo || vehicleNo.length < 4) { // Basic validation for vehicle number length
       setPreviousWeights(null);
       setChargeExtremes(null);
       setIsVehiclePopoverOpen(false);
+      setVehicleInfo(null);
       return;
     }
     
     setIsLoadingVehicle(true);
+    setVehicleInfo(null); // Reset previous info
 
     try {
         const [weightsResponse, chargesResponse] = await Promise.all([
@@ -481,13 +486,34 @@ export function WeighbridgeForm() {
         } else {
             setChargeExtremes(null);
         }
+        
+        // Simulate API call for vehicle info
+        setTimeout(() => {
+             const mockApiData = {
+                "TATA ACE": { make: "Tata", model: "Ace Gold", fuel: "Diesel", variant: "CX", avgPrice: "₹4.41 Lakh" },
+                "TN39BY5131": { make: "Ashok Leyland", model: "Dost+", fuel: "Diesel", variant: "LE", avgPrice: "₹7.75 Lakh" },
+             };
+             const platePrefix = vehicleNo.substring(0, 2).toUpperCase();
+             const stateMap = { TN: "Tamil Nadu", KA: "Karnataka", KL: "Kerala", AP: "Andhra Pradesh", MH: "Maharashtra" };
+             const decodedState = stateMap[platePrefix] || "Unknown State";
+             const enrichedData = mockApiData[vehicleNo] || mockApiData["TATA ACE"];
+
+             setVehicleInfo({
+                ...enrichedData,
+                plate: vehicleNo,
+                region: decodedState,
+             });
+
+        }, 1000);
+
 
     } catch (error) {
         console.error("Error fetching vehicle data:", error);
         setPreviousWeights(null);
         setChargeExtremes(null);
     } finally {
-        setIsLoadingVehicle(false);
+        // Delay setting loading to false to account for simulated API call
+        setTimeout(() => setIsLoadingVehicle(false), 1000);
     }
   };
   
@@ -725,7 +751,7 @@ Thank you!
               <FormControl>
                 <div className="relative flex items-center">
                     <Input
-                      placeholder="e.g., MH12AB1234"
+                      placeholder="e.g., TN39BY5131"
                       {...field}
                       onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                       onBlur={handleVehicleBlur}
@@ -849,6 +875,12 @@ Thank you!
           )}
         />
       </div>
+
+       {vehicleInfo && (
+            <div className="mb-6 no-print">
+                <VehicleInfo data={vehicleInfo} isLoading={isLoadingVehicle} />
+            </div>
+       )}
 
       <div className="grid md:grid-cols-3 gap-x-8 gap-y-6">
         <FormField
