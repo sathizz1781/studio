@@ -257,7 +257,7 @@ export function WeighbridgeForm() {
   const [customers, setCustomers] = useState([]);
   const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
   const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
-  
+  console.log("Hello")
   const touchStartY = useRef(0);
   const PULL_THRESHOLD = 70;
 
