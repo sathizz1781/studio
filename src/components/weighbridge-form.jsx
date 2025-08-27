@@ -151,6 +151,63 @@ const GoogleMapView = ({ latitude, longitude, className }) => {
     );
 };
 
+const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast }) => {
+    const [shareWhatsappNumber, setShareWhatsappNumber] = useState("");
+
+    const handleShareLocationViaWhatsapp = () => {
+        if (!customer || !customer.latitude || !customer.longitude) return;
+
+        if (!shareWhatsappNumber || !/^\d{10,15}$/.test(shareWhatsappNumber)) {
+            toast({
+                variant: "destructive",
+                title: "Invalid Number",
+                description: "Please enter a valid WhatsApp number.",
+            });
+            return;
+        }
+
+        const url = `https://www.google.com/maps?q=${customer.latitude},${customer.longitude}`;
+        const message = `Here is the location: ${url}`;
+        const whatsappUrl = `https://wa.me/91${shareWhatsappNumber}?text=${encodeURIComponent(message)}`;
+
+        window.open(whatsappUrl, "_blank");
+        onOpenChange(false);
+        setShareWhatsappNumber("");
+    };
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Share Location</DialogTitle>
+                    <DialogDescription>
+                        Enter a WhatsApp number to share the customer's location.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-2">
+                    <Label htmlFor="whatsapp-share-number">WhatsApp Number</Label>
+                    <Input
+                        id="whatsapp-share-number"
+                        type="tel"
+                        placeholder="e.g. 9876543210"
+                        value={shareWhatsappNumber}
+                        onChange={(e) => setShareWhatsappNumber(e.target.value)}
+                    />
+                </div>
+                <DialogFooter className="sm:justify-end">
+                    <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button type="button" onClick={handleShareLocationViaWhatsapp}>
+                        <WhatsAppIcon className="mr-2 h-4 w-4" /> Send
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+
 export function WeighbridgeForm() {
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -169,8 +226,7 @@ export function WeighbridgeForm() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
   const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
-  const [shareWhatsappNumber, setShareWhatsappNumber] = useState("");
-
+  
   const touchStartY = useRef(0);
   const PULL_THRESHOLD = 70;
 
@@ -518,8 +574,9 @@ Thank you!
     touchStartY.current = 0;
   };
   
-  const handleCustomerSelect = (customerId) => {
-    const customer = customers.find(c => c.customerId === customerId);
+  const handleCustomerSelect = (currentValue) => {
+    const customerId = currentValue;
+    const customer = customers.find(c => c.customerId.toLowerCase() === customerId.toLowerCase());
     if (customer) {
       setSelectedCustomer(customer);
       setSelectedCustomerForDisplay(customer);
@@ -532,28 +589,6 @@ Thank you!
     setIsCustomerPopoverOpen(false);
   };
   
-  const handleShareLocationViaWhatsapp = () => {
-    if (!selectedCustomer || !selectedCustomer.latitude || !selectedCustomer.longitude) return;
-    
-    if (!shareWhatsappNumber || !/^\d{10,15}$/.test(shareWhatsappNumber)) {
-       toast({
-        variant: "destructive",
-        title: "Invalid Number",
-        description: "Please enter a valid WhatsApp number.",
-      });
-      return;
-    }
-
-    const url = `https://www.google.com/maps?q=${selectedCustomer.latitude},${selectedCustomer.longitude}`;
-    const message = `Here is the location: ${url}`;
-    const whatsappUrl = `https://wa.me/91${shareWhatsappNumber}?text=${encodeURIComponent(message)}`;
-    
-    window.open(whatsappUrl, "_blank");
-    setIsShareLocationOpen(false);
-    setShareWhatsappNumber("");
-  };
-
-
   const BillContent = () => (
     <>
       <div className="mb-6">
@@ -620,62 +655,60 @@ Thank you!
         />
       </div>
       
-      <div className="space-y-2 no-print mb-6">
-        <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
-        <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={isCustomerPopoverOpen}
-              className="w-full justify-between"
-            >
-              {selectedCustomerForDisplay
-                ? selectedCustomerForDisplay.companyName
-                : "Select a customer..."}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-            <Command
-              filter={(value, search) => {
-                const customer = customers.find(c => c.customerId.toLowerCase() === value.toLowerCase());
-                if(customer){
-                    if (customer.companyName.toLowerCase().includes(search.toLowerCase())) return 1;
-                    if (customer.contactPerson.toLowerCase().includes(search.toLowerCase())) return 1;
-                }
-                return 0;
-              }}
-            >
-              <CommandInput placeholder="Search customer..." />
-              <CommandList>
-                <CommandEmpty>No customer found.</CommandEmpty>
-                <CommandGroup>
-                  {customers.map((customer) => (
-                    <CommandItem
-                      value={customer.customerId}
-                      key={customer.customerId}
-                      onSelect={(currentValue) => {
-                         handleCustomerSelect(currentValue);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          selectedCustomer?.customerId === customer.customerId
-                            ? "opacity-100"
-                            : "opacity-0"
-                        )}
-                      />
-                      {customer.companyName}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-     </div>
+       <div className="space-y-2 no-print mb-6">
+          <Label className="flex items-center gap-2"><Users size={16} /> Select Customer</Label>
+          <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={isCustomerPopoverOpen}
+                className="w-full justify-between"
+              >
+                {selectedCustomerForDisplay
+                  ? selectedCustomerForDisplay.companyName
+                  : "Select a customer..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+              <Command
+                filter={(value, search) => {
+                  const customer = customers.find(c => c.customerId.toLowerCase() === value.toLowerCase());
+                  if(customer){
+                      if (customer.companyName.toLowerCase().includes(search.toLowerCase())) return 1;
+                      if (customer.contactPerson.toLowerCase().includes(search.toLowerCase())) return 1;
+                  }
+                  return 0;
+                }}
+              >
+                <CommandInput placeholder="Search customer..." />
+                <CommandList>
+                  <CommandEmpty>No customer found.</CommandEmpty>
+                  <CommandGroup>
+                    {customers.map((customer) => (
+                      <CommandItem
+                        value={customer.customerId}
+                        key={customer.customerId}
+                        onSelect={handleCustomerSelect}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedCustomer?.customerId === customer.customerId
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        {customer.companyName}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+       </div>
 
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
@@ -1014,40 +1047,7 @@ Thank you!
           </Dialog>
       );
   };
-
-  const ShareLocationDialog = () => {
-    return (
-        <Dialog open={isShareLocationOpen} onOpenChange={setIsShareLocationOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Share Location</DialogTitle>
-                    <DialogDescription>
-                        Enter a WhatsApp number to share the customer's location.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="py-4 space-y-2">
-                    <Label htmlFor="whatsapp-share-number">WhatsApp Number</Label>
-                    <Input
-                        id="whatsapp-share-number"
-                        type="tel"
-                        placeholder="e.g. 9876543210"
-                        value={shareWhatsappNumber}
-                        onChange={(e) => setShareWhatsappNumber(e.target.value)}
-                    />
-                </div>
-                <DialogFooter className="sm:justify-end">
-                    <Button type="button" variant="secondary" onClick={() => setIsShareLocationOpen(false)}>
-                        Cancel
-                    </Button>
-                    <Button type="button" onClick={handleShareLocationViaWhatsapp}>
-                        <WhatsAppIcon className="mr-2 h-4 w-4" /> Send
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-  };
-
+  
   return (
     <div
       onTouchStart={handleTouchStart}
@@ -1133,7 +1133,14 @@ Thank you!
         </CardContent>
       </Card>
       {isReprintDialogOpen && <ReprintDialog />}
-      <ShareLocationDialog />
+      <ShareLocationDialog 
+          isOpen={isShareLocationOpen}
+          onOpenChange={setIsShareLocationOpen}
+          customer={selectedCustomer}
+          toast={toast}
+      />
     </div>
   );
 }
+
+    
