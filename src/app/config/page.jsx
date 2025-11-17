@@ -32,6 +32,7 @@ const configSchema = z.object({
   companyName: z.string().min(1, "Company name is required"),
   email: z.string().email("Invalid email").optional().or(z.literal('')),
   phoneNumber: z.string().optional(),
+  password: z.string().optional(),
 });
 
 export default function ConfigPage() {
@@ -116,6 +117,19 @@ export default function ConfigPage() {
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
                       <Input type="tel" placeholder="e.g., 9876543210" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="Set a new password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

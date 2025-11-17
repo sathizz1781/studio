@@ -1157,7 +1157,7 @@ Thank you!
         <CardHeader className="no-print">
           <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Scale /> {translations.weighbridge_form.title}
+              <Scale /> {config.companyName || translations.weighbridge_form.title}
             </div>
             {isClient && <LiveClock />}
           </CardTitle>
