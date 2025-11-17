@@ -208,7 +208,6 @@ const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast, translatio
 
 
 const PrintableBill = React.forwardRef(({ billData, config }, ref) => {
-  const { translations } = useAppContext();
   const {
     sl_no,
     date,
@@ -216,42 +215,24 @@ const PrintableBill = React.forwardRef(({ billData, config }, ref) => {
     vehicle_no,
     material_name,
     party_name,
+    charges,
     first_weight,
     second_weight,
     net_weight,
   } = billData;
 
-  const renderStandard = () => (
-    <div className="grid grid-cols-1 gap-1 text-xs">
-      <p>{sl_no}</p>
-      <p>{date}</p>
-      <p>{time}</p>
-      <p>{vehicle_no}</p>
-      <p>{material_name}</p>
-      <p>{party_name}</p>
-      <p>{first_weight}</p>
-      <p>{second_weight}</p>
-      <p>{net_weight}</p>
-    </div>
-  );
-
-  const renderDotMatrix = () => (
-    <div className="dot-matrix-receipt">
-      <h1>{config.companyName}</h1>
-      <div className="grid-item"><span>{translations.weighbridge_form.serial_number}:</span><span>{sl_no}</span></div>
-      <div className="grid-item"><span>{translations.weighbridge_form.date_time}:</span><span>{date} {time}</span></div>
-      <div className="grid-item"><span>{translations.weighbridge_form.vehicle_number}:</span><span>{vehicle_no}</span></div>
-      <div className="grid-item"><span>{translations.weighbridge_form.party_name}:</span><span>{party_name}</span></div>
-      <div className="grid-item"><span>{translations.weighbridge_form.material_name}:</span><span>{material_name}</span></div>
-      <div className="grid-item"><span>{translations.weighbridge_form.first_weight}:</span><span>{first_weight} kg</span></div>
-      <div className="grid-item"><span>{translations.weighbridge_form.second_weight}:</span><span>{second_weight} kg</span></div>
-      <div className="grid-item"><span>{translations.weighbridge_form.net_weight}:</span><span>{net_weight} kg</span></div>
-    </div>
-  );
-
   return (
-    <div ref={ref}>
-      {config.printLayout === 'dot-matrix' ? renderDotMatrix() : renderStandard()}
+    <div ref={ref} className="standard-a4-bill">
+      <h1>{config.companyName}</h1>
+      <div className="grid-item"><span>Serial Number:</span><span>{sl_no}</span></div>
+      <div className="grid-item"><span>Date & Time:</span><span>{date} {time}</span></div>
+      <div className="grid-item"><span>Vehicle Number:</span><span>{vehicle_no}</span></div>
+      <div className="grid-item"><span>Party Name:</span><span>{party_name}</span></div>
+      <div className="grid-item"><span>Material:</span><span>{material_name}</span></div>
+      <div className="grid-item"><span>Charges:</span><span>₹{charges}</span></div>
+      <div className="grid-item"><span>First Weight:</span><span>{first_weight} kg</span></div>
+      <div className="grid-item"><span>Second Weight:</span><span>{second_weight} kg</span></div>
+      <div className="grid-item"><span>Net Weight:</span><span>{net_weight} kg</span></div>
     </div>
   );
 });
@@ -675,49 +656,41 @@ const BillContent = ({
   );
 };
   
-const ReprintDialog = ({ isOpen, onOpenChange, reprintData, translations }) => {
-    const { config } = useAppContext();
+const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config, translations }) => {
     if (!reprintData) return null;
 
     const handleReprintPrint = () => {
         const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
-        
+        if (!printWindow) {
+             toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print." });
+            return;
+        }
+
         const ReactDOMServer = require('react-dom/server');
-        const billHtml = ReactDOMServer.renderToStaticMarkup(
-            <div className={config.printLayout === 'standard' ? 'printable-section' : ''}>
-              <div className={config.printLayout === 'standard' ? 'printable-content-wrapper' : ''}>
-                <PrintableBill billData={reprintData} config={config} />
-              </div>
-              {config.printLayout === 'standard' && (
-                <>
-                  <div className="printable-content-wrapper"><PrintableBill billData={reprintData} config={config}/></div>
-                  <div className="printable-content-wrapper"><PrintableBill billData={reprintData} config={config}/></div>
-                </>
-              )}
-            </div>
-        );
+        
+        let billHtml;
+        if (config.printLayout === 'dot-matrix') {
+            const billContent = <PrintableBill billData={reprintData} config={config} />;
+            billHtml = ReactDOMServer.renderToStaticMarkup(
+                <div className='printable-section'>
+                    <div className="printable-content-wrapper">{billContent}</div>
+                    <div className="printable-content-wrapper">{billContent}</div>
+                    <div className="printable-content-wrapper">{billContent}</div>
+                </div>
+            );
+        } else {
+            billHtml = ReactDOMServer.renderToStaticMarkup(<PrintableBill billData={reprintData} config={config} />);
+        }
 
         printWindow.document.write('<html><head><title>Print Bill</title>');
-        printWindow.document.write(`
-            <style>
-                body { font-family: monospace; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                @page { size: auto; margin: 0mm; }
-                .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-                .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; border: 1px dashed #ccc;}
-                .dot-matrix-receipt { max-width: 300px; font-size: 11px; line-height: 1.4; }
-                .dot-matrix-receipt .grid-item { display: flex; justify-content: space-between; padding-bottom: 2px; border-bottom: 1px dotted #ccc; }
-                .dot-matrix-receipt .grid-item span:first-child { font-weight: bold; margin-right: 8px; }
-                .dot-matrix-receipt .grid-item span:last-child { text-align: right; }
-                .dot-matrix-receipt h1 { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 4px; }
-                p { margin: 0; }
-            </style>
-        `);
+        const styles = document.getElementById('global-styles').innerHTML;
+        printWindow.document.write(`<style>${styles}</style>`);
         printWindow.document.write('</head><body>');
         printWindow.document.write(billHtml);
         printWindow.document.write('</body></html>');
         printWindow.document.close();
         printWindow.focus();
+        
         setTimeout(() => {
             printWindow.print();
             printWindow.close();
@@ -886,10 +859,10 @@ export function WeighbridgeForm() {
     }
   }, [charges, config]);
 
- const handlePrint = () => {
+  const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print bills." });
+      toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print." });
       return;
     }
 
@@ -902,41 +875,31 @@ export function WeighbridgeForm() {
       vehicle_no: latestValues.vehicleNumber,
       material_name: latestValues.materialName,
       party_name: latestValues.partyName,
+      charges: latestValues.charges,
       first_weight: latestValues.firstWeight,
       second_weight: latestValues.secondWeight,
       net_weight: netWeight,
     };
-    
+
     const ReactDOMServer = require('react-dom/server');
-    const billHtml = ReactDOMServer.renderToStaticMarkup(
-      <div className={config.printLayout === 'standard' ? 'printable-section' : ''}>
-        <div className={config.printLayout === 'standard' ? 'printable-content-wrapper' : ''}>
-          <PrintableBill billData={billData} config={config} />
-        </div>
-        {config.printLayout === 'standard' && (
-          <>
-            <div className="printable-content-wrapper"><PrintableBill billData={billData} config={config} /></div>
-            <div className="printable-content-wrapper"><PrintableBill billData={billData} config={config} /></div>
-          </>
-        )}
-      </div>
-    );
+    
+    let billHtml;
+    if (config.printLayout === 'dot-matrix') {
+        const billContent = <PrintableBill billData={billData} config={config} />;
+        billHtml = ReactDOMServer.renderToStaticMarkup(
+            <div className='printable-section'>
+                <div className="printable-content-wrapper">{billContent}</div>
+                <div className="printable-content-wrapper">{billContent}</div>
+                <div className="printable-content-wrapper">{billContent}</div>
+            </div>
+        );
+    } else {
+        billHtml = ReactDOMServer.renderToStaticMarkup(<PrintableBill billData={billData} config={config} />);
+    }
     
     printWindow.document.write('<html><head><title>Print Bill</title>');
-    printWindow.document.write(`
-        <style>
-            body { font-family: monospace; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            @page { size: auto; margin: 0mm; }
-            .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-            .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; border: 1px dashed #ccc; }
-            .dot-matrix-receipt { max-width: 300px; font-size: 11px; line-height: 1.4; }
-            .dot-matrix-receipt .grid-item { display: flex; justify-content: space-between; padding-bottom: 2px; border-bottom: 1px dotted #ccc; }
-            .dot-matrix-receipt .grid-item span:first-child { font-weight: bold; margin-right: 8px; }
-            .dot-matrix-receipt .grid-item span:last-child { text-align: right; }
-            .dot-matrix-receipt h1 { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 4px; }
-            p { margin: 0; }
-        </style>
-    `);
+    const styles = document.getElementById('global-styles').innerHTML;
+    printWindow.document.write(`<style>${styles}</style>`);
     printWindow.document.write('</head><body>');
     printWindow.document.write(billHtml);
     printWindow.document.write('</body></html>');
@@ -1315,7 +1278,14 @@ Thank you!
             </Form>
         </CardContent>
       </Card>
-      <ReprintDialog isOpen={isReprintDialogOpen} onOpenChange={setIsReprintDialogOpen} reprintData={reprintData} translations={translations} />
+      <ReprintDialog 
+        isOpen={isReprintDialogOpen} 
+        onOpenChange={setIsReprintDialogOpen} 
+        reprintData={reprintData} 
+        toast={toast} 
+        config={config} 
+        translations={translations} 
+      />
       {selectedCustomerForDisplay && 
         <ShareLocationDialog 
           isOpen={isShareLocationOpen}
@@ -1325,6 +1295,39 @@ Thank you!
           translations={translations}
         />
       }
+       <style id="global-styles" jsx global>{`
+        ${`
+          @tailwind base;
+          @tailwind components;
+          @tailwind utilities;
+
+          @layer base {
+            :root {
+              --background: 200 17% 96%; --foreground: 224 71.4% 4.1%; --card: 0 0% 100%; --card-foreground: 224 71.4% 4.1%; --popover: 0 0% 100%; --popover-foreground: 224 71.4% 4.1%; --primary: 231 48% 48%; --primary-foreground: 0 0% 98%; --secondary: 220 13% 91%; --secondary-foreground: 220 14.3% 9.1%; --muted: 220 13% 91%; --muted-foreground: 220 8.9% 46.1%; --accent: 174 100% 29%; --accent-foreground: 0 0% 98%; --destructive: 0 84.2% 60.2%; --destructive-foreground: 0 0% 98%; --border: 220 13% 89%; --input: 220 13% 89%; --ring: 231 48% 48%; --radius: 0.5rem; --chart-1: 12 76% 61%; --chart-2: 173 58% 39%; --chart-3: 197 37% 24%; --chart-4: 43 74% 66%; --chart-5: 27 87% 67%;
+            }
+            .dark {
+              --background: 224 71.4% 4.1%; --foreground: 210 20% 98%; --card: 224 71.4% 4.1%; --card-foreground: 210 20% 98%; --popover: 224 71.4% 4.1%; --popover-foreground: 210 20% 98%; --primary: 231 48% 48%; --primary-foreground: 0 0% 98%; --secondary: 215 27.9% 16.9%; --secondary-foreground: 210 20% 98%; --muted: 215 27.9% 16.9%; --muted-foreground: 217.9 10.6% 64.9%; --accent: 174 100% 29%; --accent-foreground: 0 0% 98%; --destructive: 0 62.8% 30.6%; --destructive-foreground: 0 0% 98%; --border: 215 27.9% 16.9%; --input: 215 27.9% 16.9%; --ring: 231 48% 48%; --chart-1: 220 70% 50%; --chart-2: 160 60% 45%; --chart-3: 30 80% 55%; --chart-4: 280 65% 60%; --chart-5: 340 75% 55%;
+            }
+          }
+          @layer base {
+            * { border-color: hsl(var(--border)); }
+            body { background-color: hsl(var(--background)); color: hsl(var(--foreground)); }
+          }
+          @media print {
+            body { background-color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-print { display: none !important; }
+            .printable-card { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; }
+            main { padding: 0 !important; min-height: auto !important; justify-content: flex-start !important; }
+            .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
+            .printable-content-wrapper { flex: 1 1 32%; min-width: 0; border: 1px dashed #ccc; padding: 0.5rem; font-size: 9px; }
+            .standard-a4-bill { max-width: 800px; padding: 1rem; font-size: 12px; line-height: 1.6; }
+            .standard-a4-bill h1 { font-size: 20px; font-weight: bold; text-align: center; margin-bottom: 1rem; }
+            .standard-a4-bill .grid-item { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #eee; }
+            .standard-a4-bill .grid-item span:first-child { font-weight: bold; margin-right: 1rem; }
+            .standard-a4-bill .grid-item span:last-child { text-align: right; }
+          }
+        `}
+      `}</style>
     </div>
   );
 }

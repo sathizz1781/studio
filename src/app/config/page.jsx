@@ -154,7 +154,7 @@ export default function ConfigPage() {
                             <RadioGroupItem value="standard" />
                           </FormControl>
                           <FormLabel className="font-normal">
-                           Standard A4 (3-Copy Layout)
+                           Standard A4 (Single Full-Page Bill)
                           </FormLabel>
                         </FormItem>
                         <FormItem className="flex items-center space-x-3 space-y-0">
@@ -162,7 +162,7 @@ export default function ConfigPage() {
                             <RadioGroupItem value="dot-matrix" />
                           </FormControl>
                           <FormLabel className="font-normal">
-                            Dot-Matrix Receipt (Single Compact Layout)
+                            Dot-Matrix (3-Copy Layout)
                           </FormLabel>
                         </FormItem>
                       </RadioGroup>
