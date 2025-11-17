@@ -23,7 +23,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save } from "lucide-react";
 import { useEffect } from "react";
@@ -34,7 +33,6 @@ const configSchema = z.object({
   email: z.string().email("Invalid email").optional().or(z.literal('')),
   phoneNumber: z.string().optional(),
   password: z.string().optional(),
-  printLayout: z.enum(["standard", "dot-matrix"]).default("standard"),
 });
 
 export default function ConfigPage() {
@@ -132,40 +130,6 @@ export default function ConfigPage() {
                     <FormLabel>Password</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="Set a new password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="printLayout"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Print Layout</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex flex-col space-y-1"
-                      >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="standard" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                           Standard A4 (Single Full-Page Bill)
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="dot-matrix" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Dot-Matrix (3-Copy Layout)
-                          </FormLabel>
-                        </FormItem>
-                      </RadioGroup>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

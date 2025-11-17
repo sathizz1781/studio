@@ -48,7 +48,6 @@ const AppProvider = ({ children }) => {
   const [config, setConfig] = useState({ 
     upiId: "", 
     companyName: "",
-    printLayout: "standard",
   });
   const router = useRouter();
   const pathname = usePathname();
@@ -65,7 +64,6 @@ const AppProvider = ({ children }) => {
     const storedConfig = JSON.parse(localStorage.getItem("appConfig")) || { 
       upiId: "default@upi", 
       companyName: "My Company",
-      printLayout: "standard",
     };
     setConfig(storedConfig);
 
