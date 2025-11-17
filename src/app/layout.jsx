@@ -45,7 +45,11 @@ const AppProvider = ({ children }) => {
   const [language, setLanguage] = useState("en");
   const [currentTranslations, setCurrentTranslations] = useState(en);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [config, setConfig] = useState({ upiId: "", companyName: "" });
+  const [config, setConfig] = useState({ 
+    upiId: "", 
+    companyName: "",
+    printLayout: "standard",
+  });
   const router = useRouter();
   const pathname = usePathname();
 
@@ -58,7 +62,11 @@ const AppProvider = ({ children }) => {
     const authStatus = localStorage.getItem("isAuthenticated") === "true";
     setIsAuthenticated(authStatus);
 
-    const storedConfig = JSON.parse(localStorage.getItem("appConfig")) || { upiId: "default@upi", companyName: "My Company" };
+    const storedConfig = JSON.parse(localStorage.getItem("appConfig")) || { 
+      upiId: "default@upi", 
+      companyName: "My Company",
+      printLayout: "standard",
+    };
     setConfig(storedConfig);
 
     if (!authStatus && pathname !== "/login") {

@@ -207,33 +207,53 @@ const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast, translatio
 };
 
 
-const PrintableBill = React.forwardRef(({ billData, getValues, netWeight }, ref) => {
-    const values = billData || getValues();
-    const isReprint = !!billData;
+const PrintableBill = React.forwardRef(({ billData, config }, ref) => {
+  const { translations } = useAppContext();
+  const {
+    sl_no,
+    date,
+    time,
+    vehicle_no,
+    material_name,
+    party_name,
+    first_weight,
+    second_weight,
+    net_weight,
+  } = billData;
 
-    const currentNetWeight = isReprint ? values.net_weight : netWeight;
-    const dateTime = isReprint ? `${values.date}, ${values.time}` : values.dateTime;
-    const [date, time] = dateTime.split(', ');
-    const firstWeightValue = isReprint ? values.first_weight : values.firstWeight;
-    const secondWeightValue = isReprint ? values.second_weight : values.secondWeight;
-    const vehicleNumber = isReprint ? values.vehicle_no : values.vehicleNumber;
-    const materialName = isReprint ? (values.material_name || values.material) : values.materialName;
-    const partyName = isReprint ? (values.party_name || values.party) : values.partyName;
-    const serialNumber = isReprint ? values.sl_no : values.serialNumber;
+  const renderStandard = () => (
+    <div className="grid grid-cols-1 gap-1 text-xs">
+      <p>{sl_no}</p>
+      <p>{date}</p>
+      <p>{time}</p>
+      <p>{vehicle_no}</p>
+      <p>{material_name}</p>
+      <p>{party_name}</p>
+      <p>{first_weight}</p>
+      <p>{second_weight}</p>
+      <p>{net_weight}</p>
+    </div>
+  );
 
-    return (
-      <div ref={ref} className="grid grid-cols-1 gap-1 text-xs">
-        <p>{serialNumber}</p>
-        <p>{date}</p>
-        <p>{time}</p>
-        <p>{vehicleNumber}</p>
-        <p>{materialName}</p>
-        <p>{partyName}</p>
-        <p>{firstWeightValue}</p>
-        <p>{secondWeightValue}</p>
-        <p>{currentNetWeight}</p>
-      </div>
-    );
+  const renderDotMatrix = () => (
+    <div className="dot-matrix-receipt">
+      <h1>{config.companyName}</h1>
+      <div className="grid-item"><span>{translations.weighbridge_form.serial_number}:</span><span>{sl_no}</span></div>
+      <div className="grid-item"><span>{translations.weighbridge_form.date_time}:</span><span>{date} {time}</span></div>
+      <div className="grid-item"><span>{translations.weighbridge_form.vehicle_number}:</span><span>{vehicle_no}</span></div>
+      <div className="grid-item"><span>{translations.weighbridge_form.party_name}:</span><span>{party_name}</span></div>
+      <div className="grid-item"><span>{translations.weighbridge_form.material_name}:</span><span>{material_name}</span></div>
+      <div className="grid-item"><span>{translations.weighbridge_form.first_weight}:</span><span>{first_weight} kg</span></div>
+      <div className="grid-item"><span>{translations.weighbridge_form.second_weight}:</span><span>{second_weight} kg</span></div>
+      <div className="grid-item"><span>{translations.weighbridge_form.net_weight}:</span><span>{net_weight} kg</span></div>
+    </div>
+  );
+
+  return (
+    <div ref={ref}>
+      {config.printLayout === 'dot-matrix' ? renderDotMatrix() : renderStandard()}
+    </div>
+  );
 });
 PrintableBill.displayName = 'PrintableBill';
 
@@ -265,7 +285,7 @@ const BillContent = ({
   setIsShareLocationOpen,
   translations,
 }) => {
-  const { control, setValue } = form;
+  const { control } = form;
   return (
     <>
       <div className="mb-6">
@@ -656,32 +676,45 @@ const BillContent = ({
 };
   
 const ReprintDialog = ({ isOpen, onOpenChange, reprintData, translations }) => {
+    const { config } = useAppContext();
     if (!reprintData) return null;
 
     const handleReprintPrint = () => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
+        
+        const ReactDOMServer = require('react-dom/server');
+        const billHtml = ReactDOMServer.renderToStaticMarkup(
+            <div className={config.printLayout === 'standard' ? 'printable-section' : ''}>
+              <div className={config.printLayout === 'standard' ? 'printable-content-wrapper' : ''}>
+                <PrintableBill billData={reprintData} config={config} />
+              </div>
+              {config.printLayout === 'standard' && (
+                <>
+                  <div className="printable-content-wrapper"><PrintableBill billData={reprintData} config={config}/></div>
+                  <div className="printable-content-wrapper"><PrintableBill billData={reprintData} config={config}/></div>
+                </>
+              )}
+            </div>
+        );
+
         printWindow.document.write('<html><head><title>Print Bill</title>');
         printWindow.document.write(`
             <style>
                 body { font-family: monospace; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                 @page { size: auto; margin: 0mm; }
                 .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-                .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; }
+                .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; border: 1px dashed #ccc;}
+                .dot-matrix-receipt { max-width: 300px; font-size: 11px; line-height: 1.4; }
+                .dot-matrix-receipt .grid-item { display: flex; justify-content: space-between; padding-bottom: 2px; border-bottom: 1px dotted #ccc; }
+                .dot-matrix-receipt .grid-item span:first-child { font-weight: bold; margin-right: 8px; }
+                .dot-matrix-receipt .grid-item span:last-child { text-align: right; }
+                .dot-matrix-receipt h1 { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 4px; }
                 p { margin: 0; }
             </style>
         `);
         printWindow.document.write('</head><body>');
-
-        const ReactDOMServer = require('react-dom/server');
-        printWindow.document.write(ReactDOMServer.renderToStaticMarkup(
-          <div className="printable-section">
-              <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-              <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-              <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-          </div>
-        ));
-
+        printWindow.document.write(billHtml);
         printWindow.document.write('</body></html>');
         printWindow.document.close();
         printWindow.focus();
@@ -748,7 +781,6 @@ export function WeighbridgeForm() {
   const PULL_THRESHOLD = 70;
 
   const serialDataRef = useRef({ weight: 0 });
-  const billPrintRef = useRef(null);
 
   const { toast } = useToast();
 
@@ -860,13 +892,33 @@ export function WeighbridgeForm() {
       toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print bills." });
       return;
     }
+
+    const latestValues = getValues();
+    const [date, time] = latestValues.dateTime.split(', ');
+    const billData = {
+      sl_no: latestValues.serialNumber,
+      date: date,
+      time: time,
+      vehicle_no: latestValues.vehicleNumber,
+      material_name: latestValues.materialName,
+      party_name: latestValues.partyName,
+      first_weight: latestValues.firstWeight,
+      second_weight: latestValues.secondWeight,
+      net_weight: netWeight,
+    };
     
     const ReactDOMServer = require('react-dom/server');
     const billHtml = ReactDOMServer.renderToStaticMarkup(
-      <div className="printable-section">
-        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
-        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
-        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
+      <div className={config.printLayout === 'standard' ? 'printable-section' : ''}>
+        <div className={config.printLayout === 'standard' ? 'printable-content-wrapper' : ''}>
+          <PrintableBill billData={billData} config={config} />
+        </div>
+        {config.printLayout === 'standard' && (
+          <>
+            <div className="printable-content-wrapper"><PrintableBill billData={billData} config={config} /></div>
+            <div className="printable-content-wrapper"><PrintableBill billData={billData} config={config} /></div>
+          </>
+        )}
       </div>
     );
     
@@ -876,7 +928,12 @@ export function WeighbridgeForm() {
             body { font-family: monospace; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             @page { size: auto; margin: 0mm; }
             .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-            .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; }
+            .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; border: 1px dashed #ccc; }
+            .dot-matrix-receipt { max-width: 300px; font-size: 11px; line-height: 1.4; }
+            .dot-matrix-receipt .grid-item { display: flex; justify-content: space-between; padding-bottom: 2px; border-bottom: 1px dotted #ccc; }
+            .dot-matrix-receipt .grid-item span:first-child { font-weight: bold; margin-right: 8px; }
+            .dot-matrix-receipt .grid-item span:last-child { text-align: right; }
+            .dot-matrix-receipt h1 { font-size: 14px; font-weight: bold; text-align: center; margin-bottom: 4px; }
             p { margin: 0; }
         </style>
     `);

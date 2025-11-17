@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -90,52 +91,55 @@
     min-height: auto !important;
     justify-content: flex-start !important;
   }
+  
+  /* Standard 3-Copy Layout */
   .printable-section {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    gap: 0.5rem; /* Smaller gap for dot matrix */
+    gap: 0.5rem;
     width: 100%;
   }
   .printable-content-wrapper {
-    flex: 1 1 32%; /* Each column takes up roughly a third of the space */
+    flex: 1 1 32%;
     min-width: 0;
     border: 1px dashed #ccc;
     padding: 0.5rem;
-    font-size: 9px; /* Smaller font for dot matrix */
+    font-size: 9px;
+  }
+  
+  /* Dot-Matrix Single-Copy Layout */
+  .dot-matrix-receipt {
+    max-width: 300px;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .dot-matrix-receipt .grid-item {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 2px;
+    border-bottom: 1px dotted #ccc;
+  }
+  .dot-matrix-receipt .grid-item span:first-child {
+    font-weight: bold;
+    margin-right: 8px;
+  }
+  .dot-matrix-receipt .grid-item span:last-child {
+    text-align: right;
+  }
+  .dot-matrix-receipt h1 {
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .dot-matrix-receipt p {
+    margin: 0 0 2px 0;
   }
 
-  .printable-content-wrapper .text-sm {
-    font-size: 8px; /* Even smaller for secondary text */
-  }
-  .printable-content-wrapper .text-lg {
-    font-size: 10px; /* Slightly larger for titles */
-  }
-  .printable-content-wrapper .grid {
-    gap: 0.25rem; /* Tighter grid spacing */
-  }
-  .printable-content-wrapper input {
-    font-size: 9px !important;
-    height: auto !important;
-    padding: 2px 4px !important;
-  }
-  .printable-content-wrapper .p-3 {
-    padding: 0.25rem !important;
-  }
-  .printable-content-wrapper .mb-6 {
-    margin-bottom: 0.75rem !important;
-  }
-  .printable-content-wrapper .h-5, .printable-content-wrapper .w-5 {
-    height: 12px !important;
-    width: 12px !important;
-  }
 
   .print-only {
     display: block !important;
-  }
-  .print-container {
-    display: flex;
-    justify-content: space-around;
   }
 }
 
