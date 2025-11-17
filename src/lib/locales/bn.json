@@ -5,7 +5,8 @@
     "nav": {
         "biller": "বিলার",
         "reports": "রিপোর্ট",
-        "customers": "গ্রাহক"
+        "customers": "গ্রাহক",
+        "configuration": "কনফিগারেশন"
     },
     "weighbridge_form": {
         "title": "ওয়েব্রিজ বিলার",
@@ -49,5 +50,3 @@
         "send": "পাঠান"
     }
 }
-
-    

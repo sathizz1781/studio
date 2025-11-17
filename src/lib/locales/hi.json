@@ -5,7 +5,8 @@
     "nav": {
         "biller": "बिलर",
         "reports": "रिपोर्ट",
-        "customers": "ग्राहक"
+        "customers": "ग्राहक",
+        "configuration": "कॉन्फ़िगरेशन"
     },
     "weighbridge_form": {
         "title": "वेब्रिज बिलर",
@@ -49,5 +50,3 @@
         "send": "भेजें"
     }
 }
-
-    

@@ -206,6 +206,7 @@ const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast, translatio
     );
 };
 
+
 const PrintableBill = React.forwardRef(({ billData, getValues, netWeight }, ref) => {
     const values = billData || getValues();
     const isReprint = !!billData;
@@ -264,7 +265,7 @@ const BillContent = ({
   setIsShareLocationOpen,
   translations,
 }) => {
-  const { control } = form;
+  const { control, setValue } = form;
   return (
     <>
       <div className="mb-6">
@@ -332,42 +333,46 @@ const BillContent = ({
       </div>
       
        <div className="space-y-2 no-print mb-6">
-        <Label className="flex items-center gap-2"><Users size={16} /> {translations.weighbridge_form.select_customer}</Label>
-        <Popover>
-  <PopoverTrigger asChild>
-    <Button variant="outline" className="w-full justify-between">
-      {selectedCustomerForDisplay?.companyName || "Select Customer"}
-      {selectedCustomerForDisplay && (
-        <span
-          onClick={(e) => {
-            e.stopPropagation(); // prevent reopening popover
-            setSelectedCustomerForDisplay(null);
-            setValue("customerId", "");
-            setValue("partyName", "");
-            setValue("whatsappNumber", "");
-            setValue("vehicleNumber", "");
-          }}
-          className="ml-2 text-red-500 cursor-pointer hover:text-red-700"
-        >
-          ✕
-        </span>
-      )}
-    </Button>
-  </PopoverTrigger>
-
-  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-    {customers.map((customer) => (
-      <div
-        key={customer.customerId}
-        onClick={() => handleCustomerSelect(customer.customerId)}
-        className="cursor-pointer p-2 hover:bg-gray-100"
-      >
-        {customer.companyName}
-      </div>
-    ))}
-  </PopoverContent>
-</Popover>
-
+          <Label className="flex items-center gap-2"><Users size={16} /> {translations.weighbridge_form.select_customer}</Label>
+          <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+              <PopoverTrigger asChild>
+                  <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                  >
+                      {selectedCustomerForDisplay
+                          ? selectedCustomerForDisplay.companyName
+                          : translations.weighbridge_form.select_customer}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                      <CommandInput placeholder={translations.weighbridge_form.search_customer} />
+                      <CommandList>
+                          <CommandEmpty>{translations.weighbridge_form.no_customer_found}</CommandEmpty>
+                          <CommandGroup>
+                              {customers.map((customer) => (
+                                  <CommandItem
+                                      key={customer.customerId}
+                                      value={customer.companyName}
+                                      onSelect={() => handleCustomerSelect(customer.customerId)}
+                                  >
+                                      <Check
+                                          className={cn(
+                                              "mr-2 h-4 w-4",
+                                              selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0"
+                                          )}
+                                      />
+                                      {customer.companyName}
+                                  </CommandItem>
+                              ))}
+                          </CommandGroup>
+                      </CommandList>
+                  </Command>
+              </PopoverContent>
+          </Popover>
       </div>
 
 
@@ -695,7 +700,7 @@ const ReprintDialog = ({ isOpen, onOpenChange, reprintData, translations }) => {
                         Confirm the details below before re-printing.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4 text-sm space-y-1">
+                 <div className="py-4 text-sm space-y-1">
                     <p><strong>Date & Time:</strong> {reprintData.date} {reprintData.time}</p>
                     <p><strong>Vehicle No:</strong> {reprintData.vehicle_no}</p>
                     <p><strong>Party Name:</strong> {reprintData.party_name}</p>
@@ -719,7 +724,7 @@ const ReprintDialog = ({ isOpen, onOpenChange, reprintData, translations }) => {
 };
 
 export function WeighbridgeForm() {
-  const { translations } = useAppContext();
+  const { translations, config } = useAppContext();
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
@@ -744,10 +749,6 @@ export function WeighbridgeForm() {
 
   const serialDataRef = useRef({ weight: 0 });
   const billPrintRef = useRef(null);
-
-  const upiID = "sathishkumar1781@oksbi";
-  const businessName = "Amman Weighing Home";
-  const defaultUpiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&cu=INR`;
 
   const { toast } = useToast();
 
@@ -838,6 +839,10 @@ export function WeighbridgeForm() {
   }, [firstWeight, secondWeight]);
   
   useEffect(() => {
+    const upiID = config.upiId || "default@upi";
+    const businessName = config.companyName || "My Company";
+    const defaultUpiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&cu=INR`;
+
     const numericCharges = Number(charges);
     if (numericCharges > 0) {
       const upiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&am=${numericCharges.toFixed(2)}&cu=INR`;
@@ -847,9 +852,9 @@ export function WeighbridgeForm() {
         const defaultQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(defaultUpiURL)}&size=128x128&margin=0`;
         setQrCodeUrl(defaultQrCodeUrl);
     }
-  }, [charges, defaultUpiURL, businessName, upiID]);
+  }, [charges, config]);
 
-  const handlePrint = () => {
+ const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print bills." });
@@ -859,9 +864,9 @@ export function WeighbridgeForm() {
     const ReactDOMServer = require('react-dom/server');
     const billHtml = ReactDOMServer.renderToStaticMarkup(
       <div className="printable-section">
-        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
-        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
-        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
+        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
+        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
+        <div className="printable-content-wrapper"><PrintableBill getValues={getValues} netWeight={netWeight} /></div>
       </div>
     );
     

@@ -5,7 +5,8 @@
     "nav": {
         "biller": "Biller",
         "reports": "Reports",
-        "customers": "Customers"
+        "customers": "Customers",
+        "configuration": "Configuration"
     },
     "weighbridge_form": {
         "title": "WeighBridge Biller",
@@ -49,5 +50,3 @@
         "send": "Send"
     }
 }
-
-    

@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, Menu, Moon, Sun, Globe } from "lucide-react";
+import { Home, Menu, Moon, Sun, Globe, LogOut, Settings, BarChart2, Users } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { useState, useEffect, createContext, useContext } from "react";
 
 // Locales
@@ -28,7 +28,6 @@ import en from "@/lib/locales/en.json";
 import hi from "@/lib/locales/hi.json";
 import ta from "@/lib/locales/ta.json";
 import bn from "@/lib/locales/bn.json";
-
 
 const fontInter = Inter({
   subsets: ["latin"],
@@ -45,13 +44,27 @@ const AppProvider = ({ children }) => {
   const [theme, setTheme] = useState("light");
   const [language, setLanguage] = useState("en");
   const [currentTranslations, setCurrentTranslations] = useState(en);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [config, setConfig] = useState({ upiId: "", companyName: "" });
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme") || "light";
     setTheme(storedTheme);
     const storedLang = localStorage.getItem("language") || "en";
     setLanguage(storedLang);
-  }, []);
+
+    const authStatus = localStorage.getItem("isAuthenticated") === "true";
+    setIsAuthenticated(authStatus);
+
+    const storedConfig = JSON.parse(localStorage.getItem("appConfig")) || { upiId: "default@upi", companyName: "My Company" };
+    setConfig(storedConfig);
+
+    if (!authStatus && pathname !== "/login") {
+      router.push("/login");
+    }
+  }, [pathname, router]);
 
   useEffect(() => {
     if (theme === "dark") {
@@ -61,22 +74,40 @@ const AppProvider = ({ children }) => {
     }
     localStorage.setItem("theme", theme);
   }, [theme]);
-  
+
   useEffect(() => {
     setCurrentTranslations(translations[language] || en);
     localStorage.setItem("language", language);
   }, [language]);
-
-  const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+  
+  const login = () => {
+    localStorage.setItem("isAuthenticated", "true");
+    setIsAuthenticated(true);
+    router.push("/");
   };
+
+  const logout = () => {
+    localStorage.removeItem("isAuthenticated");
+    setIsAuthenticated(false);
+    router.push("/login");
+  };
+
+  const saveConfig = (newConfig) => {
+    localStorage.setItem("appConfig", JSON.stringify(newConfig));
+    setConfig(newConfig);
+  }
 
   const value = {
     theme,
-    toggleTheme,
+    toggleTheme: () => setTheme((prev) => (prev === "light" ? "dark" : "light")),
     language,
     setLanguage,
     translations: currentTranslations,
+    isAuthenticated,
+    login,
+    logout,
+    config,
+    saveConfig,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
@@ -92,25 +123,31 @@ export default function RootLayout({ children }) {
 
 function LayoutContent({ children }) {
   const pathname = usePathname();
-  const { toggleTheme, theme, translations, setLanguage } = useAppContext();
+  const { toggleTheme, theme, translations, setLanguage, isAuthenticated, logout } = useAppContext();
 
   const navLinks = [
-    { href: "/", label: "Biller" },
-    { href: "/reports", label: "Reports" },
-    { href: "/customers", label: "Customers" },
+    { href: "/", label: "Biller", icon: Home },
+    { href: "/reports", label: "Reports", icon: BarChart2 },
+    { href: "/customers", label: "Customers", icon: Users },
+    { href: "/config", label: "Configuration", icon: Settings },
   ];
+
+  if (!isAuthenticated) {
+     return (
+        <html lang="en" suppressHydrationWarning>
+            <body className={cn("min-h-screen bg-background font-body antialiased", fontInter.variable)}>
+                {children}
+                <Toaster />
+            </body>
+        </html>
+     );
+  }
 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <title>{translations.title}</title>
         <meta name="description" content={translations.description} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body
         suppressHydrationWarning={true}
@@ -126,7 +163,7 @@ function LayoutContent({ children }) {
                 href="/"
                 className="flex items-center gap-2 text-lg font-semibold md:text-base"
               >
-                <Home className="h-6 w-6" />
+                <Scale className="h-6 w-6" />
                 <span className="sr-only">Weighbridge</span>
               </Link>
               {navLinks.map((link) => (
@@ -140,7 +177,7 @@ function LayoutContent({ children }) {
                       : "text-muted-foreground"
                   )}
                 >
-                  {translations.nav[link.label.toLowerCase()]}
+                  {translations.nav[link.label.toLowerCase()] || link.label}
                 </Link>
               ))}
             </nav>
@@ -161,7 +198,7 @@ function LayoutContent({ children }) {
                     href="/"
                     className="flex items-center gap-2 text-lg font-semibold"
                   >
-                    <Home className="h-6 w-6" />
+                    <Scale className="h-6 w-6" />
                     <span className="sr-only">Weighbridge</span>
                   </Link>
                   {navLinks.map((link) => (
@@ -169,13 +206,14 @@ function LayoutContent({ children }) {
                       <Link
                         href={link.href}
                         className={cn(
-                          "transition-colors hover:text-foreground",
+                          "flex items-center gap-4 transition-colors hover:text-foreground",
                           pathname === link.href
                             ? "text-foreground font-semibold"
                             : "text-muted-foreground"
                         )}
                       >
-                         {translations.nav[link.label.toLowerCase()]}
+                         <link.icon className="h-5 w-5" />
+                         {translations.nav[link.label.toLowerCase()] || link.label}
                       </Link>
                     </SheetClose>
                   ))}
@@ -211,6 +249,10 @@ function LayoutContent({ children }) {
                 <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                 <span className="sr-only">Toggle theme</span>
               </Button>
+               <Button variant="outline" size="icon" onClick={logout}>
+                  <LogOut className="h-[1.2rem] w-[1.2rem]" />
+                  <span className="sr-only">Logout</span>
+              </Button>
             </div>
           </header>
           <main className="flex flex-1 flex-col gap-2 p-2 md:gap-4 md:p-4">
@@ -222,5 +264,3 @@ function LayoutContent({ children }) {
     </html>
   );
 }
-
-    
