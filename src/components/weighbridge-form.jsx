@@ -223,18 +223,17 @@ const PrintableBill = React.forwardRef(({ billData, config }, ref) => {
 
   const content = (
     <div>
-      <h1 style={{ fontSize: '14px', fontWeight: 'bold', textAlign: 'center', margin: '0 0 5px 0' }}>{config.companyName}</h1>
       <table style={{ fontSize: '10px', width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
-          <tr><td style={{ padding: '1px' }}>Sl. No:</td><td style={{ padding: '1px', textAlign: 'right' }}>{sl_no}</td></tr>
-          <tr><td style={{ padding: '1px' }}>Date:</td><td style={{ padding: '1px', textAlign: 'right' }}>{date} {time}</td></tr>
-          <tr><td style={{ padding: '1px' }}>Vehicle:</td><td style={{ padding: '1px', textAlign: 'right' }}>{vehicle_no}</td></tr>
-          <tr><td style={{ padding: '1px' }}>Party:</td><td style={{ padding: '1px', textAlign: 'right' }}>{party_name}</td></tr>
-          <tr><td style={{ padding: '1px' }}>Material:</td><td style={{ padding: '1px', textAlign: 'right' }}>{material_name}</td></tr>
-          <tr><td style={{ padding: '1px' }}>Charges:</td><td style={{ padding: '1px', textAlign: 'right' }}>{charges}</td></tr>
-          <tr><td style={{ padding: '1px', paddingTop: '2px' }}>First Wt:</td><td style={{ padding: '1px', textAlign: 'right', paddingTop: '2px' }}>{first_weight}</td></tr>
-          <tr><td style={{ padding: '1px' }}>Second Wt:</td><td style={{ padding: '1px', textAlign: 'right' }}>{second_weight}</td></tr>
-          <tr><td style={{ padding: '1px' }}>Net Wt:</td><td style={{ padding: '1px', textAlign: 'right' }}>{net_weight}</td></tr>
+          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{sl_no}</td></tr>
+          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{date} {time}</td></tr>
+          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{vehicle_no}</td></tr>
+          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{party_name}</td></tr>
+          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{material_name}</td></tr>
+          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{charges}</td></tr>
+          <tr><td style={{ padding: '1px', paddingTop: '2px', textAlign: 'right' }}>{first_weight}</td></tr>
+          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{second_weight}</td></tr>
+          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{net_weight}</td></tr>
         </tbody>
       </table>
     </div>
