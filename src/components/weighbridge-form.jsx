@@ -236,427 +236,36 @@ const PrintableBill = React.forwardRef(({ billData, getValues, netWeight }, ref)
 });
 PrintableBill.displayName = 'PrintableBill';
 
-
-export function WeighbridgeForm() {
-  const { translations } = useAppContext();
-  const [netWeight, setNetWeight] = useState(0);
-  const [qrCodeUrl, setQrCodeUrl] = useState("");
-  const [isClient, setIsClient] = useState(false);
-  const [reprintSerial, setReprintSerial] = useState("");
-  const [isManualMode, setIsManualMode] = useState(false);
-  const [previousWeights, setPreviousWeights] = useState(null);
-  const [isVehiclePopoverOpen, setIsVehiclePopoverOpen] = useState(false);
-  const [isChargesPopoverOpen, setIsChargesPopoverOpen] = useState(false);
-  const [chargeExtremes, setChargeExtremes] = useState(null);
-  const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
-  const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
-  const [isLoadingReprint, setIsLoadingReprint] = useState(false);
-  const [reprintData, setReprintData] = useState(null);
-  const [isReprintDialogOpen, setIsReprintDialogOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [customers, setCustomers] = useState([]);
-  const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
-  const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
-  
-  const touchStartY = useRef(0);
-  const PULL_THRESHOLD = 70;
-
-  const serialDataRef = useRef({ weight: 0 });
-  const billPrintRef = useRef(null);
-
-  const upiID = "sathishkumar1781@oksbi";
-  const businessName = "Amman Weighing Home";
-  const defaultUpiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&cu=INR`;
-
-  const { toast } = useToast();
-
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    mode: "onBlur",
-    defaultValues: {
-      serialNumber: "",
-      dateTime: "",
-      vehicleNumber: "",
-      partyName: "",
-      materialName: "",
-      charges: "",
-      firstWeight: 0,
-      secondWeight: 0,
-      whatsappNumber: "",
-      paymentStatus: "Paid",
-      customerId: "",
-    },
-  });
-
-  const { setValue, watch, getValues, reset, control } = form;
-  const firstWeight = watch("firstWeight");
-  const secondWeight = watch("secondWeight");
-  const charges = watch("charges");
-  
-  const fetchNewSerialNumber = useCallback(async () => {
-    try {
-      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill");
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data = await response.json();
-      const lastSerialNumber = data?.data?.sl_no;
-      const nextSerialNumber = (typeof lastSerialNumber === 'number' && !isNaN(lastSerialNumber))
-        ? lastSerialNumber + 1
-        : 1;
-      setValue("serialNumber", nextSerialNumber.toString());
-    } catch (error) {
-      console.error("Error fetching last bill:", error);
-      setValue("serialNumber", "1");
-    }
-  }, [setValue]);
-
-  const fetchCustomers = useCallback(async () => {
-    try {
-      const response = await fetch("https://bend-mqjz.onrender.com/api/user/userlist");
-      if(response.ok) {
-        const data = await response.json();
-        setCustomers(data.users || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch customers:", error);
-      setCustomers([]);
-    }
-  }, []);
-
-  const setInitialDateTime = useCallback(() => {
-    const now = new Date();
-    const formattedDateTime = now.toLocaleString("en-IN", {
-      hour12: true,
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-    setValue("dateTime", formattedDateTime);
-  }, [setValue]);
-  
-  const initializeForm = useCallback(() => {
-    fetchNewSerialNumber();
-    setInitialDateTime();
-    fetchCustomers();
-  }, [fetchNewSerialNumber, setInitialDateTime, fetchCustomers]);
-
-  useEffect(() => {
-    setIsClient(true);
-    initializeForm();
-  }, [initializeForm]);
-
-  useEffect(() => {
-    const fw = Number(firstWeight) || 0;
-    const sw = Number(secondWeight) || 0;
-    const newNetWeight = Math.abs(fw - sw);
-    setNetWeight(parseFloat(newNetWeight.toFixed(3)));
-  }, [firstWeight, secondWeight]);
-  
-  useEffect(() => {
-    const numericCharges = Number(charges);
-    if (numericCharges > 0) {
-      const upiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&am=${numericCharges.toFixed(2)}&cu=INR`;
-      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiURL)}&size=128x128&margin=0}`;
-      setQrCodeUrl(apiUrl);
-    } else {
-        const defaultQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(defaultUpiURL)}&size=128x128&margin=0`;
-        setQrCodeUrl(defaultQrCodeUrl);
-    }
-  }, [charges, defaultUpiURL, businessName, upiID]);
-
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print bills." });
-      return;
-    }
-    
-    const ReactDOMServer = require('react-dom/server');
-    const billHtml = ReactDOMServer.renderToStaticMarkup(
-      <div className="printable-section">
-        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
-        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
-        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
-      </div>
-    );
-    
-    printWindow.document.write('<html><head><title>Print Bill</title>');
-    printWindow.document.write(`
-        <style>
-            body { font-family: monospace; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            @page { size: auto; margin: 0mm; }
-            .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-            .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; }
-            p { margin: 0; }
-        </style>
-    `);
-    printWindow.document.write('</head><body>');
-    printWindow.document.write(billHtml);
-    printWindow.document.write('</body></html>');
-    
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-    }, 250);
-  };
-
-
-  const handleReset = useCallback(() => {
-    reset({
-      vehicleNumber: "",
-      partyName: "",
-      materialName: "",
-      charges: "",
-      firstWeight: 0,
-      secondWeight: 0,
-      whatsappNumber: "",
-      paymentStatus: "Paid",
-      customerId: ""
-    });
-    setNetWeight(0);
-    setPreviousWeights(null);
-    setSelectedCustomerForDisplay(null);
-    setChargeExtremes(null);
-    if (isClient) {
-      initializeForm();
-    }
-  }, [reset, isClient, initializeForm]);
-
-  const findBill = async () => {
-    if (!isClient || !reprintSerial) return;
-    setIsLoadingReprint(true);
-    try {
-      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getsinglerecords", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sl_no: Number(reprintSerial) }),
-      });
-      
-      if (!response.ok) {
-        if(response.status === 404) {
-             toast({ variant: "destructive", title: "Bill Not Found", description: `No data found for serial number ${reprintSerial}.` });
-        } else {
-            throw new Error('Failed to fetch bill');
-        }
-        return;
-      }
-
-      const result = await response.json();
-      if (result.data) {
-        setReprintData(result.data);
-        setIsReprintDialogOpen(true);
-        toast({ title: "Bill Found", description: `Data for bill ${reprintSerial} has been loaded.` });
-      } else {
-        toast({ variant: "destructive", title: "Bill Not Found", description: `No data found for serial number ${reprintSerial}.` });
-      }
-    } catch (error) {
-      console.error("Failed to find bill:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not retrieve bill data." });
-    } finally {
-        setIsLoadingReprint(false);
-    }
-  };
-  
-  const handleVehicleBlur = async (e) => {
-    const vehicleNo = e.target.value;
-    if (!vehicleNo || vehicleNo.length < 4) {
-      setPreviousWeights(null);
-      setChargeExtremes(null);
-      setIsVehiclePopoverOpen(false);
-      return;
-    }
-    
-    setIsLoadingVehicle(true);
-
-    try {
-        const [weightsResponse, chargesResponse] = await Promise.all([
-            fetch("https://bend-mqjz.onrender.com/api/wb/getprevweightofvehicle", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ vehicleNo }),
-            }),
-            fetch(`https://bend-mqjz.onrender.com/api/wb/getchargeextremes/${vehicleNo}`)
-        ]);
-
-        if (weightsResponse.ok) {
-            const result = await weightsResponse.json();
-            if (result.data && result.data.length > 0) {
-                setPreviousWeights(result.data[0]);
-                setIsVehiclePopoverOpen(true);
-            } else {
-                setPreviousWeights(null);
-                setIsVehiclePopoverOpen(false);
-            }
-        } else {
-           setPreviousWeights(null);
-           setIsVehiclePopoverOpen(false);
-        }
-
-        if (chargesResponse.ok) {
-            const result = await chargesResponse.json();
-            if (result.data && (result.data.highest || result.data.lowest)) {
-                setChargeExtremes(result.data);
-                setIsChargesPopoverOpen(true);
-            } else {
-                setChargeExtremes(null);
-                setIsChargesPopoverOpen(false);
-            }
-        } else {
-            setChargeExtremes(null);
-            setIsChargesPopoverOpen(false);
-        }
-
-    } catch (error) {
-        console.error("Error fetching vehicle data:", error);
-        setPreviousWeights(null);
-        setChargeExtremes(null);
-    } finally {
-        setIsLoadingVehicle(false);
-    }
-  };
-  
-  const handleWeightSelection = (selectedWeight) => {
-    const liveWeight = serialDataRef.current.weight;
-    setValue("firstWeight", Math.max(selectedWeight, liveWeight));
-    setValue("secondWeight", Math.min(selectedWeight, liveWeight));
-    setIsVehiclePopoverOpen(false);
-  };
-
-  const handleChargeSelection = (charge) => {
-    setValue("charges", charge);
-    setIsChargesPopoverOpen(false);
-  }
-
-  async function onSubmit(values) {
-    const now = new Date();
-    const currentDateTime = now.toLocaleString("en-IN", {
-        hour12: true,
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-    });
-    setValue("dateTime", currentDateTime);
-    
-    const [date, time] = currentDateTime.split(', ');
-    
-    const billPayload = {
-      billNo: Number(values.serialNumber),
-      date: date,
-      time: time,
-      vehicleNo: values.vehicleNumber,
-      material: values.materialName,
-      party: values.partyName,
-      charges: values.charges || 0,
-      paidStatus: values.paymentStatus === "Paid",
-      firstWeight: values.firstWeight,
-      secondWeight: values.secondWeight,
-      netWeight: netWeight,
-      whatsappNumber: values.whatsappNumber || "",
-      customerId: values.customerId || ""
-    };
-
-    try {
-      const saveResponse = await fetch("https://bend-mqjz.onrender.com/api/wb/postbill", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(billPayload),
-      });
-
-      if (!saveResponse.ok) {
-        const errorData = await saveResponse.json();
-        throw new Error(errorData.message || 'Failed to save the bill.');
-      }
-
-      let toastMessage = {
-        title: "Bill Saved",
-        description: "The bill has been saved and is ready for printing.",
-      };
-
-      if (values.whatsappNumber) {
-        const message = `
-*WeighBridge Bill*
--------------------------
-*Serial No:* ${values.serialNumber}
-*Date:* ${currentDateTime}
-*Vehicle No:* ${values.vehicleNumber.toUpperCase()}
-*Party Name:* ${values.partyName}
-*Material:* ${values.materialName}
-*Charges:* ₹${values.charges || 0}
-*Payment:* ${values.paymentStatus}
-*First Weight:* ${values.firstWeight}
-*Second Weight:* ${values.secondWeight}
-*Net Weight:* ${netWeight}
--------------------------
-Thank you!
-        `.trim();
-
-        const encodedMessage = encodeURIComponent(message);
-        const whatsappUrl = `https://wa.me/91${values.whatsappNumber}?text=${encodedMessage}`;
-        window.open(whatsappUrl, "_blank");
-
-        toastMessage = {
-          title: "Bill Saved & WhatsApp Ready",
-          description: "Please press send in the newly opened WhatsApp tab.",
-        };
-      }
-      
-      toast(toastMessage);
-      handlePrint();
-      handleReset(); 
-
-    } catch (error) {
-      console.error("Failed to save or send bill:", error);
-      toast({ variant: "destructive", title: "Error", description: `Could not save the bill. ${error.message}` });
-    }
-  }
-
-  const handleTouchStart = (e) => {
-    touchStartY.current = e.targetTouches[0].clientY;
-  };
-
-  const handleTouchMove = (e) => {
-    const touchY = e.targetTouches[0].clientY;
-    const pullDistance = touchY - touchStartY.current;
-
-    if (window.scrollY === 0 && pullDistance > PULL_THRESHOLD) {
-      setIsRefreshing(true);
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (isRefreshing) {
-      handleReset();
-      toast({ title: "Refreshed", description: "New bill ready." });
-    }
-    setIsRefreshing(false);
-    touchStartY.current = 0;
-  };
-  
-  const handleCustomerSelect = (value) => {
-      const customerId = value;
-      const customer = customers.find((c) => c.customerId === customerId);
-      if (customer) {
-          setSelectedCustomerForDisplay(customer);
-          setValue("customerId", customer.customerId);
-          setValue("partyName", customer.companyName);
-          setValue("whatsappNumber", customer.whatsappNumber || "");
-          if(customer.vehicleNumber) setValue("vehicleNumber", customer.vehicleNumber);
-      }
-      setIsCustomerPopoverOpen(false);
-  };
-  
-  const BillContent = () => (
+const BillContent = ({
+  form,
+  serialDataRef,
+  isManualMode,
+  setIsManualMode,
+  fetchNewSerialNumber,
+  setInitialDateTime,
+  handleVehicleBlur,
+  isLoadingVehicle,
+  isVehiclePopoverOpen,
+  setIsVehiclePopoverOpen,
+  previousWeights,
+  handleWeightSelection,
+  isChargesPopoverOpen,
+  setIsChargesPopoverOpen,
+  chargeExtremes,
+  handleChargeSelection,
+  isCustomerPopoverOpen,
+  setIsCustomerPopoverOpen,
+  selectedCustomerForDisplay,
+  customers,
+  handleCustomerSelect,
+  netWeight,
+  charges,
+  qrCodeUrl,
+  setIsShareLocationOpen,
+  translations,
+}) => {
+  const { control } = form;
+  return (
     <>
       <div className="mb-6">
         <Card>
@@ -1038,72 +647,497 @@ Thank you!
       </div>
     </>
   );
+};
   
-  const ReprintDialog = () => {
-      const handleReprintPrint = () => {
-          const printWindow = window.open('', '_blank');
-          printWindow.document.write('<html><head><title>Print Bill</title>');
-          printWindow.document.write(`
-              <style>
-                  body { font-family: monospace; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                  @page { size: auto; margin: 0mm; }
-                  .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-                  .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; }
-                  p { margin: 0; }
-              </style>
-          `);
-          printWindow.document.write('</head><body>');
+const ReprintDialog = ({ isOpen, onOpenChange, reprintData, translations }) => {
+    if (!reprintData) return null;
+
+    const handleReprintPrint = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+        printWindow.document.write('<html><head><title>Print Bill</title>');
+        printWindow.document.write(`
+            <style>
+                body { font-family: monospace; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                @page { size: auto; margin: 0mm; }
+                .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
+                .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; }
+                p { margin: 0; }
+            </style>
+        `);
+        printWindow.document.write('</head><body>');
+
+        const ReactDOMServer = require('react-dom/server');
+        printWindow.document.write(ReactDOMServer.renderToStaticMarkup(
+          <div className="printable-section">
+              <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+              <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+              <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
+          </div>
+        ));
+
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 250);
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Reprint Bill #{reprintData.sl_no}</DialogTitle>
+                    <DialogDescription>
+                        Confirm the details below before re-printing.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 text-sm space-y-1">
+                    <p><strong>Date & Time:</strong> {reprintData.date} {reprintData.time}</p>
+                    <p><strong>Vehicle No:</strong> {reprintData.vehicle_no}</p>
+                    <p><strong>Party Name:</strong> {reprintData.party_name}</p>
+                    <p><strong>Material:</strong> {reprintData.material_name}</p>
+                    <p><strong>Charges:</strong> ₹{reprintData.charges}</p>
+                    <p><strong>1st Weight:</strong> {reprintData.first_weight} kg</p>
+                    <p><strong>2nd Weight:</strong> {reprintData.second_weight} kg</p>
+                    <p><strong>Net Weight:</strong> {reprintData.net_weight} kg</p>
+                    <p><strong>Status:</strong> {reprintData.paid_status ? 'Paid' : 'Credit'}</p>
+                </div>
+                <DialogFooter className="sm:justify-end">
+                     <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>Close</Button>
+                     <Button type="button" onClick={handleReprintPrint}>
+                         <Printer className="mr-2 h-4 w-4" />
+                         Print
+                     </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+export function WeighbridgeForm() {
+  const { translations } = useAppContext();
+  const [netWeight, setNetWeight] = useState(0);
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [isClient, setIsClient] = useState(false);
+  const [reprintSerial, setReprintSerial] = useState("");
+  const [isManualMode, setIsManualMode] = useState(false);
+  const [previousWeights, setPreviousWeights] = useState(null);
+  const [isVehiclePopoverOpen, setIsVehiclePopoverOpen] = useState(false);
+  const [isChargesPopoverOpen, setIsChargesPopoverOpen] = useState(false);
+  const [chargeExtremes, setChargeExtremes] = useState(null);
+  const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
+  const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
+  const [isLoadingReprint, setIsLoadingReprint] = useState(false);
+  const [reprintData, setReprintData] = useState(null);
+  const [isReprintDialogOpen, setIsReprintDialogOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
+  const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
   
-          const ReactDOMServer = require('react-dom/server');
-          printWindow.document.write(ReactDOMServer.renderToStaticMarkup(
-            <div className="printable-section">
-                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-                <div className="printable-content-wrapper"><PrintableBill billData={reprintData} /></div>
-            </div>
-          ));
+  const touchStartY = useRef(0);
+  const PULL_THRESHOLD = 70;
+
+  const serialDataRef = useRef({ weight: 0 });
+  const billPrintRef = useRef(null);
+
+  const upiID = "sathishkumar1781@oksbi";
+  const businessName = "Amman Weighing Home";
+  const defaultUpiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&cu=INR`;
+
+  const { toast } = useToast();
+
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    mode: "onBlur",
+    defaultValues: {
+      serialNumber: "",
+      dateTime: "",
+      vehicleNumber: "",
+      partyName: "",
+      materialName: "",
+      charges: "",
+      firstWeight: 0,
+      secondWeight: 0,
+      whatsappNumber: "",
+      paymentStatus: "Paid",
+      customerId: "",
+    },
+  });
+
+  const { setValue, watch, getValues, reset, control } = form;
+  const firstWeight = watch("firstWeight");
+  const secondWeight = watch("secondWeight");
+  const charges = watch("charges");
   
-          printWindow.document.write('</body></html>');
-          printWindow.document.close();
-          printWindow.focus();
-          setTimeout(() => {
-              printWindow.print();
-              printWindow.close();
-          }, 250);
+  const fetchNewSerialNumber = useCallback(async () => {
+    try {
+      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill");
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      const lastSerialNumber = data?.data?.sl_no;
+      const nextSerialNumber = (typeof lastSerialNumber === 'number' && !isNaN(lastSerialNumber))
+        ? lastSerialNumber + 1
+        : 1;
+      setValue("serialNumber", nextSerialNumber.toString());
+    } catch (error) {
+      console.error("Error fetching last bill:", error);
+      setValue("serialNumber", "1");
+    }
+  }, [setValue]);
+
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const response = await fetch("https://bend-mqjz.onrender.com/api/user/userlist");
+      if(response.ok) {
+        const data = await response.json();
+        setCustomers(data.users || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch customers:", error);
+      setCustomers([]);
+    }
+  }, []);
+
+  const setInitialDateTime = useCallback(() => {
+    const now = new Date();
+    const formattedDateTime = now.toLocaleString("en-IN", {
+      hour12: true,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    setValue("dateTime", formattedDateTime);
+  }, [setValue]);
+  
+  const initializeForm = useCallback(() => {
+    fetchNewSerialNumber();
+    setInitialDateTime();
+    fetchCustomers();
+  }, [fetchNewSerialNumber, setInitialDateTime, fetchCustomers]);
+
+  useEffect(() => {
+    setIsClient(true);
+    initializeForm();
+  }, [initializeForm]);
+
+  useEffect(() => {
+    const fw = Number(firstWeight) || 0;
+    const sw = Number(secondWeight) || 0;
+    const newNetWeight = Math.abs(fw - sw);
+    setNetWeight(parseFloat(newNetWeight.toFixed(3)));
+  }, [firstWeight, secondWeight]);
+  
+  useEffect(() => {
+    const numericCharges = Number(charges);
+    if (numericCharges > 0) {
+      const upiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&am=${numericCharges.toFixed(2)}&cu=INR`;
+      const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(upiURL)}&size=128x128&margin=0}`;
+      setQrCodeUrl(apiUrl);
+    } else {
+        const defaultQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(defaultUpiURL)}&size=128x128&margin=0`;
+        setQrCodeUrl(defaultQrCodeUrl);
+    }
+  }, [charges, defaultUpiURL, businessName, upiID]);
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print bills." });
+      return;
+    }
+    
+    const ReactDOMServer = require('react-dom/server');
+    const billHtml = ReactDOMServer.renderToStaticMarkup(
+      <div className="printable-section">
+        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
+        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
+        <div className="printable-content-wrapper"><PrintableBill ref={billPrintRef} getValues={getValues} netWeight={netWeight} /></div>
+      </div>
+    );
+    
+    printWindow.document.write('<html><head><title>Print Bill</title>');
+    printWindow.document.write(`
+        <style>
+            body { font-family: monospace; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { size: auto; margin: 0mm; }
+            .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
+            .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 10px; }
+            p { margin: 0; }
+        </style>
+    `);
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(billHtml);
+    printWindow.document.write('</body></html>');
+    
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 250);
+  };
+
+
+  const handleReset = useCallback(() => {
+    reset({
+      vehicleNumber: "",
+      partyName: "",
+      materialName: "",
+      charges: "",
+      firstWeight: 0,
+      secondWeight: 0,
+      whatsappNumber: "",
+      paymentStatus: "Paid",
+      customerId: ""
+    });
+    setNetWeight(0);
+    setPreviousWeights(null);
+    setSelectedCustomerForDisplay(null);
+    setChargeExtremes(null);
+    if (isClient) {
+      initializeForm();
+    }
+  }, [reset, isClient, initializeForm]);
+
+  const findBill = async () => {
+    if (!isClient || !reprintSerial) return;
+    setIsLoadingReprint(true);
+    try {
+      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getsinglerecords", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sl_no: Number(reprintSerial) }),
+      });
+      
+      if (!response.ok) {
+        if(response.status === 404) {
+             toast({ variant: "destructive", title: "Bill Not Found", description: `No data found for serial number ${reprintSerial}.` });
+        } else {
+            throw new Error('Failed to fetch bill');
+        }
+        return;
+      }
+
+      const result = await response.json();
+      if (result.data) {
+        setReprintData(result.data);
+        setIsReprintDialogOpen(true);
+        toast({ title: "Bill Found", description: `Data for bill ${reprintSerial} has been loaded.` });
+      } else {
+        toast({ variant: "destructive", title: "Bill Not Found", description: `No data found for serial number ${reprintSerial}.` });
+      }
+    } catch (error) {
+      console.error("Failed to find bill:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not retrieve bill data." });
+    } finally {
+        setIsLoadingReprint(false);
+    }
+  };
+  
+  const handleVehicleBlur = async (e) => {
+    const vehicleNo = e.target.value;
+    if (!vehicleNo || vehicleNo.length < 4) {
+      setPreviousWeights(null);
+      setChargeExtremes(null);
+      setIsVehiclePopoverOpen(false);
+      return;
+    }
+    
+    setIsLoadingVehicle(true);
+
+    try {
+        const [weightsResponse, chargesResponse] = await Promise.all([
+            fetch("https://bend-mqjz.onrender.com/api/wb/getprevweightofvehicle", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vehicleNo }),
+            }),
+            fetch(`https://bend-mqjz.onrender.com/api/wb/getchargeextremes/${vehicleNo}`)
+        ]);
+
+        if (weightsResponse.ok) {
+            const result = await weightsResponse.json();
+            if (result.data && result.data.length > 0) {
+                setPreviousWeights(result.data[0]);
+                setIsVehiclePopoverOpen(true);
+            } else {
+                setPreviousWeights(null);
+                setIsVehiclePopoverOpen(false);
+            }
+        } else {
+           setPreviousWeights(null);
+           setIsVehiclePopoverOpen(false);
+        }
+
+        if (chargesResponse.ok) {
+            const result = await chargesResponse.json();
+            if (result.data && (result.data.highest || result.data.lowest)) {
+                setChargeExtremes(result.data);
+                setIsChargesPopoverOpen(true);
+            } else {
+                setChargeExtremes(null);
+                setIsChargesPopoverOpen(false);
+            }
+        } else {
+            setChargeExtremes(null);
+            setIsChargesPopoverOpen(false);
+        }
+
+    } catch (error) {
+        console.error("Error fetching vehicle data:", error);
+        setPreviousWeights(null);
+        setChargeExtremes(null);
+    } finally {
+        setIsLoadingVehicle(false);
+    }
+  };
+  
+  const handleWeightSelection = (selectedWeight) => {
+    const liveWeight = serialDataRef.current.weight;
+    setValue("firstWeight", Math.max(selectedWeight, liveWeight));
+    setValue("secondWeight", Math.min(selectedWeight, liveWeight));
+    setIsVehiclePopoverOpen(false);
+  };
+
+  const handleChargeSelection = (charge) => {
+    setValue("charges", charge);
+    setIsChargesPopoverOpen(false);
+  }
+
+  async function onSubmit(values) {
+    const now = new Date();
+    const currentDateTime = now.toLocaleString("en-IN", {
+        hour12: true,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    });
+    // Set value right before submission to ensure it's current
+    setValue("dateTime", currentDateTime, { shouldValidate: true, shouldDirty: true });
+    
+    // Create payload with the most up-to-date values
+    const latestValues = getValues();
+    const [date, time] = latestValues.dateTime.split(', ');
+    
+    const billPayload = {
+      billNo: Number(latestValues.serialNumber),
+      date: date,
+      time: time,
+      vehicleNo: latestValues.vehicleNumber,
+      material: latestValues.materialName,
+      party: latestValues.partyName,
+      charges: latestValues.charges || 0,
+      paidStatus: latestValues.paymentStatus === "Paid",
+      firstWeight: latestValues.firstWeight,
+      secondWeight: latestValues.secondWeight,
+      netWeight: netWeight,
+      whatsappNumber: latestValues.whatsappNumber || "",
+      customerId: latestValues.customerId || ""
+    };
+
+    try {
+      const saveResponse = await fetch("https://bend-mqjz.onrender.com/api/wb/postbill", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(billPayload),
+      });
+
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json();
+        throw new Error(errorData.message || 'Failed to save the bill.');
+      }
+      
+      handlePrint();
+
+      let toastMessage = {
+        title: "Bill Saved",
+        description: "The bill has been saved and printed.",
       };
+
+      if (latestValues.whatsappNumber) {
+        const message = `
+*WeighBridge Bill*
+-------------------------
+*Serial No:* ${latestValues.serialNumber}
+*Date:* ${latestValues.dateTime}
+*Vehicle No:* ${latestValues.vehicleNumber.toUpperCase()}
+*Party Name:* ${latestValues.partyName}
+*Material:* ${latestValues.materialName}
+*Charges:* ₹${latestValues.charges || 0}
+*Payment:* ${latestValues.paymentStatus}
+*First Weight:* ${latestValues.firstWeight}
+*Second Weight:* ${latestValues.secondWeight}
+*Net Weight:* ${netWeight}
+-------------------------
+Thank you!
+        `.trim();
+
+        const encodedMessage = encodeURIComponent(message);
+        const whatsappUrl = `https://wa.me/91${latestValues.whatsappNumber}?text=${encodedMessage}`;
+        window.open(whatsappUrl, "_blank");
+
+        toastMessage = {
+          title: "Bill Saved & WhatsApp Ready",
+          description: "Please press send in the newly opened WhatsApp tab.",
+        };
+      }
+      
+      toast(toastMessage);
+      handleReset(); 
+
+    } catch (error) {
+      console.error("Failed to save or send bill:", error);
+      toast({ variant: "destructive", title: "Error", description: `Could not save the bill. ${error.message}` });
+    }
+  }
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.targetTouches[0].clientY;
+  };
+
+  const handleTouchMove = (e) => {
+    const touchY = e.targetTouches[0].clientY;
+    const pullDistance = touchY - touchStartY.current;
+
+    if (window.scrollY === 0 && pullDistance > PULL_THRESHOLD) {
+      setIsRefreshing(true);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (isRefreshing) {
+      handleReset();
+      toast({ title: "Refreshed", description: "New bill ready." });
+    }
+    setIsRefreshing(false);
+    touchStartY.current = 0;
+  };
   
-      if (!reprintData) return null;
-  
-      return (
-          <Dialog open={isReprintDialogOpen} onOpenChange={setIsReprintDialogOpen}>
-              <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                      <DialogTitle>Reprint Bill #{reprintData.sl_no}</DialogTitle>
-                      <DialogDescription>
-                          Confirm the details below before re-printing.
-                      </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4 text-sm space-y-1">
-                      <p><strong>Date & Time:</strong> {reprintData.date} {reprintData.time}</p>
-                      <p><strong>Vehicle No:</strong> {reprintData.vehicle_no}</p>
-                      <p><strong>Party Name:</strong> {reprintData.party_name}</p>
-                      <p><strong>Material:</strong> {reprintData.material_name}</p>
-                      <p><strong>Charges:</strong> ₹{reprintData.charges}</p>
-                      <p><strong>1st Weight:</strong> {reprintData.first_weight} kg</p>
-                      <p><strong>2nd Weight:</strong> {reprintData.second_weight} kg</p>
-                      <p><strong>Net Weight:</strong> {reprintData.net_weight} kg</p>
-                      <p><strong>Status:</strong> {reprintData.paid_status ? 'Paid' : 'Credit'}</p>
-                  </div>
-                  <DialogFooter className="sm:justify-end">
-                       <Button type="button" variant="secondary" onClick={() => setIsReprintDialogOpen(false)}>Close</Button>
-                       <Button type="button" onClick={handleReprintPrint}>
-                           <Printer className="mr-2 h-4 w-4" />
-                           Print
-                       </Button>
-                  </DialogFooter>
-              </DialogContent>
-          </Dialog>
-      );
+  const handleCustomerSelect = (value) => {
+      const customerId = value;
+      const customer = customers.find((c) => c.customerId === customerId);
+      if (customer) {
+          setSelectedCustomerForDisplay(customer);
+          setValue("customerId", customer.customerId);
+          setValue("partyName", customer.companyName);
+          setValue("whatsappNumber", customer.whatsappNumber || "");
+          if(customer.vehicleNumber) setValue("vehicleNumber", customer.vehicleNumber);
+      }
+      setIsCustomerPopoverOpen(false);
   };
   
   return (
@@ -1129,7 +1163,34 @@ Thank you!
             <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="no-print">
-                    <BillContent />
+                   <BillContent
+                    form={form}
+                    serialDataRef={serialDataRef}
+                    isManualMode={isManualMode}
+                    setIsManualMode={setIsManualMode}
+                    fetchNewSerialNumber={fetchNewSerialNumber}
+                    setInitialDateTime={setInitialDateTime}
+                    handleVehicleBlur={handleVehicleBlur}
+                    isLoadingVehicle={isLoadingVehicle}
+                    isVehiclePopoverOpen={isVehiclePopoverOpen}
+                    setIsVehiclePopoverOpen={setIsVehiclePopoverOpen}
+                    previousWeights={previousWeights}
+                    handleWeightSelection={handleWeightSelection}
+                    isChargesPopoverOpen={isChargesPopoverOpen}
+                    setIsChargesPopoverOpen={setIsChargesPopoverOpen}
+                    chargeExtremes={chargeExtremes}
+                    handleChargeSelection={handleChargeSelection}
+                    isCustomerPopoverOpen={isCustomerPopoverOpen}
+                    setIsCustomerPopoverOpen={setIsCustomerPopoverOpen}
+                    selectedCustomerForDisplay={selectedCustomerForDisplay}
+                    customers={customers}
+                    handleCustomerSelect={handleCustomerSelect}
+                    netWeight={netWeight}
+                    charges={charges}
+                    qrCodeUrl={qrCodeUrl}
+                    setIsShareLocationOpen={setIsShareLocationOpen}
+                    translations={translations}
+                   />
                 </div>
                 <div className="print-only" id="print-section">
                    {/* This is a placeholder for the print content that will be generated on the fly */}
@@ -1191,7 +1252,7 @@ Thank you!
             </Form>
         </CardContent>
       </Card>
-      {isReprintDialogOpen && <ReprintDialog />}
+      <ReprintDialog isOpen={isReprintDialogOpen} onOpenChange={setIsReprintDialogOpen} reprintData={reprintData} translations={translations} />
       {selectedCustomerForDisplay && 
         <ShareLocationDialog 
           isOpen={isShareLocationOpen}
