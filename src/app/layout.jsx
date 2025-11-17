@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, Menu, Moon, Sun, Globe, LogOut, Settings, BarChart2, Users } from "lucide-react";
+import { Home, Menu, Moon, Sun, Globe, LogOut, Settings, BarChart2, Users, Scale } from "lucide-react";
 import {
   Sheet,
   SheetContent,

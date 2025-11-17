@@ -47,7 +47,7 @@ export default function LoginPage() {
   const onSubmit = (data) => {
     setIsSubmitting(true);
     // Hardcoded credentials for MVP
-    if (data.mobileNumber === "9876543210" && data.password === "password") {
+    if (data.mobileNumber === "7598728610" && data.password === "password") {
       toast({
         title: "Login Successful",
         description: "Welcome back!",
