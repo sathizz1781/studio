@@ -232,7 +232,7 @@ const PrintableBill = React.forwardRef(({ billData, config }, ref) => {
           <tr><td style={{ padding: '1px' }}>Party:</td><td style={{ padding: '1px', textAlign: 'right' }}>{party_name}</td></tr>
           <tr><td style={{ padding: '1px' }}>Material:</td><td style={{ padding: '1px', textAlign: 'right' }}>{material_name}</td></tr>
           <tr><td style={{ padding: '1px' }}>Charges:</td><td style={{ padding: '1px', textAlign: 'right' }}>{charges}</td></tr>
-          <tr><td style={{ padding: '1px', borderTop: '1px dashed #000', paddingTop: '2px' }}>First Wt:</td><td style={{ padding: '1px', textAlign: 'right', borderTop: '1px dashed #000', paddingTop: '2px' }}>{first_weight}</td></tr>
+          <tr><td style={{ padding: '1px', paddingTop: '2px' }}>First Wt:</td><td style={{ padding: '1px', textAlign: 'right', paddingTop: '2px' }}>{first_weight}</td></tr>
           <tr><td style={{ padding: '1px' }}>Second Wt:</td><td style={{ padding: '1px', textAlign: 'right' }}>{second_weight}</td></tr>
           <tr><td style={{ padding: '1px' }}>Net Wt:</td><td style={{ padding: '1px', textAlign: 'right' }}>{net_weight}</td></tr>
         </tbody>
@@ -1283,9 +1283,13 @@ Thank you!
       }
       <style id="global-styles-for-print" dangerouslySetInnerHTML={{ __html: `
           @media print {
+            @page {
+                size: 10in 7in;
+                margin: 0.25in;
+            }
             body { background-color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-            .printable-content-wrapper { flex: 1 1 32%; min-width: 0; border: 1px dashed #ccc; padding: 0.5rem; font-size: 9px; }
+            .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 9px; }
           }
       `}} />
     </div>

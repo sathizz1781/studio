@@ -69,6 +69,11 @@
   }
 }
 
+@page {
+  size: 10in 7in;
+  margin: 0.25in;
+}
+
 @media print {
   body {
     background-color: white !important;
@@ -102,7 +107,7 @@
   .printable-content-wrapper {
     flex: 1 1 32%;
     min-width: 0;
-    border: 1px dashed #ccc;
+    border: none;
     padding: 0.5rem;
     font-size: 9px;
   }
