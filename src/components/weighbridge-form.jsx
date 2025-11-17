@@ -333,40 +333,41 @@ const BillContent = ({
       
        <div className="space-y-2 no-print mb-6">
         <Label className="flex items-center gap-2"><Users size={16} /> {translations.weighbridge_form.select_customer}</Label>
-        <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" role="combobox" aria-expanded={isCustomerPopoverOpen} className="w-full justify-between">
-              {selectedCustomerForDisplay ? selectedCustomerForDisplay.companyName : translations.weighbridge_form.select_customer}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-            <Command
-              filter={(value, search) => {
-                  const customer = customers.find(c => c.customerId.toLowerCase() === value.toLowerCase());
-                  if (customer && customer.companyName.toLowerCase().includes(search.toLowerCase())) return 1;
-                  return 0;
-              }}
-            >
-              <CommandInput placeholder={translations.weighbridge_form.search_customer} />
-              <CommandList>
-                <CommandEmpty>{translations.weighbridge_form.no_customer_found}</CommandEmpty>
-                <CommandGroup>
-                  {customers.map((customer) => (
-                    <CommandItem
-                      key={customer.customerId}
-                      value={customer.customerId}
-                      onSelect={() => handleCustomerSelect(customer.customerId)}
-                    >
-                      <Check className={cn("mr-2 h-4 w-4", selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0")} />
-                      {customer.companyName}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+        <Popover>
+  <PopoverTrigger asChild>
+    <Button variant="outline" className="w-full justify-between">
+      {selectedCustomerForDisplay?.companyName || "Select Customer"}
+      {selectedCustomerForDisplay && (
+        <span
+          onClick={(e) => {
+            e.stopPropagation(); // prevent reopening popover
+            setSelectedCustomerForDisplay(null);
+            setValue("customerId", "");
+            setValue("partyName", "");
+            setValue("whatsappNumber", "");
+            setValue("vehicleNumber", "");
+          }}
+          className="ml-2 text-red-500 cursor-pointer hover:text-red-700"
+        >
+          ✕
+        </span>
+      )}
+    </Button>
+  </PopoverTrigger>
+
+  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+    {customers.map((customer) => (
+      <div
+        key={customer.customerId}
+        onClick={() => handleCustomerSelect(customer.customerId)}
+        className="cursor-pointer p-2 hover:bg-gray-100"
+      >
+        {customer.companyName}
+      </div>
+    ))}
+  </PopoverContent>
+</Popover>
+
       </div>
 
 
