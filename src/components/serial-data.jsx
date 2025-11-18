@@ -9,34 +9,44 @@ const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) 
   const [serialData, setSerialData] = useState("000000");
 
   useEffect(() => {
-    // Connect to WebSocket server (Change URL if needed)
-    const socket = io("http://localhost:4000", {
-        reconnectionDelayMax: 10000,
-    });
-
-    // Listen for 'data' event
-    socket.on("data", (data) => {
-      let output = data.split("N+").pop().split(".").shift();
-      const sanitizedOutput = output.replace(/\s/g, ''); // Remove whitespace
-      if (sanitizedOutput.length === 6 && /^\d+$/.test(sanitizedOutput)) {
-        // Update local state for display only
-        setSerialData(sanitizedOutput);
-        // Update the ref for the parent component to access without causing a re-render
-        if (serialDataRef && serialDataRef.current) {
-          serialDataRef.current.weight = Number(sanitizedOutput);
+    let socket;
+  
+    async function connectSocket() {
+      const { io } = await import("socket.io-client"); // ⚡ dynamic import (client only)
+  
+       socket = io("https://localhost:4000", {
+        transports: ["websocket"],
+        secure: true,
+        rejectUnauthorized: false, // because it's self-signed
+      });
+  
+      socket.on("data", (data) => {
+        console.log(data, "RECEIVED DATA");
+  
+        let output = data.split("N+").pop().split(".").shift();
+        const sanitizedOutput = output.replace(/\s/g, "");
+  
+        if (sanitizedOutput.length === 6 && /^\d+$/.test(sanitizedOutput)) {
+          setSerialData(sanitizedOutput);
+  
+          if (serialDataRef?.current) {
+            serialDataRef.current.weight = Number(sanitizedOutput);
+          }
         }
-      }
-    });
-
-    socket.on('connect_error', (err) => {
+      });
+  
+      socket.on("connect_error", (err) => {
         console.log(`connect_error due to ${err.message}`);
-    });
-
-    // Cleanup on unmount
+      });
+    }
+  
+    connectSocket();
+  
     return () => {
-      socket.disconnect();
+      if (socket) socket.disconnect();
     };
-  }, [serialDataRef]); // Dependency array is correct
+  }, [serialDataRef]);
+   // Dependency array is correct
 
   return (
     <p

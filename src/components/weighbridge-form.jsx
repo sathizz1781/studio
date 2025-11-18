@@ -979,8 +979,8 @@ export function WeighbridgeForm() {
 
         if (weightsResponse.ok) {
             const result = await weightsResponse.json();
-            if (result.data && result.data.length > 0) {
-                setPreviousWeights(result.data[0]);
+            if (result.data) {
+                setPreviousWeights(result.data);
                 setIsVehiclePopoverOpen(true);
             } else {
                 setPreviousWeights(null);
