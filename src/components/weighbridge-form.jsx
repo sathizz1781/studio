@@ -207,7 +207,7 @@ const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast, translatio
 };
 
 
-const PrintableBill = React.forwardRef(({ billData, config }, ref) => {
+const PrintableBill = React.forwardRef(({ billData }, ref) => {
   const {
     sl_no,
     date,
@@ -679,7 +679,7 @@ const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config, trans
 
         const ReactDOMServer = require('react-dom/server');
         
-        const billHtml = ReactDOMServer.renderToStaticMarkup(<PrintableBill billData={reprintData} config={config} />);
+        const billHtml = ReactDOMServer.renderToStaticMarkup(<PrintableBill billData={reprintData} />);
 
         printWindow.document.write('<html><head><title>Print Bill</title>');
         printWindow.document.write(`<style>${document.getElementById('global-styles-for-print').innerHTML}</style>`);
@@ -881,7 +881,7 @@ export function WeighbridgeForm() {
 
     const ReactDOMServer = require('react-dom/server');
     
-    const billHtml = ReactDOMServer.renderToStaticMarkup(<PrintableBill billData={billData} config={config} />);
+    const billHtml = ReactDOMServer.renderToStaticMarkup(<PrintableBill billData={billData} />);
     
     printWindow.document.write('<html><head><title>Print Bill</title>');
     printWindow.document.write(`<style>${document.getElementById('global-styles-for-print').innerHTML}</style>`);
