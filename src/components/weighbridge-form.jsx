@@ -258,12 +258,8 @@ const BillContent = ({
   setInitialDateTime,
   handleVehicleBlur,
   isLoadingVehicle,
-  isVehiclePopoverOpen,
-  setIsVehiclePopoverOpen,
   previousWeights,
   handleWeightSelection,
-  isChargesPopoverOpen,
-  setIsChargesPopoverOpen,
   chargeExtremes,
   handleChargeSelection,
   isCustomerPopoverOpen,
@@ -399,46 +395,43 @@ const BillContent = ({
                 {translations.weighbridge_form.vehicle_number}
               </FormLabel>
               <FormControl>
-                <div className="relative flex items-center">
-                    <Input
-                      placeholder="e.g., TN39BY5131"
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                      onBlur={handleVehicleBlur}
-                    />
-                     {isLoadingVehicle && (
-                        <div className="absolute right-10 flex items-center pr-3 pointer-events-none">
-                            <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
-                        </div>
-                     )}
-                     {previousWeights && !isLoadingVehicle && (
-                        <Popover open={isVehiclePopoverOpen} onOpenChange={setIsVehiclePopoverOpen}>
-                          <PopoverTrigger asChild>
-                             <Button variant="ghost" size="icon" className="absolute right-1 h-8 w-8">
-                                <ChevronsUpDown className="h-4 w-4" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-4">
-                            <div className="flex flex-col gap-3">
-                                <p className="text-sm font-semibold">{translations.weighbridge_form.previous_entry_found}</p>
-                                <div className="text-xs text-muted-foreground">
-                                    <p><strong>{translations.weighbridge_form.bill}:</strong> {previousWeights.sl_no}</p>
-                                    <p><strong>{translations.weighbridge_form.date}:</strong> {previousWeights.date} {previousWeights.time}</p>
+                 <Popover open={!!previousWeights}>
+                    <PopoverTrigger asChild>
+                        <div className="relative flex items-center">
+                            <Input
+                              placeholder="e.g., TN39BY5131"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                              onBlur={handleVehicleBlur}
+                            />
+                             {isLoadingVehicle && (
+                                <div className="absolute right-2 flex items-center pr-3 pointer-events-none">
+                                    <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
                                 </div>
-                                <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.first_weight)}>
-                                 1st: {previousWeights.first_weight}
-                                </Button>
-                                <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.second_weight)}>
-                                 2nd: {previousWeights.second_weight}
-                                </Button>
-                                <Button variant="secondary" onClick={() => handleWeightSelection(serialDataRef.current.weight)}>
-                                  {translations.weighbridge_form.use_live}: {serialDataRef.current.weight}
-                                </Button>
+                             )}
+                        </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-4" onOpenAutoFocus={(e) => e.preventDefault()}>
+                      {previousWeights && (
+                        <div className="flex flex-col gap-3">
+                            <p className="text-sm font-semibold">{translations.weighbridge_form.previous_entry_found}</p>
+                            <div className="text-xs text-muted-foreground">
+                                <p><strong>{translations.weighbridge_form.bill}:</strong> {previousWeights.sl_no}</p>
+                                <p><strong>{translations.weighbridge_form.date}:</strong> {previousWeights.date} {previousWeights.time}</p>
                             </div>
-                          </PopoverContent>
-                        </Popover>
+                            <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.first_weight)}>
+                             1st: {previousWeights.first_weight}
+                            </Button>
+                            <Button variant="outline" onClick={() => handleWeightSelection(previousWeights.second_weight)}>
+                             2nd: {previousWeights.second_weight}
+                            </Button>
+                            <Button variant="secondary" onClick={() => handleWeightSelection(serialDataRef.current.weight)}>
+                              {translations.weighbridge_form.use_live}: {serialDataRef.current.weight}
+                            </Button>
+                        </div>
                       )}
-                </div>
+                    </PopoverContent>
+                 </Popover>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -486,39 +479,36 @@ const BillContent = ({
                 {translations.weighbridge_form.charges}
               </FormLabel>
                <FormControl>
-                <div className="relative flex items-center">
-                    <Input type="number" placeholder="e.g., 250" {...field} />
-                     {chargeExtremes && (
-                        <Popover open={isChargesPopoverOpen} onOpenChange={setIsChargesPopoverOpen}>
-                          <PopoverTrigger asChild>
-                             <Button variant="ghost" size="icon" className="absolute right-1 h-8 w-8">
-                                <ChevronsUpDown className="h-4 w-4" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-4">
-                            <div className="flex flex-col gap-3">
-                                <p className="text-sm font-semibold">{translations.weighbridge_form.charge_suggestions}</p>
-                                {chargeExtremes.highest && (
-                                     <Button variant="outline" className="justify-between gap-4" onClick={() => handleChargeSelection(chargeExtremes.highest.charges)}>
-                                         <div className="flex items-center gap-2">
-                                            <TrendingUp className="h-4 w-4 text-green-500"/> {translations.weighbridge_form.highest}: 
-                                         </div>
-                                          <span>₹{chargeExtremes.highest.charges}</span>
-                                     </Button>
-                                )}
-                                {chargeExtremes.lowest && (
-                                     <Button variant="outline" className="justify-between gap-4" onClick={() => handleChargeSelection(chargeExtremes.lowest.charges)}>
-                                         <div className="flex items-center gap-2">
-                                             <TrendingDown className="h-4 w-4 text-red-500"/> {translations.weighbridge_form.lowest}:
-                                         </div>
-                                          <span>₹{chargeExtremes.lowest.charges}</span>
-                                     </Button>
-                                )}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
+                 <Popover open={!!chargeExtremes}>
+                    <PopoverTrigger asChild>
+                        <div className="relative flex items-center">
+                            <Input type="number" placeholder="e.g., 250" {...field} />
+                        </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-4" onOpenAutoFocus={(e) => e.preventDefault()}>
+                      {chargeExtremes && (
+                        <div className="flex flex-col gap-3">
+                            <p className="text-sm font-semibold">{translations.weighbridge_form.charge_suggestions}</p>
+                            {chargeExtremes.highest && (
+                                 <Button variant="outline" className="justify-between gap-4" onClick={() => handleChargeSelection(chargeExtremes.highest.charges)}>
+                                     <div className="flex items-center gap-2">
+                                        <TrendingUp className="h-4 w-4 text-green-500"/> {translations.weighbridge_form.highest}: 
+                                     </div>
+                                      <span>₹{chargeExtremes.highest.charges}</span>
+                                 </Button>
+                            )}
+                            {chargeExtremes.lowest && (
+                                 <Button variant="outline" className="justify-between gap-4" onClick={() => handleChargeSelection(chargeExtremes.lowest.charges)}>
+                                     <div className="flex items-center gap-2">
+                                         <TrendingDown className="h-4 w-4 text-red-500"/> {translations.weighbridge_form.lowest}:
+                                     </div>
+                                      <span>₹{chargeExtremes.lowest.charges}</span>
+                                 </Button>
+                            )}
+                        </div>
                       )}
-                </div>
+                    </PopoverContent>
+                 </Popover>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -668,9 +658,8 @@ const BillContent = ({
 };
   
 const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config }) => {
-    if (!reprintData) return null;
-
     const handleReprintPrint = () => {
+        if (!reprintData) return;
         const printWindow = window.open('', '_blank', 'width=1000,height=700');
         if (!printWindow) {
              toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print." });
@@ -694,6 +683,8 @@ const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config }) => 
             printWindow.close();
         }, 250);
     };
+
+    if (!reprintData) return null;
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -735,8 +726,6 @@ export function WeighbridgeForm() {
   const [reprintSerial, setReprintSerial] = useState("");
   const [isManualMode, setIsManualMode] = useState(false);
   const [previousWeights, setPreviousWeights] = useState(null);
-  const [isVehiclePopoverOpen, setIsVehiclePopoverOpen] = useState(false);
-  const [isChargesPopoverOpen, setIsChargesPopoverOpen] = useState(false);
   const [chargeExtremes, setChargeExtremes] = useState(null);
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
@@ -961,8 +950,6 @@ export function WeighbridgeForm() {
     if (!vehicleNo || vehicleNo.length < 4) {
       setPreviousWeights(null);
       setChargeExtremes(null);
-      setIsVehiclePopoverOpen(false);
-      setIsChargesPopoverOpen(false);
       return;
     }
     
@@ -982,36 +969,28 @@ export function WeighbridgeForm() {
             const result = await weightsResponse.json();
             if (result.data) {
                 setPreviousWeights(result.data);
-                setIsVehiclePopoverOpen(true);
             } else {
-                setPreviousWeights(null);
-                setIsVehiclePopoverOpen(false);
+               setPreviousWeights(null);
             }
         } else {
            setPreviousWeights(null);
-           setIsVehiclePopoverOpen(false);
         }
 
         if (chargesResponse.ok) {
             const result = await chargesResponse.json();
             if (result.data && (result.data.highest || result.data.lowest)) {
                 setChargeExtremes(result.data);
-                setIsChargesPopoverOpen(true);
             } else {
                 setChargeExtremes(null);
-                setIsChargesPopoverOpen(false);
             }
         } else {
             setChargeExtremes(null);
-            setIsChargesPopoverOpen(false);
         }
 
     } catch (error) {
         console.error("Error fetching vehicle data:", error);
         setPreviousWeights(null);
         setChargeExtremes(null);
-        setIsVehiclePopoverOpen(false);
-        setIsChargesPopoverOpen(false);
     } finally {
         setIsLoadingVehicle(false);
     }
@@ -1021,12 +1000,12 @@ export function WeighbridgeForm() {
     const liveWeight = serialDataRef.current.weight;
     setValue("firstWeight", Math.max(selectedWeight, liveWeight));
     setValue("secondWeight", Math.min(selectedWeight, liveWeight));
-    setIsVehiclePopoverOpen(false);
+    setPreviousWeights(null);
   };
 
   const handleChargeSelection = (charge) => {
     setValue("charges", charge);
-    setIsChargesPopoverOpen(false);
+    setChargeExtremes(null);
   }
 
   async function onSubmit(values) {
@@ -1186,12 +1165,8 @@ Thank you!
                     setInitialDateTime={setInitialDateTime}
                     handleVehicleBlur={handleVehicleBlur}
                     isLoadingVehicle={isLoadingVehicle}
-                    isVehiclePopoverOpen={isVehiclePopoverOpen}
-                    setIsVehiclePopoverOpen={setIsVehiclePopoverOpen}
                     previousWeights={previousWeights}
                     handleWeightSelection={handleWeightSelection}
-                    isChargesPopoverOpen={isChargesPopoverOpen}
-                    setIsChargesPopoverOpen={setIsChargesPopoverOpen}
                     chargeExtremes={chargeExtremes}
                     handleChargeSelection={handleChargeSelection}
                     isCustomerPopoverOpen={isCustomerPopoverOpen}
