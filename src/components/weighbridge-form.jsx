@@ -226,7 +226,8 @@ const PrintableBill = React.forwardRef(({ billData }, ref) => {
       <table style={{ fontSize: '10px', width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           <tr><td style={{ padding: '1px', textAlign: 'right' }}>{sl_no}</td></tr>
-          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{date} {time}</td></tr>
+          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{date}</td></tr>
+          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{time}</td></tr>
           <tr><td style={{ padding: '1px', textAlign: 'right' }}>{vehicle_no}</td></tr>
           <tr><td style={{ padding: '1px', textAlign: 'right' }}>{party_name}</td></tr>
           <tr><td style={{ padding: '1px', textAlign: 'right' }}>{material_name}</td></tr>
@@ -395,7 +396,7 @@ const BillContent = ({
                 {translations.weighbridge_form.vehicle_number}
               </FormLabel>
               <FormControl>
-                 <Popover open={!!previousWeights}>
+                 <Popover open={!!previousWeights} onOpenChange={(isOpen) => !isOpen && setPreviousWeights(null)}>
                     <PopoverTrigger asChild>
                         <div className="relative flex items-center">
                             <Input
@@ -479,7 +480,7 @@ const BillContent = ({
                 {translations.weighbridge_form.charges}
               </FormLabel>
                <FormControl>
-                 <Popover open={!!chargeExtremes}>
+                 <Popover open={!!chargeExtremes} onOpenChange={(isOpen) => !isOpen && setChargeExtremes(null)}>
                     <PopoverTrigger asChild>
                         <div className="relative flex items-center">
                             <Input type="number" placeholder="e.g., 250" {...field} />
@@ -1272,3 +1273,5 @@ Thank you!
     </div>
   );
 }
+
+    
