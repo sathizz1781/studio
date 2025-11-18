@@ -283,7 +283,7 @@ const BillContent = ({
       <div className="mb-6">
         <Card>
             <CardHeader className="p-3 sm:p-4">
-                <CardTitle className="text-center text-md sm:text-lg">{translations.weighbridge_form.live_weight}</CardTitle>
+                <CardTitle className="text-center text-md sm:text-lg">{translations.weighbridge_form.title}</CardTitle>
             </CardHeader>
             <CardContent className="p-2 sm:p-3">
                  <SerialDataComponent serialDataRef={serialDataRef} />
@@ -667,11 +667,11 @@ const BillContent = ({
   );
 };
   
-const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config, translations }) => {
+const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config }) => {
     if (!reprintData) return null;
 
     const handleReprintPrint = () => {
-        const printWindow = window.open('', '_blank');
+        const printWindow = window.open('', '_blank', 'width=1000,height=700');
         if (!printWindow) {
              toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print." });
             return;
@@ -858,7 +858,7 @@ export function WeighbridgeForm() {
   }, [charges, config]);
 
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'width=1000,height=700');
     if (!printWindow) {
       toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print." });
       return;
@@ -962,6 +962,7 @@ export function WeighbridgeForm() {
       setPreviousWeights(null);
       setChargeExtremes(null);
       setIsVehiclePopoverOpen(false);
+      setIsChargesPopoverOpen(false);
       return;
     }
     
@@ -1009,6 +1010,8 @@ export function WeighbridgeForm() {
         console.error("Error fetching vehicle data:", error);
         setPreviousWeights(null);
         setChargeExtremes(null);
+        setIsVehiclePopoverOpen(false);
+        setIsChargesPopoverOpen(false);
     } finally {
         setIsLoadingVehicle(false);
     }
