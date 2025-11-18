@@ -31,6 +31,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import {
@@ -78,6 +79,8 @@ import {
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils";
 import { useAppContext } from "@/app/layout";
+import { useIsMobile } from "@/hooks/use-mobile";
+
 
 const formSchema = z.object({
   serialNumber: z.string().min(1, "Serial number is required."),
@@ -250,6 +253,63 @@ const PrintableBill = React.forwardRef(({ billData }, ref) => {
 });
 PrintableBill.displayName = 'PrintableBill';
 
+const CustomerSelector = ({ customers, selectedCustomerForDisplay, onCustomerSelect, translations }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    
+    const handleSelect = (customerId) => {
+        onCustomerSelect(customerId);
+        setIsOpen(false);
+    };
+
+    return (
+        <div className="space-y-2 no-print mb-6">
+            <Label className="flex items-center gap-2"><Users size={16} /> {translations.weighbridge_form.select_customer}</Label>
+            <Drawer open={isOpen} onOpenChange={setIsOpen}>
+                <DrawerTrigger asChild>
+                    <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between"
+                    >
+                        {selectedCustomerForDisplay
+                            ? selectedCustomerForDisplay.companyName
+                            : translations.weighbridge_form.select_customer}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                </DrawerTrigger>
+                <DrawerContent>
+                    <div className="mt-4 border-t">
+                        <Command>
+                            <CommandInput placeholder={translations.weighbridge_form.search_customer} />
+                            <CommandList>
+                                <CommandEmpty>{translations.weighbridge_form.no_customer_found}</CommandEmpty>
+                                <CommandGroup>
+                                    {customers.map((customer) => (
+                                        <CommandItem
+                                            key={customer.customerId}
+                                            value={customer.companyName}
+                                            onSelect={() => handleSelect(customer.customerId)}
+                                        >
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            {customer.companyName}
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            </CommandList>
+                        </Command>
+                    </div>
+                </DrawerContent>
+            </Drawer>
+        </div>
+    );
+};
+
+
 const BillContent = ({
   form,
   serialDataRef,
@@ -260,11 +320,11 @@ const BillContent = ({
   handleVehicleBlur,
   isLoadingVehicle,
   previousWeights,
+  setPreviousWeights,
   handleWeightSelection,
   chargeExtremes,
+  setChargeExtremes,
   handleChargeSelection,
-  isCustomerPopoverOpen,
-  setIsCustomerPopoverOpen,
   selectedCustomerForDisplay,
   customers,
   handleCustomerSelect,
@@ -275,6 +335,8 @@ const BillContent = ({
   translations,
 }) => {
   const { control } = form;
+  const isMobile = useIsMobile();
+
   return (
     <>
       <div className="mb-6">
@@ -341,48 +403,57 @@ const BillContent = ({
         />
       </div>
       
-       <div className="space-y-2 no-print mb-6">
-          <Label className="flex items-center gap-2"><Users size={16} /> {translations.weighbridge_form.select_customer}</Label>
-          <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
-              <PopoverTrigger asChild>
-                  <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full justify-between"
-                  >
-                      {selectedCustomerForDisplay
-                          ? selectedCustomerForDisplay.companyName
-                          : translations.weighbridge_form.select_customer}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <Command>
-                      <CommandInput placeholder={translations.weighbridge_form.search_customer} />
-                      <CommandList>
-                          <CommandEmpty>{translations.weighbridge_form.no_customer_found}</CommandEmpty>
-                          <CommandGroup>
-                              {customers.map((customer) => (
-                                  <CommandItem
-                                      key={customer.customerId}
-                                      value={customer.companyName}
-                                      onSelect={() => handleCustomerSelect(customer.customerId)}
-                                  >
-                                      <Check
-                                          className={cn(
-                                              "mr-2 h-4 w-4",
-                                              selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0"
-                                          )}
-                                      />
-                                      {customer.companyName}
-                                  </CommandItem>
-                              ))}
-                          </CommandGroup>
-                      </CommandList>
-                  </Command>
-              </PopoverContent>
-          </Popover>
-      </div>
+        {isMobile ? (
+             <CustomerSelector 
+                customers={customers} 
+                selectedCustomerForDisplay={selectedCustomerForDisplay} 
+                onCustomerSelect={handleCustomerSelect}
+                translations={translations}
+             />
+        ) : (
+          <div className="space-y-2 no-print mb-6">
+              <Label className="flex items-center gap-2"><Users size={16} /> {translations.weighbridge_form.select_customer}</Label>
+              <Popover onOpenChange={() => {}}>
+                  <PopoverTrigger asChild>
+                      <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between"
+                      >
+                          {selectedCustomerForDisplay
+                              ? selectedCustomerForDisplay.companyName
+                              : translations.weighbridge_form.select_customer}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                          <CommandInput placeholder={translations.weighbridge_form.search_customer} />
+                          <CommandList>
+                              <CommandEmpty>{translations.weighbridge_form.no_customer_found}</CommandEmpty>
+                              <CommandGroup>
+                                  {customers.map((customer) => (
+                                      <CommandItem
+                                          key={customer.customerId}
+                                          value={customer.companyName}
+                                          onSelect={() => handleCustomerSelect(customer.customerId)}
+                                      >
+                                          <Check
+                                              className={cn(
+                                                  "mr-2 h-4 w-4",
+                                                  selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0"
+                                              )}
+                                          />
+                                          {customer.companyName}
+                                      </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                          </CommandList>
+                      </Command>
+                  </PopoverContent>
+              </Popover>
+          </div>
+        )}
 
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
@@ -658,32 +729,7 @@ const BillContent = ({
   );
 };
   
-const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config }) => {
-    const handleReprintPrint = () => {
-        if (!reprintData) return;
-        const printWindow = window.open('', '_blank', 'width=1000,height=700');
-        if (!printWindow) {
-             toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print." });
-            return;
-        }
-
-        const ReactDOMServer = require('react-dom/server');
-        
-        const billHtml = ReactDOMServer.renderToStaticMarkup(<PrintableBill billData={reprintData} />);
-
-        printWindow.document.write('<html><head><title>Print Bill</title>');
-        printWindow.document.write(`<style>${document.getElementById('global-styles-for-print').innerHTML}</style>`);
-        printWindow.document.write('</head><body>');
-        printWindow.document.write(billHtml);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-        printWindow.focus();
-        
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 250);
-    };
+const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config, handleReprintPrint }) => {
 
     if (!reprintData) return null;
 
@@ -709,7 +755,7 @@ const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config }) => 
                 </div>
                 <DialogFooter className="sm:justify-end">
                      <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>Close</Button>
-                     <Button type="button" onClick={handleReprintPrint}>
+                     <Button type="button" onClick={() => handleReprintPrint(reprintData)}>
                          <Printer className="mr-2 h-4 w-4" />
                          Print
                      </Button>
@@ -728,7 +774,6 @@ export function WeighbridgeForm() {
   const [isManualMode, setIsManualMode] = useState(false);
   const [previousWeights, setPreviousWeights] = useState(null);
   const [chargeExtremes, setChargeExtremes] = useState(null);
-  const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const [isLoadingReprint, setIsLoadingReprint] = useState(false);
   const [reprintData, setReprintData] = useState(null);
@@ -847,13 +892,33 @@ export function WeighbridgeForm() {
     }
   }, [charges, config]);
 
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank', 'width=1000,height=700');
-    if (!printWindow) {
-      toast({ variant: "destructive", title: "Popup Blocked", description: "Please allow popups for this site to print." });
-      return;
-    }
+  const performPrint = (billData) => {
+    const ReactDOMServer = require('react-dom/server');
+    const billHtml = ReactDOMServer.renderToStaticMarkup(<PrintableBill billData={billData} />);
+    
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
 
+    const iframeDoc = iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write('<html><head><title>Print Bill</title>');
+    iframeDoc.write(`<style>${document.getElementById('global-styles-for-print')?.innerHTML || ''}</style>`);
+    iframeDoc.write('</head><body>');
+    iframeDoc.write(billHtml);
+    iframeDoc.write('</body></html>');
+    iframeDoc.close();
+
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+
+    // Clean up the iframe after a delay
+    setTimeout(() => {
+        document.body.removeChild(iframe);
+    }, 1000);
+};
+
+  const handlePrint = () => {
     const latestValues = getValues();
     const [date, time] = latestValues.dateTime.split(', ');
     const billData = {
@@ -868,24 +933,13 @@ export function WeighbridgeForm() {
       second_weight: latestValues.secondWeight,
       net_weight: netWeight,
     };
-
-    const ReactDOMServer = require('react-dom/server');
-    
-    const billHtml = ReactDOMServer.renderToStaticMarkup(<PrintableBill billData={billData} />);
-    
-    printWindow.document.write('<html><head><title>Print Bill</title>');
-    printWindow.document.write(`<style>${document.getElementById('global-styles-for-print').innerHTML}</style>`);
-    printWindow.document.write('</head><body>');
-    printWindow.document.write(billHtml);
-    printWindow.document.write('</body></html>');
-    
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-    }, 250);
+    performPrint(billData);
   };
+
+  const handleReprintPrint = (billData) => {
+    performPrint(billData);
+    setIsReprintDialogOpen(false);
+  }
 
 
   const handleReset = useCallback(() => {
@@ -1121,8 +1175,7 @@ Thank you!
     touchStartY.current = 0;
   };
   
-  const handleCustomerSelect = (value) => {
-      const customerId = value;
+  const handleCustomerSelect = (customerId) => {
       const customer = customers.find((c) => c.customerId === customerId);
       if (customer) {
           setSelectedCustomerForDisplay(customer);
@@ -1131,7 +1184,6 @@ Thank you!
           setValue("whatsappNumber", customer.whatsappNumber || "");
           if(customer.vehicleNumber) setValue("vehicleNumber", customer.vehicleNumber);
       }
-      setIsCustomerPopoverOpen(false);
   };
   
   return (
@@ -1167,11 +1219,11 @@ Thank you!
                     handleVehicleBlur={handleVehicleBlur}
                     isLoadingVehicle={isLoadingVehicle}
                     previousWeights={previousWeights}
+                    setPreviousWeights={setPreviousWeights}
                     handleWeightSelection={handleWeightSelection}
                     chargeExtremes={chargeExtremes}
+                    setChargeExtremes={setChargeExtremes}
                     handleChargeSelection={handleChargeSelection}
-                    isCustomerPopoverOpen={isCustomerPopoverOpen}
-                    setIsCustomerPopoverOpen={setIsCustomerPopoverOpen}
                     selectedCustomerForDisplay={selectedCustomerForDisplay}
                     customers={customers}
                     handleCustomerSelect={handleCustomerSelect}
@@ -1248,6 +1300,7 @@ Thank you!
         reprintData={reprintData} 
         toast={toast} 
         config={config} 
+        handleReprintPrint={handleReprintPrint}
         translations={translations} 
       />
       {selectedCustomerForDisplay && 
@@ -1273,5 +1326,3 @@ Thank you!
     </div>
   );
 }
-
-    
