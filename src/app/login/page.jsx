@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -81,8 +81,20 @@ const LoginForm = ({ schema, onLogin, fields, isSubmitting, buttonText }) => {
 };
 
 export default function LoginPage() {
-  const { login, entities } = useAppContext();
+  const { login, fetchAllEntities } = useAppContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [entities, setEntities] = useState([]);
+  const [isLoadingEntities, setIsLoadingEntities] = useState(true);
+
+  useEffect(() => {
+    async function loadEntities() {
+      setIsLoadingEntities(true);
+      const fetchedEntities = await fetchAllEntities();
+      setEntities(fetchedEntities);
+      setIsLoadingEntities(false);
+    }
+    loadEntities();
+  }, [fetchAllEntities]);
 
   const handleEntityLogin = (data, toast) => {
     setIsSubmitting(true);
@@ -103,7 +115,7 @@ export default function LoginPage() {
           title: "Login Successful",
           description: "Welcome back!",
         });
-        login('entity', { id: entity.id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
+        login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
       }
     } else {
       toast({
@@ -158,8 +170,8 @@ export default function LoginPage() {
                             { name: "mobileNumber", label: "Mobile Number", type: "tel", placeholder: "9876543210" },
                             { name: "password", label: "Password", type: "password", placeholder: "••••••••" },
                         ]}
-                        isSubmitting={isSubmitting}
-                        buttonText="Login as Entity"
+                        isSubmitting={isSubmitting || isLoadingEntities}
+                        buttonText={isLoadingEntities ? "Loading..." : "Login as Entity"}
                     />
                 </CardContent>
             </Card>

@@ -78,16 +78,23 @@ const AppProvider = ({ children }) => {
     setLanguage(storedLang);
     
     const initializeData = async () => {
-        const allEntities = await fetchAllEntities();
-        setEntities(allEntities);
-        
         const storedUser = JSON.parse(localStorage.getItem("user"));
+        
         if (storedUser) {
             setUser(storedUser);
-            if (storedUser.role === 'entity' && storedUser.mobileNumber) {
-                // Find config from the freshly fetched list
-                 const entityConfig = allEntities.find(e => e.mobileNumber === storedUser.mobileNumber);
-                 setConfig(entityConfig || {});
+            if (storedUser.role === 'developer') {
+                 const allEntities = await fetchAllEntities();
+                 setEntities(allEntities);
+            } else if (storedUser.role === 'entity' && storedUser.mobileNumber) {
+                 try {
+                    const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get/${storedUser.mobileNumber}`);
+                    if (response.ok) {
+                        const remoteConfig = await response.json();
+                        setConfig(remoteConfig || {});
+                    }
+                 } catch (error) {
+                    console.error("Failed to fetch entity config on load:", error);
+                 }
             }
         } else if (pathname !== "/login") {
           router.push("/login");
@@ -122,17 +129,13 @@ const AppProvider = ({ children }) => {
             if (response.ok) {
                 const remoteConfig = await response.json();
                 setConfig(remoteConfig || {});
-                updateEntity(userData.id, remoteConfig);
-            } else {
-                console.warn("API for config failed, falling back to local list.");
-                const entityConfig = entities.find(e => e.mobileNumber === userData.mobileNumber);
-                setConfig(entityConfig || {});
             }
         } catch (error) {
-            console.error("Error fetching remote config, falling back to local:", error);
-            const entityConfig = entities.find(e => e.mobileNumber === userData.mobileNumber);
-            setConfig(entityConfig || {});
+            console.error("Error fetching remote config on login:", error);
         }
+    } else if (role === 'developer') {
+        const allEntities = await fetchAllEntities();
+        setEntities(allEntities);
     }
 
     router.push("/");
@@ -142,12 +145,13 @@ const AppProvider = ({ children }) => {
     localStorage.removeItem("user");
     setUser(null);
     setConfig({});
+    setEntities([]);
     router.push("/login");
   };
 
   const updateEntity = (entityId, updatedData) => {
     const updatedEntities = entities.map(entity => 
-        entity.id === entityId ? { ...entity, ...updatedData } : entity
+        entity._id === entityId ? { ...entity, ...updatedData } : entity
     );
     setEntities(updatedEntities);
     
@@ -162,7 +166,7 @@ const AppProvider = ({ children }) => {
      if (user && user.role === 'entity') {
         const entityToUpdate = entities.find(e => e.mobileNumber === user.mobileNumber);
         if (entityToUpdate) {
-            updateEntity(entityToUpdate.id, newConfig);
+            updateEntity(entityToUpdate._id, newConfig);
         }
      }
   }
@@ -179,7 +183,9 @@ const AppProvider = ({ children }) => {
     config,
     saveConfig,
     entities,
+    setEntities,
     updateEntity,
+    fetchAllEntities,
     wb_number: user?.role === 'entity' ? user.mobileNumber : null,
   };
 
@@ -215,7 +221,7 @@ function LayoutContent({ children }) {
        { href: "/subscription", label: "Subscription", icon: CreditCard },
   ];
 
-  const navLinks = user?.role === 'developer' ? developerNavLinks : entityNavLinks;
+  const navLinks = user?.role === 'developer' ? developerNavLinks : user?.role === 'entity' ? entityNavLinks : baseNavLinks;
 
 
   if (!user) {

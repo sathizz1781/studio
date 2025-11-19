@@ -47,7 +47,7 @@ import "jspdf-autotable";
 import * as XLSX from "xlsx";
 
 export function ReportsTable() {
-  const { user, entities, wb_number } = useAppContext();
+  const { user, entities, wb_number, config } = useAppContext();
   const [data, setData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -268,7 +268,7 @@ export function ReportsTable() {
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex flex-col md:flex-row flex-wrap items-center gap-2 w-full">
-           {user?.role === 'developer' && (
+           {user?.role === 'developer' && entities.length > 0 && (
                 <div className="w-full md:w-auto md:min-w-[200px]">
                     <Select onValueChange={setSelectedWbNumber} value={selectedWbNumber}>
                         <SelectTrigger>
@@ -276,7 +276,7 @@ export function ReportsTable() {
                         </SelectTrigger>
                         <SelectContent>
                             {entities.map(entity => (
-                                <SelectItem key={entity.id} value={entity.mobileNumber}>
+                                <SelectItem key={entity._id} value={entity.mobileNumber}>
                                     {entity.companyName}
                                 </SelectItem>
                             ))}

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/app/layout";
 import { Button } from "@/components/ui/button";
@@ -27,10 +27,9 @@ import { Lock, Unlock, CalendarPlus, AlertCircle, Users, Loader2 } from "lucide-
 import { differenceInDays, parseISO, format, addMonths } from "date-fns";
 
 export default function SubscriptionPage() {
-  const { user, entities, updateEntity } = useAppContext();
+  const { user, entities, setEntities, fetchAllEntities } = useAppContext();
   const router = useRouter();
   const { toast } = useToast();
-  const [localEntities, setLocalEntities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Protect the route
@@ -40,46 +39,73 @@ export default function SubscriptionPage() {
     }
   }, [user, router]);
   
-  useEffect(() => {
-     // Wait for entities to be populated from the API call in layout
-     if (entities.length > 0) {
-        setLocalEntities(entities);
-        setIsLoading(false);
-     } else if (user) { // if user is loaded but entities are not, keep loading
-        setIsLoading(true);
-     }
-  }, [entities, user]);
+  const loadEntities = useCallback(async () => {
+    setIsLoading(true);
+    const fetchedEntities = await fetchAllEntities();
+    setEntities(fetchedEntities);
+    setIsLoading(false);
+  }, [fetchAllEntities, setEntities]);
 
-  const handleExtendSubscription = (entityId) => {
-    const entity = localEntities.find(e => e.id === entityId);
+  useEffect(() => {
+     if(user?.role === 'developer'){
+       loadEntities();
+     }
+  }, [user, loadEntities]);
+
+  const handleExtendSubscription = async (entityId, companyName) => {
+    const entity = entities.find(e => e._id === entityId);
     if (!entity) return;
 
     const currentEndDate = parseISO(entity.subscriptionEndDate);
-    const newEndDate = addMonths(currentEndDate, 1);
-    
-    // Here you would typically make an API call to your backend to update the subscription
-    // For now, we update the local state as a simulation.
-    const updated = updateEntity(entityId, { subscriptionEndDate: newEndDate.toISOString().split("T")[0] });
-    setLocalEntities(updated);
+    const newEndDate = addMonths(currentEndDate, 1).toISOString().split("T")[0];
 
-    toast({
-        title: "Subscription Extended",
-        description: `${entity.companyName}'s subscription has been extended to ${format(newEndDate, "PPP")}.`,
-    });
+    try {
+        const response = await fetch(`https://bend-mqjz.onrender.com/api/config/update/${entity.mobileNumber}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscriptionEndDate: newEndDate }),
+        });
+        if (!response.ok) throw new Error("Failed to extend subscription.");
+        
+        loadEntities(); // Refresh list from backend
+
+        toast({
+            title: "Subscription Extended",
+            description: `${companyName}'s subscription has been extended to ${format(parseISO(newEndDate), "PPP")}.`,
+        });
+    } catch(error) {
+         toast({
+            variant: "destructive",
+            title: "Update Error",
+            description: error.message,
+        });
+    }
   };
 
-  const handleToggleBlock = (entityId, isCurrentlyBlocked) => {
-    const entity = localEntities.find(e => e.id === entityId);
+  const handleToggleBlock = async (entity, isCurrentlyBlocked) => {
     if (!entity) return;
 
-    // Here you would typically make an API call to your backend to update the block status
-    const updated = updateEntity(entityId, { isBlocked: !isCurrentlyBlocked });
-    setLocalEntities(updated);
-    
-    toast({
-        title: `Entity ${isCurrentlyBlocked ? 'Unblocked' : 'Blocked'}`,
-        description: `${entity.companyName} can ${isCurrentlyBlocked ? 'now' : 'no longer'} log in.`,
-    });
+    try {
+       const response = await fetch(`https://bend-mqjz.onrender.com/api/config/update/${entity.mobileNumber}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isBlocked: !isCurrentlyBlocked }),
+        });
+        if (!response.ok) throw new Error(`Failed to ${isCurrentlyBlocked ? 'unblock' : 'block'} entity.`);
+
+        loadEntities(); // Refresh list from backend
+        
+        toast({
+            title: `Entity ${isCurrentlyBlocked ? 'Unblocked' : 'Blocked'}`,
+            description: `${entity.companyName} can ${isCurrentlyBlocked ? 'now' : 'no longer'} log in.`,
+        });
+    } catch (error) {
+         toast({
+            variant: "destructive",
+            title: "Update Error",
+            description: error.message,
+        });
+    }
   };
   
   if (!user || user.role !== 'developer') {
@@ -123,7 +149,7 @@ export default function SubscriptionPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                   {localEntities.length > 0 ? localEntities.map((entity) => {
+                   {entities.length > 0 ? entities.map((entity) => {
                        if (!entity.subscriptionEndDate) return null; // Skip if no subscription date
                        
                        const endDate = parseISO(entity.subscriptionEndDate);
@@ -153,7 +179,7 @@ export default function SubscriptionPage() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleExtendSubscription(entity.id)}
+                                    onClick={() => handleExtendSubscription(entity._id, entity.companyName)}
                                 >
                                     <CalendarPlus className="mr-2 h-4 w-4" />
                                     Extend 1 Month
@@ -162,8 +188,8 @@ export default function SubscriptionPage() {
                             <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-2">
                                      <Switch
-                                        checked={entity.isBlocked}
-                                        onCheckedChange={() => handleToggleBlock(entity.id, entity.isBlocked)}
+                                        checked={!!entity.isBlocked}
+                                        onCheckedChange={() => handleToggleBlock(entity, !!entity.isBlocked)}
                                         aria-label={`Block or unblock ${entity.companyName}`}
                                      />
                                      {entity.isBlocked ? <Lock className="h-4 w-4 text-destructive" /> : <Unlock className="h-4 w-4 text-green-600"/>}
