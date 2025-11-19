@@ -729,7 +729,7 @@ const BillContent = ({
   );
 };
   
-const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config, handleReprintPrint }) => {
+const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config, handleReprintPrint, translations }) => {
 
     if (!reprintData) return null;
 
@@ -782,6 +782,7 @@ export function WeighbridgeForm() {
   const [customers, setCustomers] = useState([]);
   const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
   const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   
   const touchStartY = useRef(0);
   const PULL_THRESHOLD = 70;
@@ -813,37 +814,6 @@ export function WeighbridgeForm() {
   const secondWeight = watch("secondWeight");
   const charges = watch("charges");
   
-  const fetchNewSerialNumber = useCallback(async () => {
-    try {
-      const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill");
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data = await response.json();
-      const lastSerialNumber = data?.data?.sl_no;
-      const nextSerialNumber = (typeof lastSerialNumber === 'number' && !isNaN(lastSerialNumber))
-        ? lastSerialNumber + 1
-        : 1;
-      setValue("serialNumber", nextSerialNumber.toString());
-    } catch (error) {
-      console.error("Error fetching last bill:", error);
-      setValue("serialNumber", "1");
-    }
-  }, [setValue]);
-
-  const fetchCustomers = useCallback(async () => {
-    try {
-      const response = await fetch("https://bend-mqjz.onrender.com/api/user/userlist");
-      if(response.ok) {
-        const data = await response.json();
-        setCustomers(data.users || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch customers:", error);
-      setCustomers([]);
-    }
-  }, []);
-
   const setInitialDateTime = useCallback(() => {
     const now = new Date();
     const formattedDateTime = now.toLocaleString("en-IN", {
@@ -858,16 +828,50 @@ export function WeighbridgeForm() {
     setValue("dateTime", formattedDateTime);
   }, [setValue]);
   
-  const initializeForm = useCallback(() => {
-    fetchNewSerialNumber();
-    setInitialDateTime();
-    fetchCustomers();
-  }, [fetchNewSerialNumber, setInitialDateTime, fetchCustomers]);
-
   useEffect(() => {
     setIsClient(true);
+    const initializeForm = async () => {
+      setIsInitializing(true);
+      try {
+        const serialPromise = fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill")
+          .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch serial'))
+          .then(data => {
+            const lastSerialNumber = data?.data?.sl_no;
+            const nextSerialNumber = (typeof lastSerialNumber === 'number' && !isNaN(lastSerialNumber))
+              ? lastSerialNumber + 1
+              : 1;
+            setValue("serialNumber", nextSerialNumber.toString());
+          })
+          .catch(error => {
+            console.error("Error fetching last bill:", error);
+            setValue("serialNumber", "1");
+          });
+
+        const customerPromise = fetch("https://bend-mqjz.onrender.com/api/user/userlist")
+          .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch customers'))
+          .then(data => setCustomers(data.users || []))
+          .catch(error => {
+            console.error("Failed to fetch customers:", error);
+            setCustomers([]);
+          });
+        
+        setInitialDateTime();
+        await Promise.all([serialPromise, customerPromise]);
+
+      } catch (error) {
+        console.error("Initialization failed:", error);
+        toast({
+            variant: "destructive",
+            title: "Initialization Error",
+            description: "Could not load initial form data.",
+        });
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
     initializeForm();
-  }, [initializeForm]);
+  }, [setValue, setInitialDateTime, toast]);
 
   useEffect(() => {
     const fw = Number(firstWeight) || 0;
@@ -893,30 +897,63 @@ export function WeighbridgeForm() {
   }, [charges, config]);
 
   const performPrint = (billData) => {
-    const ReactDOMServer = require('react-dom/server');
-    const billHtml = ReactDOMServer.renderToStaticMarkup(<PrintableBill billData={billData} />);
-    
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
+    const printFrame = document.createElement('iframe');
+    printFrame.style.display = 'none';
+    document.body.appendChild(printFrame);
 
-    const iframeDoc = iframe.contentWindow.document;
-    iframeDoc.open();
-    iframeDoc.write('<html><head><title>Print Bill</title>');
-    iframeDoc.write(`<style>${document.getElementById('global-styles-for-print')?.innerHTML || ''}</style>`);
-    iframeDoc.write('</head><body>');
-    iframeDoc.write(billHtml);
-    iframeDoc.write('</body></html>');
-    iframeDoc.close();
+    const printDocument = printFrame.contentWindow.document;
+    printDocument.open();
+    printDocument.write(`
+        <html>
+            <head>
+                <title>Print</title>
+                <style>
+                    @page { size: 10in 7in; margin: 0.25in; }
+                    body { font-family: sans-serif; background-color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
+                    .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
+                    .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 9px; }
+                </style>
+            </head>
+            <body>
+            </body>
+        </html>
+    `);
 
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
+    const content = (
+        `<div>
+          <table style="font-size: 10px; width: 100%; border-collapse: collapse;">
+            <tbody>
+              <tr><td style="padding: 1px; text-align: right;">${billData.sl_no}</td></tr>
+              <tr><td style="padding: 1px; text-align: right;">${billData.date}</td></tr>
+              <tr><td style="padding: 1px; text-align: right;">${billData.time}</td></tr>
+              <tr><td style="padding: 1px; text-align: right;">${billData.vehicle_no}</td></tr>
+              <tr><td style="padding: 1px; text-align: right;">${billData.party_name}</td></tr>
+              <tr><td style="padding: 1px; text-align: right;">${billData.material_name}</td></tr>
+              <tr><td style="padding: 1px; text-align: right;">${billData.charges}</td></tr>
+              <tr><td style="padding: 1px; padding-top: 2px; text-align: right;">${billData.first_weight}</td></tr>
+              <tr><td style="padding: 1px; text-align: right;">${billData.second_weight}</td></tr>
+              <tr><td style="padding: 1px; text-align: right;">${billData.net_weight}</td></tr>
+            </tbody>
+          </table>
+        </div>`
+    );
 
-    // Clean up the iframe after a delay
+    printDocument.body.innerHTML = `
+        <div class="printable-section">
+            <div class="printable-content-wrapper">${content}</div>
+            <div class="printable-content-wrapper">${content}</div>
+            <div class="printable-content-wrapper">${content}</div>
+        </div>
+    `;
+
+    printDocument.close();
+
     setTimeout(() => {
-        document.body.removeChild(iframe);
-    }, 1000);
-};
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
+        document.body.removeChild(printFrame);
+    }, 250);
+  };
 
   const handlePrint = () => {
     const latestValues = getValues();
@@ -959,9 +996,26 @@ export function WeighbridgeForm() {
     setSelectedCustomerForDisplay(null);
     setChargeExtremes(null);
     if (isClient) {
-      initializeForm();
+      // Re-initialize
+       const reInitialize = async () => {
+        setIsInitializing(true);
+        try {
+            const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill");
+            const data = await response.json();
+            const lastSerialNumber = data?.data?.sl_no;
+            const nextSerialNumber = (typeof lastSerialNumber === 'number' && !isNaN(lastSerialNumber)) ? lastSerialNumber + 1 : 1;
+            setValue("serialNumber", nextSerialNumber.toString());
+            setInitialDateTime();
+        } catch (error) {
+            console.error("Error fetching last bill:", error);
+            setValue("serialNumber", "1");
+        } finally {
+            setIsInitializing(false);
+        }
+       }
+       reInitialize();
     }
-  }, [reset, isClient, initializeForm]);
+  }, [reset, isClient, setValue, setInitialDateTime]);
 
   const findBill = async () => {
     if (!isClient || !reprintSerial) return;
@@ -1194,6 +1248,11 @@ Thank you!
       className="relative"
     >
       <Card className="w-full max-w-4xl printable-card shadow-2xl">
+        {isInitializing && (
+             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                <Loader2 className="h-10 w-10 text-primary animate-spin" />
+             </div>
+        )}
         <CardHeader className="no-print">
           <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -1214,7 +1273,7 @@ Thank you!
                     serialDataRef={serialDataRef}
                     isManualMode={isManualMode}
                     setIsManualMode={setIsManualMode}
-                    fetchNewSerialNumber={fetchNewSerialNumber}
+                    fetchNewSerialNumber={() => {}} // This is now handled in useEffect
                     setInitialDateTime={setInitialDateTime}
                     handleVehicleBlur={handleVehicleBlur}
                     isLoadingVehicle={isLoadingVehicle}
@@ -1285,6 +1344,7 @@ Thank you!
                         color: "hsl(var(--accent-foreground))",
                         }}
                         className="w-full sm:w-auto"
+                        disabled={isInitializing}
                     >
                         <Printer className="mr-2 h-4 w-4" />
                         {translations.weighbridge_form.send_print}
@@ -1312,17 +1372,8 @@ Thank you!
           translations={translations}
         />
       }
-      <style id="global-styles-for-print" dangerouslySetInnerHTML={{ __html: `
-          @media print {
-            @page {
-                size: 10in 7in;
-                margin: 0.25in;
-            }
-            body { background-color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-            .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 9px; }
-          }
-      `}} />
     </div>
   );
 }
+
+    
