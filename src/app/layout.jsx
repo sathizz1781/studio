@@ -53,7 +53,7 @@ const fetchAllEntities = async () => {
         return [];
     }
     const data = await response.json();
-    return data;
+    return data.data || []; // <-- Return the 'data' property
   } catch (error) {
     console.error("Error fetching entities:", error);
     return [];
@@ -89,8 +89,8 @@ const AppProvider = ({ children }) => {
                  try {
                     const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get/${storedUser.mobileNumber}`);
                     if (response.ok) {
-                        const remoteConfig = await response.json();
-                        setConfig(remoteConfig || {});
+                        const result = await response.json();
+                        setConfig(result.data || {});
                     }
                  } catch (error) {
                     console.error("Failed to fetch entity config on load:", error);
@@ -127,8 +127,8 @@ const AppProvider = ({ children }) => {
         try {
             const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get/${userData.mobileNumber}`);
             if (response.ok) {
-                const remoteConfig = await response.json();
-                setConfig(remoteConfig || {});
+                const result = await response.json();
+                setConfig(result.data || {});
             }
         } catch (error) {
             console.error("Error fetching remote config on login:", error);
