@@ -65,21 +65,16 @@ import {
   ChevronsUpDown,
   Share2,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Search
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
+
 import { cn } from "@/lib/utils";
 import { useAppContext } from "@/app/layout";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ScrollArea } from "./ui/scroll-area";
 
 
 const formSchema = z.object({
@@ -212,9 +207,9 @@ const ShareLocationDialog = ({ isOpen, onOpenChange, customer, toast, translatio
 
 const PrintableBill = React.forwardRef(({ billData }, ref) => {
   const {
-    sl_no,
     date,
     time,
+    sl_no,
     vehicle_no,
     material_name,
     party_name,
@@ -253,58 +248,115 @@ const PrintableBill = React.forwardRef(({ billData }, ref) => {
 });
 PrintableBill.displayName = 'PrintableBill';
 
+const CustomerListContent = ({ customers, onCustomerSelect, selectedCustomerId, translations }) => {
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const filteredCustomers = customers.filter(
+        (customer) =>
+            customer.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            customer.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+        <div className="flex flex-col h-full">
+            <div className="p-4 border-b">
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder={translations.weighbridge_form.search_customer}
+                        className="pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
+            <ScrollArea className="flex-1">
+                <div className="p-2 space-y-1">
+                    {filteredCustomers.length > 0 ? (
+                        filteredCustomers.map((customer) => (
+                            <Button
+                                key={customer.customerId}
+                                variant={selectedCustomerId === customer.customerId ? "secondary" : "ghost"}
+                                className="w-full justify-start"
+                                onClick={() => onCustomerSelect(customer.customerId)}
+                            >
+                                <div className="flex items-center w-full">
+                                    <span className="flex-1 text-left">{customer.companyName}</span>
+                                    {selectedCustomerId === customer.customerId && <Check className="h-4 w-4" />}
+                                </div>
+                            </Button>
+                        ))
+                    ) : (
+                        <p className="p-4 text-sm text-center text-muted-foreground">
+                            {translations.weighbridge_form.no_customer_found}
+                        </p>
+                    )}
+                </div>
+            </ScrollArea>
+        </div>
+    );
+};
+
+
 const CustomerSelector = ({ customers, selectedCustomerForDisplay, onCustomerSelect, translations }) => {
+    const isMobile = useIsMobile();
     const [isOpen, setIsOpen] = useState(false);
-    
+
     const handleSelect = (customerId) => {
         onCustomerSelect(customerId);
         setIsOpen(false);
     };
 
+    if (isMobile) {
+        return (
+            <div className="space-y-2 no-print mb-6">
+                <Label className="flex items-center gap-2"><Users size={16} /> {translations.weighbridge_form.select_customer}</Label>
+                <Drawer open={isOpen} onOpenChange={setIsOpen}>
+                    <DrawerTrigger asChild>
+                        <Button
+                            variant="outline"
+                            className="w-full justify-between"
+                        >
+                            {selectedCustomerForDisplay ? selectedCustomerForDisplay.companyName : translations.weighbridge_form.select_customer}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </DrawerTrigger>
+                    <DrawerContent className="h-[80vh]">
+                       <CustomerListContent 
+                          customers={customers} 
+                          onCustomerSelect={handleSelect}
+                          selectedCustomerId={selectedCustomerForDisplay?.customerId}
+                          translations={translations}
+                        />
+                    </DrawerContent>
+                </Drawer>
+            </div>
+        );
+    }
+    
     return (
         <div className="space-y-2 no-print mb-6">
             <Label className="flex items-center gap-2"><Users size={16} /> {translations.weighbridge_form.select_customer}</Label>
-            <Drawer open={isOpen} onOpenChange={setIsOpen}>
-                <DrawerTrigger asChild>
+            <Popover open={isOpen} onOpenChange={setIsOpen}>
+                <PopoverTrigger asChild>
                     <Button
                         variant="outline"
                         role="combobox"
                         className="w-full justify-between"
                     >
-                        {selectedCustomerForDisplay
-                            ? selectedCustomerForDisplay.companyName
-                            : translations.weighbridge_form.select_customer}
+                        {selectedCustomerForDisplay ? selectedCustomerForDisplay.companyName : translations.weighbridge_form.select_customer}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
-                </DrawerTrigger>
-                <DrawerContent>
-                    <div className="mt-4 border-t">
-                        <Command>
-                            <CommandInput placeholder={translations.weighbridge_form.search_customer} />
-                            <CommandList>
-                                <CommandEmpty>{translations.weighbridge_form.no_customer_found}</CommandEmpty>
-                                <CommandGroup>
-                                    {customers.map((customer) => (
-                                        <CommandItem
-                                            key={customer.customerId}
-                                            value={customer.companyName}
-                                            onSelect={() => handleSelect(customer.customerId)}
-                                        >
-                                            <Check
-                                                className={cn(
-                                                    "mr-2 h-4 w-4",
-                                                    selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0"
-                                                )}
-                                            />
-                                            {customer.companyName}
-                                        </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                            </CommandList>
-                        </Command>
-                    </div>
-                </DrawerContent>
-            </Drawer>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <CustomerListContent 
+                        customers={customers} 
+                        onCustomerSelect={handleSelect}
+                        selectedCustomerId={selectedCustomerForDisplay?.customerId}
+                        translations={translations}
+                    />
+                </PopoverContent>
+            </Popover>
         </div>
     );
 };
@@ -335,7 +387,6 @@ const BillContent = ({
   translations,
 }) => {
   const { control } = form;
-  const isMobile = useIsMobile();
 
   return (
     <>
@@ -403,58 +454,12 @@ const BillContent = ({
         />
       </div>
       
-        {isMobile ? (
-             <CustomerSelector 
-                customers={customers} 
-                selectedCustomerForDisplay={selectedCustomerForDisplay} 
-                onCustomerSelect={handleCustomerSelect}
-                translations={translations}
-             />
-        ) : (
-          <div className="space-y-2 no-print mb-6">
-              <Label className="flex items-center gap-2"><Users size={16} /> {translations.weighbridge_form.select_customer}</Label>
-              <Popover onOpenChange={() => {}}>
-                  <PopoverTrigger asChild>
-                      <Button
-                          variant="outline"
-                          role="combobox"
-                          className="w-full justify-between"
-                      >
-                          {selectedCustomerForDisplay
-                              ? selectedCustomerForDisplay.companyName
-                              : translations.weighbridge_form.select_customer}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
-                          <CommandInput placeholder={translations.weighbridge_form.search_customer} />
-                          <CommandList>
-                              <CommandEmpty>{translations.weighbridge_form.no_customer_found}</CommandEmpty>
-                              <CommandGroup>
-                                  {customers.map((customer) => (
-                                      <CommandItem
-                                          key={customer.customerId}
-                                          value={customer.companyName}
-                                          onSelect={() => handleCustomerSelect(customer.customerId)}
-                                      >
-                                          <Check
-                                              className={cn(
-                                                  "mr-2 h-4 w-4",
-                                                  selectedCustomerForDisplay?.customerId === customer.customerId ? "opacity-100" : "opacity-0"
-                                              )}
-                                          />
-                                          {customer.companyName}
-                                      </CommandItem>
-                                  ))}
-                              </CommandGroup>
-                          </CommandList>
-                      </Command>
-                  </PopoverContent>
-              </Popover>
-          </div>
-        )}
-
+        <CustomerSelector 
+            customers={customers} 
+            selectedCustomerForDisplay={selectedCustomerForDisplay} 
+            onCustomerSelect={handleCustomerSelect}
+            translations={translations}
+        />
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
         <FormField
@@ -827,26 +832,28 @@ export function WeighbridgeForm() {
     });
     setValue("dateTime", formattedDateTime);
   }, [setValue]);
+
+    const fetchNewSerialNumber = useCallback(async () => {
+        try {
+            const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill");
+            if (!response.ok) throw new Error('Failed to fetch serial');
+            const data = await response.json();
+            const lastSerialNumber = data?.data?.sl_no;
+            const nextSerialNumber = (typeof lastSerialNumber === 'number' && !isNaN(lastSerialNumber))
+              ? lastSerialNumber + 1
+              : 1;
+            setValue("serialNumber", nextSerialNumber.toString());
+        } catch (error) {
+            console.error("Error fetching last bill:", error);
+            setValue("serialNumber", "1");
+        }
+    }, [setValue]);
   
   useEffect(() => {
     setIsClient(true);
     const initializeForm = async () => {
       setIsInitializing(true);
       try {
-        const serialPromise = fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill")
-          .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch serial'))
-          .then(data => {
-            const lastSerialNumber = data?.data?.sl_no;
-            const nextSerialNumber = (typeof lastSerialNumber === 'number' && !isNaN(lastSerialNumber))
-              ? lastSerialNumber + 1
-              : 1;
-            setValue("serialNumber", nextSerialNumber.toString());
-          })
-          .catch(error => {
-            console.error("Error fetching last bill:", error);
-            setValue("serialNumber", "1");
-          });
-
         const customerPromise = fetch("https://bend-mqjz.onrender.com/api/user/userlist")
           .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch customers'))
           .then(data => setCustomers(data.users || []))
@@ -855,8 +862,8 @@ export function WeighbridgeForm() {
             setCustomers([]);
           });
         
+        await Promise.all([fetchNewSerialNumber(), customerPromise]);
         setInitialDateTime();
-        await Promise.all([serialPromise, customerPromise]);
 
       } catch (error) {
         console.error("Initialization failed:", error);
@@ -871,7 +878,7 @@ export function WeighbridgeForm() {
     };
 
     initializeForm();
-  }, [setValue, setInitialDateTime, toast]);
+  }, [fetchNewSerialNumber, setInitialDateTime, toast]);
 
   useEffect(() => {
     const fw = Number(firstWeight) || 0;
@@ -896,29 +903,13 @@ export function WeighbridgeForm() {
     }
   }, [charges, config]);
 
-  const performPrint = (billData) => {
+ const performPrint = (billData) => {
     const printFrame = document.createElement('iframe');
     printFrame.style.display = 'none';
     document.body.appendChild(printFrame);
 
     const printDocument = printFrame.contentWindow.document;
     printDocument.open();
-    printDocument.write(`
-        <html>
-            <head>
-                <title>Print</title>
-                <style>
-                    @page { size: 10in 7in; margin: 0.25in; }
-                    body { font-family: sans-serif; background-color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
-                    .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
-                    .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 9px; }
-                </style>
-            </head>
-            <body>
-            </body>
-        </html>
-    `);
-
     const content = (
         `<div>
           <table style="font-size: 10px; width: 100%; border-collapse: collapse;">
@@ -938,20 +929,43 @@ export function WeighbridgeForm() {
         </div>`
     );
 
-    printDocument.body.innerHTML = `
-        <div class="printable-section">
-            <div class="printable-content-wrapper">${content}</div>
-            <div class="printable-content-wrapper">${content}</div>
-            <div class="printable-content-wrapper">${content}</div>
-        </div>
-    `;
-
+    printDocument.write(`
+        <html>
+            <head>
+                <title>Print</title>
+                <style>
+                    @page { size: 10in 7in; margin: 0.25in; }
+                    body { font-family: sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
+                    .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
+                    .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 9px; }
+                </style>
+            </head>
+            <body>
+                 <div class="printable-section">
+                    <div class="printable-content-wrapper">${content}</div>
+                    <div class="printable-content-wrapper">${content}</div>
+                    <div class="printable-content-wrapper">${content}</div>
+                </div>
+            </body>
+        </html>
+    `);
+    
     printDocument.close();
 
     setTimeout(() => {
-        printFrame.contentWindow.focus();
-        printFrame.contentWindow.print();
-        document.body.removeChild(printFrame);
+        try {
+            printFrame.contentWindow.focus();
+            printFrame.contentWindow.print();
+        } catch(e) {
+            console.error("Print failed:", e);
+             toast({
+                variant: "destructive",
+                title: "Print Failed",
+                description: "There was a problem printing the page. Please try again.",
+            });
+        } finally {
+            document.body.removeChild(printFrame);
+        }
     }, 250);
   };
 
@@ -979,7 +993,7 @@ export function WeighbridgeForm() {
   }
 
 
-  const handleReset = useCallback(() => {
+  const handleReset = useCallback(async () => {
     reset({
       vehicleNumber: "",
       partyName: "",
@@ -996,26 +1010,12 @@ export function WeighbridgeForm() {
     setSelectedCustomerForDisplay(null);
     setChargeExtremes(null);
     if (isClient) {
-      // Re-initialize
-       const reInitialize = async () => {
-        setIsInitializing(true);
-        try {
-            const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill");
-            const data = await response.json();
-            const lastSerialNumber = data?.data?.sl_no;
-            const nextSerialNumber = (typeof lastSerialNumber === 'number' && !isNaN(lastSerialNumber)) ? lastSerialNumber + 1 : 1;
-            setValue("serialNumber", nextSerialNumber.toString());
-            setInitialDateTime();
-        } catch (error) {
-            console.error("Error fetching last bill:", error);
-            setValue("serialNumber", "1");
-        } finally {
-            setIsInitializing(false);
-        }
-       }
-       reInitialize();
+       setIsInitializing(true);
+       await fetchNewSerialNumber();
+       setInitialDateTime();
+       setIsInitializing(false);
     }
-  }, [reset, isClient, setValue, setInitialDateTime]);
+  }, [reset, isClient, fetchNewSerialNumber, setInitialDateTime]);
 
   const findBill = async () => {
     if (!isClient || !reprintSerial) return;
@@ -1273,7 +1273,7 @@ Thank you!
                     serialDataRef={serialDataRef}
                     isManualMode={isManualMode}
                     setIsManualMode={setIsManualMode}
-                    fetchNewSerialNumber={() => {}} // This is now handled in useEffect
+                    fetchNewSerialNumber={fetchNewSerialNumber}
                     setInitialDateTime={setInitialDateTime}
                     handleVehicleBlur={handleVehicleBlur}
                     isLoadingVehicle={isLoadingVehicle}
@@ -1375,5 +1375,3 @@ Thank you!
     </div>
   );
 }
-
-    
