@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -22,9 +23,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, AlertCircle, CalendarClock } from "lucide-react";
 import { useEffect } from "react";
+import { differenceInDays, parseISO, format } from "date-fns";
 
 const configSchema = z.object({
   upiId: z.string().min(3, "UPI ID is required"),
@@ -35,8 +38,39 @@ const configSchema = z.object({
   serialHost: z.string().optional(),
 });
 
+const SubscriptionReminder = ({ subscriptionEndDate }) => {
+    if (!subscriptionEndDate) return null;
+
+    const endDate = parseISO(subscriptionEndDate);
+    const today = new Date();
+    const daysRemaining = differenceInDays(endDate, today);
+
+    let variant = "secondary";
+    let message = `Your subscription is valid until ${format(endDate, "PPP")}.`;
+
+    if (daysRemaining < 0) {
+        variant = "destructive";
+        message = "Your subscription has expired. Please renew to continue service.";
+    } else if (daysRemaining <= 7) {
+        variant = "default";
+        message = `Your subscription will expire in ${daysRemaining + 1} day(s). Please renew soon.`;
+    }
+
+    return (
+        <div className="p-4 rounded-lg bg-muted/50 flex items-center gap-4">
+             <CalendarClock className="h-6 w-6 text-muted-foreground" />
+            <div className="flex-1">
+                <p className="font-semibold">Subscription Status</p>
+                <p className={`text-sm ${variant === 'destructive' ? 'text-destructive' : 'text-muted-foreground'}`}>{message}</p>
+            </div>
+             <Badge variant={variant}>{daysRemaining < 0 ? "Expired" : daysRemaining <= 7 ? "Expires Soon" : "Active"}</Badge>
+        </div>
+    );
+};
+
+
 export default function ConfigPage() {
-  const { config, saveConfig } = useAppContext();
+  const { user, config, saveConfig } = useAppContext();
   const { toast } = useToast();
 
   const form = useForm({
@@ -47,16 +81,44 @@ export default function ConfigPage() {
   const { formState: { isSubmitting }, reset } = form;
 
   useEffect(() => {
-    reset(config);
-  }, [config, reset]);
+    if (user?.role === 'entity') {
+        reset(config);
+    }
+  }, [config, reset, user]);
 
   const onSubmit = (data) => {
-    saveConfig(data);
+    // We only need to submit fields that are part of the schema
+    const dataToSave = {
+        companyName: data.companyName,
+        upiId: data.upiId,
+        email: data.email,
+        phoneNumber: data.phoneNumber,
+        serialHost: data.serialHost,
+    };
+
+    if (data.password) {
+        dataToSave.password = data.password;
+    }
+
+    saveConfig(dataToSave);
     toast({
       title: "Configuration Saved",
       description: "Your settings have been updated successfully.",
     });
   };
+
+  if (user?.role !== 'entity') {
+    return (
+        <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><AlertCircle /> Access Denied</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p>This page is only available for entity accounts. Developers can manage entities from the Subscription page.</p>
+            </CardContent>
+        </Card>
+    );
+  }
 
   return (
     <div className="container mx-auto py-4">
@@ -70,6 +132,8 @@ export default function ConfigPage() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
+               <SubscriptionReminder subscriptionEndDate={config.subscriptionEndDate} />
+
                <FormField
                 control={form.control}
                 name="companyName"
@@ -127,9 +191,9 @@ export default function ConfigPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>Password (Optional)</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Set a new password" {...field} />
+                      <Input type="password" placeholder="Leave blank to keep current password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -166,3 +230,5 @@ export default function ConfigPage() {
     </div>
   );
 }
+
+    

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useState, useEffect, createContext, useContext } from "react";
+import { subDays, format } from "date-fns";
 
 // Locales
 import en from "@/lib/locales/en.json";
@@ -40,16 +41,65 @@ const AppContext = createContext();
 
 export const useAppContext = () => useContext(AppContext);
 
+// Mock initial data for entities
+const getInitialEntities = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    return [
+        {
+            id: "ent1",
+            mobileNumber: "7598728610",
+            password: "password",
+            companyName: "Saravana Traders",
+            upiId: "saravana@upi",
+            serialHost: "localhost:4000",
+            subscriptionEndDate: tomorrow.toISOString().split("T")[0],
+            isBlocked: false,
+        },
+        {
+            id: "ent2",
+            mobileNumber: "9876543210",
+            password: "password123",
+            companyName: "Murugan Logistics",
+            upiId: "murugan@upi",
+            serialHost: "",
+            subscriptionEndDate: new Date().toISOString().split("T")[0],
+            isBlocked: false,
+        },
+         {
+            id: "ent3",
+            mobileNumber: "8888888888",
+            password: "password456",
+            companyName: "Expired Services",
+            upiId: "expired@upi",
+            serialHost: "",
+            subscriptionEndDate: yesterday.toISOString().split("T")[0],
+            isBlocked: false,
+        },
+         {
+            id: "ent4",
+            mobileNumber: "9999999999",
+            password: "password789",
+            companyName: "Blocked Corp",
+            upiId: "blocked@upi",
+            serialHost: "",
+            subscriptionEndDate: tomorrow.toISOString().split("T")[0],
+            isBlocked: true,
+        },
+    ];
+};
+
+
 const AppProvider = ({ children }) => {
   const [theme, setTheme] = useState("light");
   const [language, setLanguage] = useState("en");
   const [currentTranslations, setCurrentTranslations] = useState(en);
-  const [user, setUser] = useState(null); // Changed from isAuthenticated
-  const [config, setConfig] = useState({ 
-    upiId: "", 
-    companyName: "",
-    serialHost: ""
-  });
+  const [user, setUser] = useState(null);
+  const [entities, setEntities] = useState([]);
+  const [config, setConfig] = useState({}); // Holds the config of the LOGGED IN entity
   const router = useRouter();
   const pathname = usePathname();
 
@@ -59,17 +109,26 @@ const AppProvider = ({ children }) => {
     const storedLang = localStorage.getItem("language") || "en";
     setLanguage(storedLang);
 
+    // Initialize entities from localStorage or use initial data
+    const storedEntities = JSON.parse(localStorage.getItem("appEntities"));
+    if (!storedEntities || storedEntities.length === 0) {
+      const initialData = getInitialEntities();
+      localStorage.setItem("appEntities", JSON.stringify(initialData));
+      setEntities(initialData);
+    } else {
+      setEntities(storedEntities);
+    }
+
     const storedUser = JSON.parse(localStorage.getItem("user"));
-    setUser(storedUser);
-
-    const storedConfig = JSON.parse(localStorage.getItem("appConfig")) || { 
-      upiId: "default@upi", 
-      companyName: "My Company",
-      serialHost: "localhost:4000"
-    };
-    setConfig(storedConfig);
-
-    if (!storedUser && pathname !== "/login") {
+    if (storedUser) {
+        setUser(storedUser);
+        // If logged-in user is an entity, load their specific config
+        if (storedUser.role === 'entity') {
+            const allEntities = JSON.parse(localStorage.getItem("appEntities")) || [];
+            const entityConfig = allEntities.find(e => e.id === storedUser.id);
+            setConfig(entityConfig || {});
+        }
+    } else if (pathname !== "/login") {
       router.push("/login");
     }
   }, [pathname, router]);
@@ -88,22 +147,45 @@ const AppProvider = ({ children }) => {
     localStorage.setItem("language", language);
   }, [language]);
   
-  const login = (role) => {
-    const userData = { role };
-    localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
+  const login = (role, userData = {}) => {
+    const sessionData = { role, ...userData };
+    localStorage.setItem("user", JSON.stringify(sessionData));
+    setUser(sessionData);
+
+    // If entity logs in, set their config
+    if (role === 'entity') {
+        const entityConfig = entities.find(e => e.id === sessionData.id);
+        setConfig(entityConfig || {});
+    }
+
     router.push("/");
   };
 
   const logout = () => {
     localStorage.removeItem("user");
     setUser(null);
+    setConfig({});
     router.push("/login");
   };
 
+  const updateEntity = (entityId, updatedData) => {
+    const updatedEntities = entities.map(entity => 
+        entity.id === entityId ? { ...entity, ...updatedData } : entity
+    );
+    setEntities(updatedEntities);
+    localStorage.setItem("appEntities", JSON.stringify(updatedEntities));
+
+    // If the updated entity is the currently logged-in user, update their config
+    if (user && user.role === 'entity' && user.id === entityId) {
+        setConfig(prevConfig => ({ ...prevConfig, ...updatedData }));
+    }
+    return updatedEntities;
+  };
+
   const saveConfig = (newConfig) => {
-    localStorage.setItem("appConfig", JSON.stringify(newConfig));
-    setConfig(newConfig);
+     if (user && user.role === 'entity') {
+        updateEntity(user.id, newConfig);
+     }
   }
 
   const value = {
@@ -117,10 +199,13 @@ const AppProvider = ({ children }) => {
     logout,
     config,
     saveConfig,
+    entities, // Expose entities for the subscription page
+    updateEntity, // Expose update function
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
+
 
 export default function RootLayout({ children }) {
   return (
@@ -285,3 +370,5 @@ function LayoutContent({ children }) {
     </html>
   );
 }
+
+    

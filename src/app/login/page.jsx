@@ -81,31 +81,43 @@ const LoginForm = ({ schema, onLogin, fields, isSubmitting, buttonText }) => {
 };
 
 export default function LoginPage() {
-  const { login } = useAppContext();
+  const { login, entities } = useAppContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleEntityLogin = (data, toast) => {
     setIsSubmitting(true);
-    // Hardcoded credentials for MVP
-    if (data.mobileNumber === "7598728610" && data.password === "password") {
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
-      login('entity');
+    
+    const entity = entities.find(
+      (e) => e.mobileNumber === data.mobileNumber && e.password === data.password
+    );
+
+    if (entity) {
+      if (entity.isBlocked) {
+        toast({
+          variant: "destructive",
+          title: "Account Blocked",
+          description: "Your account has been blocked. Please contact support.",
+        });
+      } else {
+         toast({
+          title: "Login Successful",
+          description: "Welcome back!",
+        });
+        login('entity', { id: entity.id, companyName: entity.companyName });
+      }
     } else {
       toast({
         variant: "destructive",
         title: "Login Failed",
         description: "Invalid mobile number or password.",
       });
-      setIsSubmitting(false);
     }
+    setIsSubmitting(false);
   };
   
   const handleDeveloperLogin = (data, toast) => {
     setIsSubmitting(true);
-    // Hardcoded credentials for MVP
+    // Hardcoded credentials for founder/developer
     if (data.username === "developer" && data.password === "devpassword") {
       toast({
         title: "Developer Login Successful",
@@ -118,8 +130,8 @@ export default function LoginPage() {
         title: "Login Failed",
         description: "Invalid developer credentials.",
       });
-      setIsSubmitting(false);
     }
+    setIsSubmitting(false);
   };
 
 
@@ -178,3 +190,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/app/layout";
 import { Button } from "@/components/ui/button";
@@ -11,17 +11,27 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { Lock, Unlock, CalendarPlus, AlertCircle, Users, Loader2 } from "lucide-react";
+import { differenceInDays, parseISO, format, addMonths } from "date-fns";
 
 export default function SubscriptionPage() {
-  const { user } = useAppContext();
+  const { user, entities, updateEntity } = useAppContext();
   const router = useRouter();
+  const { toast } = useToast();
+  const [localEntities, setLocalEntities] = useState(entities);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Protect the route
   useEffect(() => {
@@ -30,88 +40,140 @@ export default function SubscriptionPage() {
     }
   }, [user, router]);
   
+  useEffect(() => {
+     setLocalEntities(entities);
+     if (entities.length > 0) {
+        setIsLoading(false);
+     }
+  }, [entities]);
+
+  const handleExtendSubscription = (entityId) => {
+    const entity = localEntities.find(e => e.id === entityId);
+    if (!entity) return;
+
+    const currentEndDate = parseISO(entity.subscriptionEndDate);
+    const newEndDate = addMonths(currentEndDate, 1);
+    
+    const updated = updateEntity(entityId, { subscriptionEndDate: newEndDate.toISOString().split("T")[0] });
+    setLocalEntities(updated);
+
+    toast({
+        title: "Subscription Extended",
+        description: `${entity.companyName}'s subscription has been extended to ${format(newEndDate, "PPP")}.`,
+    });
+  };
+
+  const handleToggleBlock = (entityId, isCurrentlyBlocked) => {
+    const entity = localEntities.find(e => e.id === entityId);
+    if (!entity) return;
+
+    const updated = updateEntity(entityId, { isBlocked: !isCurrentlyBlocked });
+    setLocalEntities(updated);
+    
+    toast({
+        title: `Entity ${isCurrentlyBlocked ? 'Unblocked' : 'Blocked'}`,
+        description: `${entity.companyName} can ${isCurrentlyBlocked ? 'now' : 'no longer'} log in.`,
+    });
+  };
+  
   if (!user || user.role !== 'developer') {
-    // You can show a loader or a simple message while redirecting
     return (
         <div className="flex min-h-screen w-full items-center justify-center">
             <p>Redirecting...</p>
         </div>
     );
   }
-
-  // Mock subscription data
-  const subscription = {
-    plan: "Pro Plan",
-    status: "Active",
-    billingCycle: "Monthly",
-    nextBillingDate: "2024-08-15",
-    price: 99.99,
-  };
+  
+  if (isLoading) {
+     return (
+        <div className="flex min-h-screen w-full items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-4">
-      <Card className="max-w-2xl mx-auto">
+      <Card>
         <CardHeader>
-          <CardTitle>Subscription Management</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Users /> Entity Subscription Management</CardTitle>
           <CardDescription>
-            View and manage your subscription details.
+            View, extend, and manage subscriptions for all entities.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div>
-                    <p className="text-sm text-muted-foreground">Current Plan</p>
-                    <p className="text-xl font-bold">{subscription.plan}</p>
-                </div>
-                <Badge variant={subscription.status === "Active" ? "secondary" : "destructive"} className="flex items-center gap-2">
-                   {subscription.status === "Active" ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Clock className="h-4 w-4" />}
-                   {subscription.status}
-                </Badge>
-            </div>
-            
-            <div className="space-y-4">
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                        <Label className="text-sm text-muted-foreground">Billing Cycle</Label>
-                        <p className="font-medium">{subscription.billingCycle}</p>
-                    </div>
-                     <div className="space-y-1">
-                        <Label className="text-sm text-muted-foreground">Price</Label>
-                        <p className="font-medium">₹{subscription.price} / month</p>
-                    </div>
-                 </div>
-                 <div className="space-y-1">
-                    <Label className="text-sm text-muted-foreground">Next Billing Date</Label>
-                    <p className="font-medium">{subscription.nextBillingDate}</p>
-                 </div>
-            </div>
-            
-            <Separator />
+        <CardContent>
+           <div className="rounded-md border">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Company Name</TableHead>
+                        <TableHead>Subscription Status</TableHead>
+                        <TableHead>Expires On</TableHead>
+                        <TableHead>Actions</TableHead>
+                        <TableHead className="text-right">Block Access</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                   {localEntities.length > 0 ? localEntities.map((entity) => {
+                       const endDate = parseISO(entity.subscriptionEndDate);
+                       const daysRemaining = differenceInDays(endDate, new Date());
+                       let statusVariant = "secondary";
+                       let statusText = "Active";
 
-            <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Update Payment Method</h3>
-                 <div className="space-y-2">
-                    <Label htmlFor="card-number">Card Number</Label>
-                    <Input id="card-number" placeholder="**** **** **** 1234" />
-                </div>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="expiry-date">Expiry Date</Label>
-                        <Input id="expiry-date" placeholder="MM/YY" />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="cvc">CVC</Label>
-                        <Input id="cvc" placeholder="123" />
-                    </div>
-                 </div>
-            </div>
+                       if (entity.isBlocked) {
+                           statusVariant = "destructive";
+                           statusText = "Blocked";
+                       } else if (daysRemaining < 0) {
+                           statusVariant = "destructive";
+                           statusText = "Expired";
+                       } else if (daysRemaining <= 7) {
+                           statusVariant = "default";
+                           statusText = "Expires Soon";
+                       }
+
+                       return (
+                         <TableRow key={entity.id}>
+                            <TableCell className="font-medium">{entity.companyName}</TableCell>
+                            <TableCell>
+                                <Badge variant={statusVariant}>{statusText}</Badge>
+                            </TableCell>
+                            <TableCell>{format(endDate, "PPP")}</TableCell>
+                            <TableCell>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleExtendSubscription(entity.id)}
+                                >
+                                    <CalendarPlus className="mr-2 h-4 w-4" />
+                                    Extend 1 Month
+                                </Button>
+                            </TableCell>
+                            <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                     <Switch
+                                        checked={entity.isBlocked}
+                                        onCheckedChange={() => handleToggleBlock(entity.id, entity.isBlocked)}
+                                        aria-label={`Block or unblock ${entity.companyName}`}
+                                     />
+                                     {entity.isBlocked ? <Lock className="h-4 w-4 text-destructive" /> : <Unlock className="h-4 w-4 text-green-600"/>}
+                                </div>
+                            </TableCell>
+                         </TableRow>
+                       );
+                   }) : (
+                        <TableRow>
+                            <TableCell colSpan={5} className="h-24 text-center">
+                                No entities found.
+                            </TableCell>
+                        </TableRow>
+                   )}
+                </TableBody>
+            </Table>
+           </div>
         </CardContent>
-        <CardFooter className="flex justify-between items-center">
-          <Button variant="destructive">Cancel Subscription</Button>
-          <Button>Update Payment</Button>
-        </CardFooter>
       </Card>
     </div>
   );
 }
 
+    
