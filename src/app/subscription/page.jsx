@@ -30,7 +30,7 @@ export default function SubscriptionPage() {
   const { user, entities, updateEntity } = useAppContext();
   const router = useRouter();
   const { toast } = useToast();
-  const [localEntities, setLocalEntities] = useState(entities);
+  const [localEntities, setLocalEntities] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Protect the route
@@ -41,11 +41,14 @@ export default function SubscriptionPage() {
   }, [user, router]);
   
   useEffect(() => {
-     setLocalEntities(entities);
+     // Wait for entities to be populated from the API call in layout
      if (entities.length > 0) {
+        setLocalEntities(entities);
         setIsLoading(false);
+     } else if (user) { // if user is loaded but entities are not, keep loading
+        setIsLoading(true);
      }
-  }, [entities]);
+  }, [entities, user]);
 
   const handleExtendSubscription = (entityId) => {
     const entity = localEntities.find(e => e.id === entityId);
@@ -54,6 +57,8 @@ export default function SubscriptionPage() {
     const currentEndDate = parseISO(entity.subscriptionEndDate);
     const newEndDate = addMonths(currentEndDate, 1);
     
+    // Here you would typically make an API call to your backend to update the subscription
+    // For now, we update the local state as a simulation.
     const updated = updateEntity(entityId, { subscriptionEndDate: newEndDate.toISOString().split("T")[0] });
     setLocalEntities(updated);
 
@@ -67,6 +72,7 @@ export default function SubscriptionPage() {
     const entity = localEntities.find(e => e.id === entityId);
     if (!entity) return;
 
+    // Here you would typically make an API call to your backend to update the block status
     const updated = updateEntity(entityId, { isBlocked: !isCurrentlyBlocked });
     setLocalEntities(updated);
     
@@ -79,7 +85,7 @@ export default function SubscriptionPage() {
   if (!user || user.role !== 'developer') {
     return (
         <div className="flex min-h-screen w-full items-center justify-center">
-            <p>Redirecting...</p>
+             <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
     );
   }
@@ -87,7 +93,10 @@ export default function SubscriptionPage() {
   if (isLoading) {
      return (
         <div className="flex min-h-screen w-full items-center justify-center">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div className="text-center">
+                <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
+                <p className="mt-2 text-muted-foreground">Fetching entities...</p>
+            </div>
         </div>
     );
   }
@@ -115,6 +124,8 @@ export default function SubscriptionPage() {
                 </TableHeader>
                 <TableBody>
                    {localEntities.length > 0 ? localEntities.map((entity) => {
+                       if (!entity.subscriptionEndDate) return null; // Skip if no subscription date
+                       
                        const endDate = parseISO(entity.subscriptionEndDate);
                        const daysRemaining = differenceInDays(endDate, new Date());
                        let statusVariant = "secondary";
@@ -132,7 +143,7 @@ export default function SubscriptionPage() {
                        }
 
                        return (
-                         <TableRow key={entity.id}>
+                         <TableRow key={entity._id}>
                             <TableCell className="font-medium">{entity.companyName}</TableCell>
                             <TableCell>
                                 <Badge variant={statusVariant}>{statusText}</Badge>
@@ -163,7 +174,7 @@ export default function SubscriptionPage() {
                    }) : (
                         <TableRow>
                             <TableCell colSpan={5} className="h-24 text-center">
-                                No entities found.
+                                No entities found or failed to load.
                             </TableCell>
                         </TableRow>
                    )}

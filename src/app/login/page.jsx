@@ -103,7 +103,7 @@ export default function LoginPage() {
           title: "Login Successful",
           description: "Welcome back!",
         });
-        login('entity', { id: entity.id, companyName: entity.companyName });
+        login('entity', { id: entity.id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
       }
     } else {
       toast({

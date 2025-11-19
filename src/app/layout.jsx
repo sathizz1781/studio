@@ -41,55 +41,23 @@ const AppContext = createContext();
 
 export const useAppContext = () => useContext(AppContext);
 
-// Mock initial data for entities
-const getInitialEntities = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    return [
-        {
-            id: "ent1",
-            mobileNumber: "7598728610",
-            password: "password",
-            companyName: "Amman Weighing Home",
-            upiId: "@upi",
-            serialHost: "localhost:4000",
-            subscriptionEndDate: tomorrow.toISOString().split("T")[0],
-            isBlocked: false,
-        },
-        {
-            id: "ent2",
-            mobileNumber: "9876543210",
-            password: "password123",
-            companyName: "Murugan Logistics",
-            upiId: "@upi",
-            serialHost: "",
-            subscriptionEndDate: new Date().toISOString().split("T")[0],
-            isBlocked: false,
-        },
-         {
-            id: "ent3",
-            mobileNumber: "8888888888",
-            password: "password456",
-            companyName: "Expired Services",
-            upiId: "expired@upi",
-            serialHost: "",
-            subscriptionEndDate: yesterday.toISOString().split("T")[0],
-            isBlocked: false,
-        },
-         {
-            id: "ent4",
-            mobileNumber: "9999999999",
-            password: "password789",
-            companyName: "Blocked Corp",
-            upiId: "blocked@upi",
-            serialHost: "",
-            subscriptionEndDate: tomorrow.toISOString().split("T")[0],
-            isBlocked: true,
-        },
-    ];
+// Function to fetch all entities
+const fetchAllEntities = async () => {
+  try {
+    const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+        console.error("Failed to fetch entities");
+        return [];
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching entities:", error);
+    return [];
+  }
 };
 
 
@@ -108,29 +76,25 @@ const AppProvider = ({ children }) => {
     setTheme(storedTheme);
     const storedLang = localStorage.getItem("language") || "en";
     setLanguage(storedLang);
-
-    // Initialize entities from localStorage or use initial data
-    const storedEntities = JSON.parse(localStorage.getItem("appEntities"));
-    if (!storedEntities || storedEntities.length === 0) {
-      const initialData = getInitialEntities();
-      localStorage.setItem("appEntities", JSON.stringify(initialData));
-      setEntities(initialData);
-    } else {
-      setEntities(storedEntities);
-    }
-
-    const storedUser = JSON.parse(localStorage.getItem("user"));
-    if (storedUser) {
-        setUser(storedUser);
-        // If logged-in user is an entity, load their specific config
-        if (storedUser.role === 'entity') {
-            const allEntities = JSON.parse(localStorage.getItem("appEntities")) || [];
-            const entityConfig = allEntities.find(e => e.id === storedUser.id);
-            setConfig(entityConfig || {});
+    
+    const initializeData = async () => {
+        const allEntities = await fetchAllEntities();
+        setEntities(allEntities);
+        
+        const storedUser = JSON.parse(localStorage.getItem("user"));
+        if (storedUser) {
+            setUser(storedUser);
+            if (storedUser.role === 'entity' && storedUser.mobileNumber) {
+                // Find config from the freshly fetched list
+                 const entityConfig = allEntities.find(e => e.mobileNumber === storedUser.mobileNumber);
+                 setConfig(entityConfig || {});
+            }
+        } else if (pathname !== "/login") {
+          router.push("/login");
         }
-    } else if (pathname !== "/login") {
-      router.push("/login");
-    }
+    };
+
+    initializeData();
   }, [pathname, router]);
 
   useEffect(() => {
@@ -152,32 +116,22 @@ const AppProvider = ({ children }) => {
     localStorage.setItem("user", JSON.stringify(sessionData));
     setUser(sessionData);
 
-    // If entity logs in, fetch their config from the new API
     if (role === 'entity' && userData.mobileNumber) {
         try {
             const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get/${userData.mobileNumber}`);
             if (response.ok) {
                 const remoteConfig = await response.json();
-                if (remoteConfig.data) {
-                    setConfig(remoteConfig.data);
-                    // Also update the master list in localStorage for consistency
-                    updateEntity(userData.id, remoteConfig.data);
-                } else { // If no config on backend, use local
-                    const allEntities = JSON.parse(localStorage.getItem("appEntities")) || [];
-                    const localConfig = allEntities.find(e => e.id === userData.id);
-                    setConfig(localConfig || {});
-                }
-            } else { // If API fails, fallback to local storage
-                console.warn("API for config failed, falling back to local storage.");
-                const allEntities = JSON.parse(localStorage.getItem("appEntities")) || [];
-                const localConfig = allEntities.find(e => e.id === userData.id);
-                setConfig(localConfig || {});
+                setConfig(remoteConfig || {});
+                updateEntity(userData.id, remoteConfig);
+            } else {
+                console.warn("API for config failed, falling back to local list.");
+                const entityConfig = entities.find(e => e.mobileNumber === userData.mobileNumber);
+                setConfig(entityConfig || {});
             }
         } catch (error) {
             console.error("Error fetching remote config, falling back to local:", error);
-            const allEntities = JSON.parse(localStorage.getItem("appEntities")) || [];
-            const localConfig = allEntities.find(e => e.id === userData.id);
-            setConfig(localConfig || {});
+            const entityConfig = entities.find(e => e.mobileNumber === userData.mobileNumber);
+            setConfig(entityConfig || {});
         }
     }
 
@@ -196,8 +150,7 @@ const AppProvider = ({ children }) => {
         entity.id === entityId ? { ...entity, ...updatedData } : entity
     );
     setEntities(updatedEntities);
-    localStorage.setItem("appEntities", JSON.stringify(updatedEntities));
-
+    
     // If the updated entity is the currently logged-in user, update their config
     if (user && user.role === 'entity' && user.id === entityId) {
         setConfig(prevConfig => ({ ...prevConfig, ...updatedData }));
@@ -207,7 +160,10 @@ const AppProvider = ({ children }) => {
 
   const saveConfig = (newConfig) => {
      if (user && user.role === 'entity') {
-        updateEntity(user.id, newConfig);
+        const entityToUpdate = entities.find(e => e.mobileNumber === user.mobileNumber);
+        if (entityToUpdate) {
+            updateEntity(entityToUpdate.id, newConfig);
+        }
      }
   }
 
@@ -222,9 +178,9 @@ const AppProvider = ({ children }) => {
     logout,
     config,
     saveConfig,
-    entities, // Expose entities for the subscription page
-    updateEntity, // Expose update function
-    wb_number: user?.role === 'entity' ? config.mobileNumber : null,
+    entities,
+    updateEntity,
+    wb_number: user?.role === 'entity' ? user.mobileNumber : null,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
@@ -394,3 +350,5 @@ function LayoutContent({ children }) {
     </html>
   );
 }
+
+    

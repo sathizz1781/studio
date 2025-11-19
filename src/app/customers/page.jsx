@@ -108,7 +108,7 @@ export default function CustomerPage() {
     };
     setIsLoading(true);
     try {
-      const response = await axios.post(`https://bend-mqjz.onrender.com/api/user/userlist/${wb_number}`);
+      const response = await axios.get(`https://bend-mqjz.onrender.com/api/user/userlist/${wb_number}`);
       setCustomers(response.data.users || []);
     } catch (error) {
       console.error("Failed to fetch customers:", error);
