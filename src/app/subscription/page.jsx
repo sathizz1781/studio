@@ -23,11 +23,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, Unlock, CalendarPlus, AlertCircle, Users, Loader2 } from "lucide-react";
+import { Lock, Unlock, CalendarPlus, Users, Loader2 } from "lucide-react";
 import { differenceInDays, parseISO, format, addMonths } from "date-fns";
 
 export default function SubscriptionPage() {
-  const { user, entities, setEntities, fetchAllEntities } = useAppContext();
+  const { user, entities, fetchAllEntities, setEntities } = useAppContext();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
@@ -41,14 +41,29 @@ export default function SubscriptionPage() {
   
   const loadEntities = useCallback(async () => {
     setIsLoading(true);
-    const fetchedEntities = await fetchAllEntities();
-    setEntities(fetchedEntities);
-    setIsLoading(false);
-  }, [fetchAllEntities, setEntities]);
+    try {
+        const fetchedEntities = await fetchAllEntities();
+        // The context will be updated by the fetchAllEntities call inside the provider,
+        // but we can set it here as well to be sure.
+        setEntities(fetchedEntities); 
+    } catch (error) {
+        console.error("Failed to load entities:", error);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not fetch entity data."
+        });
+        setEntities([]); // Ensure entities is an empty array on error
+    } finally {
+        setIsLoading(false);
+    }
+  }, [fetchAllEntities, setEntities, toast]);
 
   useEffect(() => {
      if(user?.role === 'developer'){
        loadEntities();
+     } else {
+       setIsLoading(false);
      }
   }, [user, loadEntities]);
 
@@ -149,7 +164,7 @@ export default function SubscriptionPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                   {entities.length > 0 ? entities.map((entity) => {
+                   {entities && entities.length > 0 ? entities.map((entity) => {
                        if (!entity.subscriptionEndDate) return null; // Skip if no subscription date
                        
                        const endDate = parseISO(entity.subscriptionEndDate);
@@ -212,5 +227,3 @@ export default function SubscriptionPage() {
     </div>
   );
 }
-
-    

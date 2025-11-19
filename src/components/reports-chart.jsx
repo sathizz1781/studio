@@ -17,6 +17,7 @@ import { Loader2 } from "lucide-react";
 import { useAppContext } from "@/app/layout";
 
 async function fetchChartData(startDate, endDate, wb_number) {
+    if (!wb_number) return []; // Don't fetch if no wb_number is provided
     const query = {
         startDate: format(startDate, "dd/MM/yyyy"),
         endDate: format(endDate, "dd/MM/yyyy"),
@@ -47,17 +48,18 @@ export function ReportsChart() {
     useEffect(() => {
         if(user?.role === 'entity' && wb_number) {
             setSelectedWbNumber(wb_number);
+        } else if (user?.role === 'developer' && entities && entities.length > 0) {
+            // Default to first entity for developer if none is selected
+            if (!selectedWbNumber) {
+                setSelectedWbNumber(entities[0].mobileNumber);
+            }
         }
-    }, [wb_number, user?.role]);
+    }, [wb_number, user?.role, entities, selectedWbNumber]);
 
     useEffect(() => {
         const getChartData = async () => {
-            if (!selectedWbNumber && user?.role === 'developer') {
+            if (!selectedWbNumber) {
                 setChartData([]);
-                setIsLoading(false);
-                return;
-            }
-             if (!selectedWbNumber && user?.role === 'entity') {
                 setIsLoading(false);
                 return;
             }
@@ -93,7 +95,7 @@ export function ReportsChart() {
             }
         };
         getChartData();
-    }, [toast, selectedWbNumber, user?.role]);
+    }, [toast, selectedWbNumber]);
     
     const CustomTooltip = ({ active, payload, label }) => {
       if (active && payload && payload.length) {
@@ -117,7 +119,7 @@ export function ReportsChart() {
                         <CardTitle>Daily Activity</CardTitle>
                         <CardDescription>Comparison of the last two days of activity.</CardDescription>
                     </div>
-                     {user?.role === 'developer' && (
+                     {user?.role === 'developer' && entities && entities.length > 0 && (
                         <div className="mt-4 sm:mt-0 w-full sm:w-auto sm:min-w-[200px]">
                             <Select onValueChange={setSelectedWbNumber} value={selectedWbNumber}>
                                 <SelectTrigger>
@@ -125,7 +127,7 @@ export function ReportsChart() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {entities.map(entity => (
-                                        <SelectItem key={entity.id} value={entity.mobileNumber}>
+                                        <SelectItem key={entity._id} value={entity.mobileNumber}>
                                             {entity.companyName}
                                         </SelectItem>
                                     ))}
@@ -140,9 +142,11 @@ export function ReportsChart() {
                     <div className="h-[350px] w-full flex items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
-                ) : user?.role === 'developer' && !selectedWbNumber ? (
+                ) : !selectedWbNumber ? (
                     <div className="h-[350px] w-full flex items-center justify-center">
-                        <p className="text-muted-foreground">Please select an entity to view their chart.</p>
+                        <p className="text-muted-foreground">
+                            {user?.role === 'developer' ? "Please select an entity to view their chart." : "No data to display."}
+                        </p>
                     </div>
                 ) : (
                     <div className="h-[350px]">
@@ -164,5 +168,3 @@ export function ReportsChart() {
         </Card>
     );
 }
-
-    

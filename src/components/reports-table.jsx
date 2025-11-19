@@ -65,8 +65,12 @@ export function ReportsTable() {
   useEffect(() => {
     if(user?.role === 'entity' && wb_number) {
         setSelectedWbNumber(wb_number);
+    } else if (user?.role === 'developer' && entities && entities.length > 0) {
+        if(!selectedWbNumber){
+          setSelectedWbNumber(entities[0].mobileNumber);
+        }
     }
-  }, [wb_number, user?.role]);
+  }, [wb_number, user?.role, entities, selectedWbNumber]);
 
   const fetchRecords = useCallback(async () => {
     const numberToFetch = user?.role === 'developer' ? selectedWbNumber : wb_number;
@@ -194,9 +198,10 @@ export function ReportsTable() {
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
-    const entityName = user?.role === 'developer'
-      ? entities.find(e => e.mobileNumber === selectedWbNumber)?.companyName || 'Report'
-      : config.companyName || 'Report';
+    const currentEntity = user?.role === 'developer' 
+        ? entities?.find(e => e.mobileNumber === selectedWbNumber)
+        : config;
+    const entityName = currentEntity?.companyName || 'Report';
 
     doc.text(`${entityName} - Weighbridge Report`, 14, 16);
     doc.autoTable({
@@ -268,7 +273,7 @@ export function ReportsTable() {
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex flex-col md:flex-row flex-wrap items-center gap-2 w-full">
-           {user?.role === 'developer' && entities.length > 0 && (
+           {user?.role === 'developer' && entities && entities.length > 0 && (
                 <div className="w-full md:w-auto md:min-w-[200px]">
                     <Select onValueChange={setSelectedWbNumber} value={selectedWbNumber}>
                         <SelectTrigger>
@@ -426,7 +431,7 @@ export function ReportsTable() {
             ) : (
               <TableRow>
                 <TableCell colSpan={10} className="h-24 text-center">
-                   {user?.role === 'developer' && !selectedWbNumber 
+                   {!selectedWbNumber && user?.role === 'developer'
                     ? "Please select an entity to view their report." 
                     : "No results found."}
                 </TableCell>
@@ -445,5 +450,3 @@ export function ReportsTable() {
     </div>
   );
 }
-
-    
