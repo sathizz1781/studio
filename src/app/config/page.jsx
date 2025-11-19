@@ -70,7 +70,7 @@ const SubscriptionReminder = ({ subscriptionEndDate }) => {
 
 
 export default function ConfigPage() {
-  const { user, config, saveConfig, wb_number } = useAppContext();
+  const { user, config, saveConfig, wb_number, logout } = useAppContext();
   const { toast } = useToast();
 
   const form = useForm({
@@ -121,10 +121,19 @@ export default function ConfigPage() {
       }
 
       saveConfig(dataToSave); // This updates the local state and localStorage
-      toast({
-        title: "Configuration Saved",
-        description: "Your settings have been updated successfully.",
-      });
+      
+      if (data.password) {
+        toast({
+            title: "Password Changed",
+            description: "You have been logged out for security. Please log in again with your new password.",
+        });
+        logout(); // Logout the user
+      } else {
+        toast({
+            title: "Configuration Saved",
+            description: "Your settings have been updated successfully.",
+        });
+      }
 
     } catch (error) {
        console.error("Failed to save config:", error);
