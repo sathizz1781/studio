@@ -61,6 +61,8 @@ export function ReportsTable() {
   const { toast } = useToast();
   
   const [selectedWbNumber, setSelectedWbNumber] = useState(wb_number || "");
+  const isReadOnly = user?.role === 'entity' && !config?.password;
+
 
   useEffect(() => {
     if(user?.role === 'entity' && wb_number) {
@@ -361,7 +363,7 @@ export function ReportsTable() {
           <div className="flex items-center gap-4">
              <Button
                 onClick={handleUpdatePayment}
-                disabled={isUpdating || selectedRows.size === 0}
+                disabled={isUpdating || selectedRows.size === 0 || isReadOnly}
               >
                 {isUpdating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard />}
                  Update to Paid ({selectedRows.size})
@@ -377,7 +379,7 @@ export function ReportsTable() {
                     checked={selectedRows.size > 0 && selectedRows.size === unPaidRecords && unPaidRecords > 0}
                     onCheckedChange={handleSelectAll}
                     aria-label="Select all unpaid rows"
-                    disabled={unPaidRecords === 0}
+                    disabled={unPaidRecords === 0 || isReadOnly}
                 />
               </TableHead>
               <TableHead>Sl. No</TableHead>
@@ -408,7 +410,7 @@ export function ReportsTable() {
                         checked={selectedRows.has(item.sl_no)}
                         onCheckedChange={() => handleRowSelect(item.sl_no)}
                         aria-label={`Select row ${item.sl_no}`}
-                        disabled={isPaid}
+                        disabled={isPaid || isReadOnly}
                       />
                   </TableCell>
                   <TableCell className="font-medium">{item.sl_no}</TableCell>
@@ -450,3 +452,5 @@ export function ReportsTable() {
     </div>
   );
 }
+
+    

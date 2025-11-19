@@ -34,9 +34,10 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAppContext } from "@/app/layout";
-import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin, Share2 } from "lucide-react";
+import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin, Share2, AlertTriangle } from "lucide-react";
 import dynamic from "next/dynamic";
 import "../leaflet.css";
 
@@ -80,13 +81,16 @@ const GoogleMapView = ({ latitude, longitude, className }) => {
 
 
 export default function CustomerPage() {
-  const { wb_number } = useAppContext();
+  const { user, wb_number, config } = useAppContext();
   const [customers, setCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
+  
+  const isReadOnly = user?.role === 'entity' && !config?.password;
+
 
   const form = useForm({
     resolver: zodResolver(customerSchema),
@@ -244,6 +248,15 @@ export default function CustomerPage() {
 
   return (
     <div className="container mx-auto py-4">
+      {isReadOnly && (
+         <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Account Setup Required</AlertTitle>
+            <AlertDescription>
+                Customer management is disabled until you set a password on the <a href="/config" className="font-bold underline">Configuration page</a>.
+            </AlertDescription>
+        </Alert>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
             <h1 className="text-3xl font-bold">Customers</h1>
@@ -259,7 +272,7 @@ export default function CustomerPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
-            <Button onClick={() => handleSheetOpen()} className="w-full sm:w-auto" disabled={!wb_number}>
+            <Button onClick={() => handleSheetOpen()} className="w-full sm:w-auto" disabled={!wb_number || isReadOnly}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Customer
             </Button>
@@ -319,10 +332,10 @@ export default function CustomerPage() {
                 )}
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
-                <Button variant="outline" size="icon" onClick={() => handleSheetOpen(customer)}>
+                <Button variant="outline" size="icon" onClick={() => handleSheetOpen(customer)} disabled={isReadOnly}>
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button variant="destructive" size="icon" onClick={() => handleDelete(customer.customerId)}>
+                <Button variant="destructive" size="icon" onClick={() => handleDelete(customer.customerId)} disabled={isReadOnly}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </CardFooter>
@@ -467,5 +480,7 @@ export default function CustomerPage() {
     </div>
   );
 }
+
+    
 
     
