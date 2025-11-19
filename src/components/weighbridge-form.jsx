@@ -836,10 +836,10 @@ export function WeighbridgeForm() {
     const fetchNewSerialNumber = useCallback(async () => {
       if (!wb_number) return;
         try {
-            const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill", {
-              method: 'POST',
+            const response = await fetch(`https://bend-mqjz.onrender.com/api/wb/getlastbill/${wb_number}`, {
+              method: 'GET',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ wb_number })
+              
             });
             if (!response.ok) throw new Error('Failed to fetch serial');
             const data = await response.json();
@@ -868,10 +868,10 @@ export function WeighbridgeForm() {
 
       setIsInitializing(true);
       try {
-        const customerPromise = fetch("https://bend-mqjz.onrender.com/api/user/userlist", {
-          method: 'POST',
+        const customerPromise = fetch(`https://bend-mqjz.onrender.com/api/user/userlist/${wb_number}`, {
+          method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ wb_number })
+          
         })
           .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch customers'))
           .then(data => setCustomers(data.users || []))
@@ -1102,10 +1102,9 @@ export function WeighbridgeForm() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ vehicleNo, wb_number }),
             }),
-            fetch("https://bend-mqjz.onrender.com/api/wb/getchargeextremes", {
-              method: 'POST',
+            fetch(`https://bend-mqjz.onrender.com/api/wb/getchargeextremes/${vehicleNo}/${wb_number}`, {
+              method: 'GET',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ vehicleNo, wb_number })
             })
         ]);
 

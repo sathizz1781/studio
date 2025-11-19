@@ -25,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, AlertCircle, CalendarClock } from "lucide-react";
+import { Loader2, Save, AlertCircle, CalendarClock, Phone } from "lucide-react";
 import { useEffect } from "react";
 import { differenceInDays, parseISO, format } from "date-fns";
 
@@ -33,7 +33,6 @@ const configSchema = z.object({
   upiId: z.string().min(3, "UPI ID is required"),
   companyName: z.string().min(1, "Company name is required"),
   email: z.string().email("Invalid email").optional().or(z.literal('')),
-  phoneNumber: z.string().optional(),
   password: z.string().optional(),
   serialHost: z.string().optional(),
 });
@@ -70,7 +69,7 @@ const SubscriptionReminder = ({ subscriptionEndDate }) => {
 
 
 export default function ConfigPage() {
-  const { user, config, saveConfig } = useAppContext();
+  const { user, config, saveConfig, wb_number } = useAppContext();
   const { toast } = useToast();
 
   const form = useForm({
@@ -86,25 +85,44 @@ export default function ConfigPage() {
     }
   }, [config, reset, user]);
 
-  const onSubmit = (data) => {
-    // We only need to submit fields that are part of the schema
+  const onSubmit = async (data) => {
     const dataToSave = {
         companyName: data.companyName,
         upiId: data.upiId,
         email: data.email,
-        phoneNumber: data.phoneNumber,
         serialHost: data.serialHost,
+        phoneNumber: wb_number, // The non-editable phone number
     };
 
     if (data.password) {
         dataToSave.password = data.password;
     }
 
-    saveConfig(dataToSave);
-    toast({
-      title: "Configuration Saved",
-      description: "Your settings have been updated successfully.",
-    });
+    try {
+      const saveResponse = await fetch("https://bend-mqjz.onrender.com/api/config/post", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSave),
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error("Failed to save configuration to the server.");
+      }
+
+      saveConfig(dataToSave); // This updates the local state and localStorage
+      toast({
+        title: "Configuration Saved",
+        description: "Your settings have been updated successfully.",
+      });
+
+    } catch (error) {
+       console.error("Failed to save config:", error);
+       toast({
+         variant: "destructive",
+         title: "Save Error",
+         description: error.message || "Could not save settings to the server.",
+       });
+    }
   };
 
   if (user?.role !== 'entity') {
@@ -133,6 +151,15 @@ export default function ConfigPage() {
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-6">
                <SubscriptionReminder subscriptionEndDate={config.subscriptionEndDate} />
+                
+               <div className="space-y-2">
+                  <Label>Phone Number</Label>
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg text-foreground">
+                    <Phone className="h-5 w-5 text-primary" />
+                    <span>{wb_number}</span>
+                  </div>
+                   <p className="text-xs text-muted-foreground">This is your unique identifier and cannot be changed.</p>
+               </div>
 
                <FormField
                 control={form.control}
@@ -173,25 +200,12 @@ export default function ConfigPage() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="phoneNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
-                    <FormControl>
-                      <Input type="tel" placeholder="e.g., 9876543210" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
                <FormField
                 control={form.control}
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password (Optional)</FormLabel>
+                    <FormLabel>New Password (Optional)</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="Leave blank to keep current password" {...field} />
                     </FormControl>
@@ -230,5 +244,3 @@ export default function ConfigPage() {
     </div>
   );
 }
-
-    

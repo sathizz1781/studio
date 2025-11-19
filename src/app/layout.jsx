@@ -53,8 +53,8 @@ const getInitialEntities = () => {
             id: "ent1",
             mobileNumber: "7598728610",
             password: "password",
-            companyName: "Saravana Traders",
-            upiId: "saravana@upi",
+            companyName: "Amman Weighing Home",
+            upiId: "@upi",
             serialHost: "localhost:4000",
             subscriptionEndDate: tomorrow.toISOString().split("T")[0],
             isBlocked: false,
@@ -64,7 +64,7 @@ const getInitialEntities = () => {
             mobileNumber: "9876543210",
             password: "password123",
             companyName: "Murugan Logistics",
-            upiId: "murugan@upi",
+            upiId: "@upi",
             serialHost: "",
             subscriptionEndDate: new Date().toISOString().split("T")[0],
             isBlocked: false,
@@ -147,16 +147,38 @@ const AppProvider = ({ children }) => {
     localStorage.setItem("language", language);
   }, [language]);
   
-  const login = (role, userData = {}) => {
+  const login = async (role, userData = {}) => {
     const sessionData = { role, ...userData };
     localStorage.setItem("user", JSON.stringify(sessionData));
     setUser(sessionData);
 
-    // If entity logs in, set their config
-    if (role === 'entity') {
-        const allEntities = JSON.parse(localStorage.getItem("appEntities")) || [];
-        const entityConfig = allEntities.find(e => e.id === sessionData.id);
-        setConfig(entityConfig || {});
+    // If entity logs in, fetch their config from the new API
+    if (role === 'entity' && userData.mobileNumber) {
+        try {
+            const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get/${userData.mobileNumber}`);
+            if (response.ok) {
+                const remoteConfig = await response.json();
+                if (remoteConfig.data) {
+                    setConfig(remoteConfig.data);
+                    // Also update the master list in localStorage for consistency
+                    updateEntity(userData.id, remoteConfig.data);
+                } else { // If no config on backend, use local
+                    const allEntities = JSON.parse(localStorage.getItem("appEntities")) || [];
+                    const localConfig = allEntities.find(e => e.id === userData.id);
+                    setConfig(localConfig || {});
+                }
+            } else { // If API fails, fallback to local storage
+                console.warn("API for config failed, falling back to local storage.");
+                const allEntities = JSON.parse(localStorage.getItem("appEntities")) || [];
+                const localConfig = allEntities.find(e => e.id === userData.id);
+                setConfig(localConfig || {});
+            }
+        } catch (error) {
+            console.error("Error fetching remote config, falling back to local:", error);
+            const allEntities = JSON.parse(localStorage.getItem("appEntities")) || [];
+            const localConfig = allEntities.find(e => e.id === userData.id);
+            setConfig(localConfig || {});
+        }
     }
 
     router.push("/");
@@ -372,5 +394,3 @@ function LayoutContent({ children }) {
     </html>
   );
 }
-
-    
