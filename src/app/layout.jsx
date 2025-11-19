@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Home, Menu, Moon, Sun, Globe, LogOut, Settings, BarChart2, Users, Scale } from "lucide-react";
+import { Home, Menu, Moon, Sun, Globe, LogOut, Settings, BarChart2, Users, Scale, CreditCard } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -44,7 +44,7 @@ const AppProvider = ({ children }) => {
   const [theme, setTheme] = useState("light");
   const [language, setLanguage] = useState("en");
   const [currentTranslations, setCurrentTranslations] = useState(en);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null); // Changed from isAuthenticated
   const [config, setConfig] = useState({ 
     upiId: "", 
     companyName: "",
@@ -59,8 +59,8 @@ const AppProvider = ({ children }) => {
     const storedLang = localStorage.getItem("language") || "en";
     setLanguage(storedLang);
 
-    const authStatus = localStorage.getItem("isAuthenticated") === "true";
-    setIsAuthenticated(authStatus);
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    setUser(storedUser);
 
     const storedConfig = JSON.parse(localStorage.getItem("appConfig")) || { 
       upiId: "default@upi", 
@@ -69,7 +69,7 @@ const AppProvider = ({ children }) => {
     };
     setConfig(storedConfig);
 
-    if (!authStatus && pathname !== "/login") {
+    if (!storedUser && pathname !== "/login") {
       router.push("/login");
     }
   }, [pathname, router]);
@@ -88,15 +88,16 @@ const AppProvider = ({ children }) => {
     localStorage.setItem("language", language);
   }, [language]);
   
-  const login = () => {
-    localStorage.setItem("isAuthenticated", "true");
-    setIsAuthenticated(true);
+  const login = (role) => {
+    const userData = { role };
+    localStorage.setItem("user", JSON.stringify(userData));
+    setUser(userData);
     router.push("/");
   };
 
   const logout = () => {
-    localStorage.removeItem("isAuthenticated");
-    setIsAuthenticated(false);
+    localStorage.removeItem("user");
+    setUser(null);
     router.push("/login");
   };
 
@@ -111,7 +112,7 @@ const AppProvider = ({ children }) => {
     language,
     setLanguage,
     translations: currentTranslations,
-    isAuthenticated,
+    user,
     login,
     logout,
     config,
@@ -131,16 +132,28 @@ export default function RootLayout({ children }) {
 
 function LayoutContent({ children }) {
   const pathname = usePathname();
-  const { toggleTheme, theme, translations, setLanguage, isAuthenticated, logout } = useAppContext();
+  const { toggleTheme, theme, translations, setLanguage, user, logout } = useAppContext();
 
-  const navLinks = [
+  const baseNavLinks = [
     { href: "/", label: "Biller", icon: Home },
     { href: "/reports", label: "Reports", icon: BarChart2 },
     { href: "/customers", label: "Customers", icon: Users },
-    { href: "/config", label: "Configuration", icon: Settings },
   ];
 
-  if (!isAuthenticated) {
+  const entityNavLinks = [
+      ...baseNavLinks,
+      { href: "/config", label: "Configuration", icon: Settings },
+  ];
+
+  const developerNavLinks = [
+      ...entityNavLinks,
+       { href: "/subscription", label: "Subscription", icon: CreditCard },
+  ];
+
+  const navLinks = user?.role === 'developer' ? developerNavLinks : entityNavLinks;
+
+
+  if (!user) {
      return (
         <html lang="en" suppressHydrationWarning>
             <body className={cn("min-h-screen bg-background font-body antialiased", fontInter.variable)}>
