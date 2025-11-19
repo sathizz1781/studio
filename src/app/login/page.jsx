@@ -29,7 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const entityLoginSchema = z.object({
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
-  password: z.string().min(1, "Password is required"),
+  password: z.string(), // Password can be empty for first-time login
 });
 
 const developerLoginSchema = z.object({
@@ -99,31 +99,41 @@ export default function LoginPage() {
   const handleEntityLogin = (data, toast) => {
     setIsSubmitting(true);
     
-    const entity = entities.find(
-      (e) => e.mobileNumber === data.mobileNumber && e.password === data.password
-    );
+    const entity = entities.find((e) => e.mobileNumber === data.mobileNumber);
 
     if (entity) {
-      if (entity.isBlocked) {
+      // Existing entity: check password
+      if (entity.password === data.password) {
+        if (entity.isBlocked) {
+          toast({
+            variant: "destructive",
+            title: "Account Blocked",
+            description: "Your account has been blocked. Please contact support.",
+          });
+        } else {
+          toast({
+            title: "Login Successful",
+            description: "Welcome back!",
+          });
+          login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
+        }
+      } else {
         toast({
           variant: "destructive",
-          title: "Account Blocked",
-          description: "Your account has been blocked. Please contact support.",
+          title: "Login Failed",
+          description: "Invalid mobile number or password.",
         });
-      } else {
-         toast({
-          title: "Login Successful",
-          description: "Welcome back!",
-        });
-        login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
       }
     } else {
+      // New entity: first-time login
       toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid mobile number or password.",
+        title: "Welcome!",
+        description: "Please set up your company details and password.",
       });
+      // Log in with a temporary session, user will be forced to configure
+      login('entity', { mobileNumber: data.mobileNumber });
     }
+
     setIsSubmitting(false);
   };
   
@@ -202,5 +212,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
