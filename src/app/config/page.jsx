@@ -98,16 +98,26 @@ export default function ConfigPage() {
     if (data.password) {
         dataToSave.password = data.password;
     }
+    
+    // Check if config has an _id, which means it's an existing record from MongoDB
+    const isUpdating = !!config._id;
+    
+    const apiEndpoint = isUpdating 
+        ? `https://bend-mqjz.onrender.com/api/config/update/${wb_number}`
+        : "https://bend-mqjz.onrender.com/api/config/post";
+        
+    const apiMethod = isUpdating ? 'PUT' : 'POST';
 
     try {
-      const saveResponse = await fetch("https://bend-mqjz.onrender.com/api/config/post", {
-        method: 'POST',
+      const saveResponse = await fetch(apiEndpoint, {
+        method: apiMethod,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSave),
       });
 
       if (!saveResponse.ok) {
-        throw new Error("Failed to save configuration to the server.");
+        const errorData = await saveResponse.json();
+        throw new Error(errorData.message || "Failed to save configuration to the server.");
       }
 
       saveConfig(dataToSave); // This updates the local state and localStorage
