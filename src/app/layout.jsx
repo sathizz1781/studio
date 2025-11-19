@@ -154,7 +154,8 @@ const AppProvider = ({ children }) => {
 
     // If entity logs in, set their config
     if (role === 'entity') {
-        const entityConfig = entities.find(e => e.id === sessionData.id);
+        const allEntities = JSON.parse(localStorage.getItem("appEntities")) || [];
+        const entityConfig = allEntities.find(e => e.id === sessionData.id);
         setConfig(entityConfig || {});
     }
 
@@ -201,6 +202,7 @@ const AppProvider = ({ children }) => {
     saveConfig,
     entities, // Expose entities for the subscription page
     updateEntity, // Expose update function
+    wb_number: user?.role === 'entity' ? config.mobileNumber : null,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

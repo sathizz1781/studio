@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -17,6 +18,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,6 +39,7 @@ import {
 import { format, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAppContext } from "@/app/layout";
 
 // PDF and Excel libraries
 import jsPDF from "jspdf";
@@ -38,8 +47,9 @@ import "jspdf-autotable";
 import * as XLSX from "xlsx";
 
 export function ReportsTable() {
+  const { user, entities, wb_number } = useAppContext();
   const [data, setData] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [dateRange, setDateRange] = useState({
@@ -49,13 +59,29 @@ export function ReportsTable() {
   const [vehicleNumberFilter, setVehicleNumberFilter] = useState("");
   const [partyNameFilter, setPartyNameFilter] = useState("");
   const { toast } = useToast();
+  
+  const [selectedWbNumber, setSelectedWbNumber] = useState(wb_number || "");
+
+  useEffect(() => {
+    if(user?.role === 'entity' && wb_number) {
+        setSelectedWbNumber(wb_number);
+    }
+  }, [wb_number, user?.role]);
 
   const fetchRecords = useCallback(async () => {
+    const numberToFetch = user?.role === 'developer' ? selectedWbNumber : wb_number;
+    if (!numberToFetch) {
+        setData([]);
+        setIsLoading(false);
+        return;
+    }
+
     setIsLoading(true);
     try {
       const query = {
         startDate: dateRange?.from ? format(dateRange.from, "dd/MM/yyyy") : null,
         endDate: dateRange?.to ? format(dateRange.to, "dd/MM/yyyy") : null,
+        wb_number: numberToFetch,
       };
 
       if (vehicleNumberFilter) {
@@ -91,13 +117,14 @@ export function ReportsTable() {
     } finally {
       setIsLoading(false);
     }
-  }, [dateRange, vehicleNumberFilter, partyNameFilter, toast]);
+  }, [dateRange, vehicleNumberFilter, partyNameFilter, toast, user?.role, selectedWbNumber, wb_number]);
 
   useEffect(() => {
     fetchRecords();
   }, [fetchRecords]);
   
   const handleUpdatePayment = async () => {
+    const numberToUpdate = user?.role === 'developer' ? selectedWbNumber : wb_number;
     if (selectedRows.size === 0) {
       toast({
         variant: "destructive",
@@ -112,7 +139,7 @@ export function ReportsTable() {
       const response = await fetch("https://bend-mqjz.onrender.com/api/wb/updatepaymentstatus", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sl_nos: Array.from(selectedRows) }),
+        body: JSON.stringify({ sl_nos: Array.from(selectedRows), wb_number: numberToUpdate }),
       });
       
       if (!response.ok) {
@@ -167,7 +194,11 @@ export function ReportsTable() {
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
-    doc.text("Weighbridge Report", 14, 16);
+    const entityName = user?.role === 'developer'
+      ? entities.find(e => e.mobileNumber === selectedWbNumber)?.companyName || 'Report'
+      : config.companyName || 'Report';
+
+    doc.text(`${entityName} - Weighbridge Report`, 14, 16);
     doc.autoTable({
       head: [
         [
@@ -200,7 +231,7 @@ export function ReportsTable() {
             isPaid ? "Paid" : "Credit",
         ];
       }),
-      startY: 20,
+      startY: 22,
     });
     doc.save("weighbridge-report.pdf");
   };
@@ -237,6 +268,22 @@ export function ReportsTable() {
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex flex-col md:flex-row flex-wrap items-center gap-2 w-full">
+           {user?.role === 'developer' && (
+                <div className="w-full md:w-auto md:min-w-[200px]">
+                    <Select onValueChange={setSelectedWbNumber} value={selectedWbNumber}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select an entity..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {entities.map(entity => (
+                                <SelectItem key={entity.id} value={entity.mobileNumber}>
+                                    {entity.companyName}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -295,11 +342,11 @@ export function ReportsTable() {
           </div>
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto flex-shrink-0">
-          <Button onClick={handleExportPDF} variant="outline" className="w-full">
+          <Button onClick={handleExportPDF} variant="outline" className="w-full" disabled={data.length === 0}>
             <FileText className="mr-2 h-4 w-4" />
             PDF
           </Button>
-          <Button onClick={handleExportExcel} variant="outline" className="w-full">
+          <Button onClick={handleExportExcel} variant="outline" className="w-full" disabled={data.length === 0}>
             <Download className="mr-2 h-4 w-4" />
             Excel
           </Button>
@@ -379,7 +426,9 @@ export function ReportsTable() {
             ) : (
               <TableRow>
                 <TableCell colSpan={10} className="h-24 text-center">
-                  No results found.
+                   {user?.role === 'developer' && !selectedWbNumber 
+                    ? "Please select an entity to view their report." 
+                    : "No results found."}
                 </TableCell>
               </TableRow>
             )}

@@ -5,13 +5,22 @@ import React, { useState, useEffect, useMemo } from "react";
 import { format, subDays } from "date-fns";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { useAppContext } from "@/app/layout";
 
-async function fetchChartData(startDate, endDate) {
+async function fetchChartData(startDate, endDate, wb_number) {
     const query = {
         startDate: format(startDate, "dd/MM/yyyy"),
         endDate: format(endDate, "dd/MM/yyyy"),
+        wb_number,
     };
 
     const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getrecords", {
@@ -29,19 +38,37 @@ async function fetchChartData(startDate, endDate) {
 }
 
 export function ReportsChart() {
+    const { user, entities, wb_number } = useAppContext();
     const [chartData, setChartData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
+    const [selectedWbNumber, setSelectedWbNumber] = useState(wb_number || "");
+
+    useEffect(() => {
+        if(user?.role === 'entity' && wb_number) {
+            setSelectedWbNumber(wb_number);
+        }
+    }, [wb_number, user?.role]);
 
     useEffect(() => {
         const getChartData = async () => {
+            if (!selectedWbNumber && user?.role === 'developer') {
+                setChartData([]);
+                setIsLoading(false);
+                return;
+            }
+             if (!selectedWbNumber && user?.role === 'entity') {
+                setIsLoading(false);
+                return;
+            }
+
             setIsLoading(true);
             try {
                 const today = new Date();
                 const yesterday = subDays(today, 1);
 
-                const todayDataPromise = fetchChartData(today, today);
-                const yesterdayDataPromise = fetchChartData(yesterday, yesterday);
+                const todayDataPromise = fetchChartData(today, today, selectedWbNumber);
+                const yesterdayDataPromise = fetchChartData(yesterday, yesterday, selectedWbNumber);
                 
                 const [todayRecords, yesterdayRecords] = await Promise.all([todayDataPromise, yesterdayDataPromise]);
                 
@@ -66,7 +93,7 @@ export function ReportsChart() {
             }
         };
         getChartData();
-    }, [toast]);
+    }, [toast, selectedWbNumber, user?.role]);
     
     const CustomTooltip = ({ active, payload, label }) => {
       if (active && payload && payload.length) {
@@ -85,13 +112,37 @@ export function ReportsChart() {
     return (
         <Card className="mt-6">
             <CardHeader>
-                <CardTitle>Daily Activity</CardTitle>
-                <CardDescription>Comparison of the last two days of activity.</CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <CardTitle>Daily Activity</CardTitle>
+                        <CardDescription>Comparison of the last two days of activity.</CardDescription>
+                    </div>
+                     {user?.role === 'developer' && (
+                        <div className="mt-4 sm:mt-0 w-full sm:w-auto sm:min-w-[200px]">
+                            <Select onValueChange={setSelectedWbNumber} value={selectedWbNumber}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select an entity..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {entities.map(entity => (
+                                        <SelectItem key={entity.id} value={entity.mobileNumber}>
+                                            {entity.companyName}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                </div>
             </CardHeader>
             <CardContent>
                 {isLoading ? (
                     <div className="h-[350px] w-full flex items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : user?.role === 'developer' && !selectedWbNumber ? (
+                    <div className="h-[350px] w-full flex items-center justify-center">
+                        <p className="text-muted-foreground">Please select an entity to view their chart.</p>
                     </div>
                 ) : (
                     <div className="h-[350px]">
@@ -113,3 +164,5 @@ export function ReportsChart() {
         </Card>
     );
 }
+
+    

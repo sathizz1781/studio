@@ -35,6 +35,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { useAppContext } from "@/app/layout";
 import { Loader2, PlusCircle, Edit, Trash2, Search, User, Building, Phone, Mail, Globe, MapPin, Share2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import "../leaflet.css";
@@ -79,6 +80,7 @@ const GoogleMapView = ({ latitude, longitude, className }) => {
 
 
 export default function CustomerPage() {
+  const { wb_number } = useAppContext();
   const [customers, setCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -100,11 +102,13 @@ export default function CustomerPage() {
   });
 
   const fetchCustomers = useCallback(async () => {
+    if (!wb_number) {
+        setIsLoading(false);
+        return;
+    };
     setIsLoading(true);
     try {
-      const response = await axios.get("https://bend-mqjz.onrender.com/api/user/userlist", {
-        headers: { "Content-Type": "application/json" },
-      });
+      const response = await axios.post("https://bend-mqjz.onrender.com/api/user/userlist", { wb_number });
       setCustomers(response.data.users || []);
     } catch (error) {
       console.error("Failed to fetch customers:", error);
@@ -117,7 +121,7 @@ export default function CustomerPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, wb_number]);
 
   useEffect(() => {
     fetchCustomers();
@@ -156,14 +160,19 @@ export default function CustomerPage() {
   };
 
   const onSubmit = async (data) => {
+    if (!wb_number) {
+      toast({ variant: "destructive", title: "Error", description: "Cannot save customer. Entity not identified."});
+      return;
+    }
+
     const apiEndpoint = editingCustomer
       ? `https://bend-mqjz.onrender.com/api/user/updateuser/${editingCustomer.customerId}`
       : "https://bend-mqjz.onrender.com/api/user/createuser";
     const apiMethod = "post";
     
     const payload = editingCustomer 
-        ? data 
-        : { ...data, customerId: `CUST${10000 + (customers.length + 1)}` };
+        ? { ...data, wb_number } 
+        : { ...data, customerId: `CUST${10000 + (customers.length + 1)}`, wb_number };
         
     try {
       await axios[apiMethod](apiEndpoint, payload);
@@ -186,7 +195,7 @@ export default function CustomerPage() {
   const handleDelete = async (customerId) => {
      if (!window.confirm("Are you sure you want to delete this customer?")) return;
       try {
-        await axios.post(`https://bend-mqjz.onrender.com/api/user/deleteuser/${customerId}`);
+        await axios.post(`https://bend-mqjz.onrender.com/api/user/deleteuser/${customerId}`, { wb_number });
         toast({
           title: "Success",
           description: "Customer deleted successfully.",
@@ -250,7 +259,7 @@ export default function CustomerPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
-            <Button onClick={() => handleSheetOpen()} className="w-full sm:w-auto">
+            <Button onClick={() => handleSheetOpen()} className="w-full sm:w-auto" disabled={!wb_number}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Customer
             </Button>
@@ -260,6 +269,13 @@ export default function CustomerPage() {
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : !wb_number ? (
+         <div className="text-center py-16">
+            <h3 className="text-xl font-semibold">Please Log In</h3>
+            <p className="text-muted-foreground mt-2">
+                You need to be logged in as an entity to manage customers.
+            </p>
         </div>
       ) : filteredCustomers.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -451,3 +467,5 @@ export default function CustomerPage() {
     </div>
   );
 }
+
+    

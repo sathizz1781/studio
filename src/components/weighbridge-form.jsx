@@ -771,7 +771,7 @@ const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config, handl
 };
 
 export function WeighbridgeForm() {
-  const { translations, config } = useAppContext();
+  const { translations, config, wb_number } = useAppContext();
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
@@ -834,8 +834,13 @@ export function WeighbridgeForm() {
   }, [setValue]);
 
     const fetchNewSerialNumber = useCallback(async () => {
+      if (!wb_number) return;
         try {
-            const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill");
+            const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getlastbill", {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ wb_number })
+            });
             if (!response.ok) throw new Error('Failed to fetch serial');
             const data = await response.json();
             const lastSerialNumber = data?.data?.sl_no;
@@ -847,14 +852,27 @@ export function WeighbridgeForm() {
             console.error("Error fetching last bill:", error);
             setValue("serialNumber", "1");
         }
-    }, [setValue]);
+    }, [setValue, wb_number]);
   
   useEffect(() => {
     setIsClient(true);
     const initializeForm = async () => {
+      if (!wb_number) {
+        if(config.mobileNumber) { // Check if config is available but wb_number isn't yet
+          // Wait for next render cycle
+        } else if (!isInitializing) {
+           // To avoid multiple toasts.
+        }
+        return;
+      };
+
       setIsInitializing(true);
       try {
-        const customerPromise = fetch("https://bend-mqjz.onrender.com/api/user/userlist")
+        const customerPromise = fetch("https://bend-mqjz.onrender.com/api/user/userlist", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wb_number })
+        })
           .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch customers'))
           .then(data => setCustomers(data.users || []))
           .catch(error => {
@@ -878,7 +896,7 @@ export function WeighbridgeForm() {
     };
 
     initializeForm();
-  }, [fetchNewSerialNumber, setInitialDateTime, toast]);
+  }, [fetchNewSerialNumber, setInitialDateTime, toast, wb_number, config.mobileNumber]);
 
   useEffect(() => {
     const fw = Number(firstWeight) || 0;
@@ -910,17 +928,18 @@ export function WeighbridgeForm() {
 
     const printDocument = printFrame.contentWindow.document;
     printDocument.open();
+    const [date, time] = billData.dateTime.split(', ');
     const content = (
         `<div>
           <table style="font-size: 10px; width: 100%; border-collapse: collapse;">
             <tbody>
               <tr><td style="padding: 1px; text-align: right;">${billData.sl_no}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.date}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.time}</td></tr>
+              <tr><td style="padding: 1px; text-align: right;">${date}</td></tr>
+              <tr><td style="padding: 1px; text-align: right;">${time}</td></tr>
               <tr><td style="padding: 1px; text-align: right;">${billData.vehicle_no}</td></tr>
               <tr><td style="padding: 1px; text-align: right;">${billData.party_name}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.material_name}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.charges}</td></tr>
+              <tr><td style="padding: 1px, padding-bottom: 2px; text-align: right;">${billData.material_name}</td></tr>
+              <tr><td style="padding: 1px, padding-bottom: 2px; text-align: right;">${billData.charges}</td></tr>
               <tr><td style="padding: 1px; padding-top: 2px; text-align: right;">${billData.first_weight}</td></tr>
               <tr><td style="padding: 1px; text-align: right;">${billData.second_weight}</td></tr>
               <tr><td style="padding: 1px; text-align: right;">${billData.net_weight}</td></tr>
@@ -964,18 +983,18 @@ export function WeighbridgeForm() {
                 description: "There was a problem printing the page. Please try again.",
             });
         } finally {
-            document.body.removeChild(printFrame);
+            if (document.body.contains(printFrame)) {
+                document.body.removeChild(printFrame);
+            }
         }
     }, 250);
   };
 
   const handlePrint = () => {
     const latestValues = getValues();
-    const [date, time] = latestValues.dateTime.split(', ');
     const billData = {
       sl_no: latestValues.serialNumber,
-      date: date,
-      time: time,
+      dateTime: latestValues.dateTime,
       vehicle_no: latestValues.vehicleNumber,
       material_name: latestValues.materialName,
       party_name: latestValues.partyName,
@@ -987,7 +1006,15 @@ export function WeighbridgeForm() {
     performPrint(billData);
   };
 
-  const handleReprintPrint = (billData) => {
+  const handleReprintPrint = (reprintBillData) => {
+     const billData = {
+      ...reprintBillData,
+      sl_no: reprintBillData.sl_no,
+      dateTime: `${reprintBillData.date}, ${reprintBillData.time}`,
+      vehicle_no: reprintBillData.vehicle_no,
+      party_name: reprintBillData.party_name,
+      material_name: reprintBillData.material_name,
+    };
     performPrint(billData);
     setIsReprintDialogOpen(false);
   }
@@ -1019,6 +1046,10 @@ export function WeighbridgeForm() {
 
   const findBill = async () => {
     if (!isClient || !reprintSerial) return;
+    if (!wb_number) {
+        toast({ variant: "destructive", title: "Error", description: "Entity not identified. Please re-login." });
+        return;
+    }
     setIsLoadingReprint(true);
     try {
       const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getsinglerecords", {
@@ -1026,7 +1057,7 @@ export function WeighbridgeForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ sl_no: Number(reprintSerial) }),
+        body: JSON.stringify({ sl_no: Number(reprintSerial), wb_number }),
       });
       
       if (!response.ok) {
@@ -1056,7 +1087,7 @@ export function WeighbridgeForm() {
   
   const handleVehicleBlur = async (e) => {
     const vehicleNo = e.target.value;
-    if (!vehicleNo || vehicleNo.length < 4) {
+    if (!vehicleNo || vehicleNo.length < 4 || !wb_number) {
       setPreviousWeights(null);
       setChargeExtremes(null);
       return;
@@ -1069,9 +1100,13 @@ export function WeighbridgeForm() {
             fetch("https://bend-mqjz.onrender.com/api/wb/getprevweightofvehicle", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ vehicleNo }),
+                body: JSON.stringify({ vehicleNo, wb_number }),
             }),
-            fetch(`https://bend-mqjz.onrender.com/api/wb/getchargeextremes/${vehicleNo}`)
+            fetch("https://bend-mqjz.onrender.com/api/wb/getchargeextremes", {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ vehicleNo, wb_number })
+            })
         ]);
 
         if (weightsResponse.ok) {
@@ -1118,6 +1153,11 @@ export function WeighbridgeForm() {
   }
 
   async function onSubmit(values) {
+    if (!wb_number) {
+      toast({ variant: "destructive", title: "Save Error", description: "Cannot save bill. Entity identifier is missing. Please re-login." });
+      return;
+    }
+
     const now = new Date();
     const currentDateTime = now.toLocaleString("en-IN", {
         hour12: true,
@@ -1148,7 +1188,8 @@ export function WeighbridgeForm() {
       secondWeight: latestValues.secondWeight,
       netWeight: netWeight,
       whatsappNumber: latestValues.whatsappNumber || "",
-      customerId: latestValues.customerId || ""
+      customerId: latestValues.customerId || "",
+      wb_number: wb_number,
     };
 
     try {
@@ -1248,9 +1289,14 @@ Thank you!
       className="relative"
     >
       <Card className="w-full max-w-4xl printable-card shadow-2xl">
-        {isInitializing && (
+        {(isInitializing || (isClient && !wb_number)) && (
              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
-                <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                <div className="text-center">
+                    <Loader2 className="h-10 w-10 text-primary animate-spin mx-auto" />
+                    <p className="mt-2 text-muted-foreground">
+                        {isClient && !wb_number ? "Waiting for entity login..." : "Initializing..."}
+                    </p>
+                </div>
              </div>
         )}
         <CardHeader className="no-print">
@@ -1344,7 +1390,7 @@ Thank you!
                         color: "hsl(var(--accent-foreground))",
                         }}
                         className="w-full sm:w-auto"
-                        disabled={isInitializing}
+                        disabled={isInitializing || !wb_number}
                     >
                         <Printer className="mr-2 h-4 w-4" />
                         {translations.weighbridge_form.send_print}
@@ -1375,3 +1421,5 @@ Thank you!
     </div>
   );
 }
+
+    
