@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -33,6 +32,7 @@ const configSchema = z.object({
   email: z.string().email("Invalid email").optional().or(z.literal('')),
   phoneNumber: z.string().optional(),
   password: z.string().optional(),
+  serialHost: z.string().optional(),
 });
 
 export default function ConfigPage() {
@@ -131,6 +131,20 @@ export default function ConfigPage() {
                     <FormControl>
                       <Input type="password" placeholder="Set a new password" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="serialHost"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Serial Host IP</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., 192.168.1.5:4000" {...field} />
+                    </FormControl>
+                     <p className="text-xs text-muted-foreground">The IP address of the computer running the serial bridge server. Leave blank to default to localhost:4000.</p>
                     <FormMessage />
                   </FormItem>
                 )}

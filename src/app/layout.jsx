@@ -48,6 +48,7 @@ const AppProvider = ({ children }) => {
   const [config, setConfig] = useState({ 
     upiId: "", 
     companyName: "",
+    serialHost: ""
   });
   const router = useRouter();
   const pathname = usePathname();
@@ -64,6 +65,7 @@ const AppProvider = ({ children }) => {
     const storedConfig = JSON.parse(localStorage.getItem("appConfig")) || { 
       upiId: "default@upi", 
       companyName: "My Company",
+      serialHost: "localhost:4000"
     };
     setConfig(storedConfig);
 

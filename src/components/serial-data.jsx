@@ -2,19 +2,23 @@
 "use client";
 
 import React, { useState, useEffect, memo } from "react";
-import { io } from "socket.io-client";
+import { useAppContext } from "@/app/layout";
 
 // Memoize the component to prevent re-renders when parent's state changes
 const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) {
   const [serialData, setSerialData] = useState("000000");
+  const { config } = useAppContext();
 
   useEffect(() => {
     let socket;
-  
+    
+    // Fallback to localhost if no host is configured
+    const host = config.serialHost ? `https://${config.serialHost}` : "https://localhost:4000";
+
     async function connectSocket() {
       const { io } = await import("socket.io-client"); // ⚡ dynamic import (client only)
   
-       socket = io("https://localhost:4000", {
+       socket = io(host, {
         transports: ["websocket"],
         secure: true,
         rejectUnauthorized: false, // because it's self-signed
@@ -36,7 +40,11 @@ const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) 
       });
   
       socket.on("connect_error", (err) => {
-        console.log(`connect_error due to ${err.message}`);
+        console.log(`connect_error due to ${err.message} on host ${host}`);
+      });
+
+      socket.on('connect', () => {
+        console.log(`Connected to serial data host: ${host}`);
       });
     }
   
@@ -45,7 +53,7 @@ const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) 
     return () => {
       if (socket) socket.disconnect();
     };
-  }, [serialDataRef]);
+  }, [serialDataRef, config.serialHost]);
    // Dependency array is correct
 
   return (
