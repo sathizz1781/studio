@@ -81,7 +81,7 @@ const LoginForm = ({ schema, onLogin, fields, isSubmitting, buttonText }) => {
 };
 
 export default function LoginPage() {
-  const { login, fetchAllEntities } = useAppContext();
+  const { login, entities: allEntities, fetchAllEntities } = useAppContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [entities, setEntities] = useState([]);
   const [isLoadingEntities, setIsLoadingEntities] = useState(true);
@@ -96,13 +96,13 @@ export default function LoginPage() {
     loadEntities();
   }, [fetchAllEntities]);
 
-  const handleEntityLogin = (data, toast) => {
+  const handleEntityLogin = async (data, toast) => {
     setIsSubmitting(true);
-    
+
     const entity = entities.find((e) => e.mobileNumber === data.mobileNumber);
 
     if (entity) {
-      // Case 1: Existing Entity found in the database.
+      // Case 1: Existing Entity found.
       if (entity.isBlocked) {
         toast({ variant: "destructive", title: "Account Blocked", description: "Your account has been blocked. Please contact support." });
       } else if (entity.password) {
@@ -114,12 +114,12 @@ export default function LoginPage() {
           toast({ variant: "destructive", title: "Login Failed", description: "Invalid mobile number or password." });
         }
       } else {
-        // Case 1b: They exist but have no password. This is their first login after creation.
+        // Case 1b: They exist but have no password. This is their first login.
         toast({ title: "Welcome!", description: "Please set up your company password and details." });
         login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
       }
     } else {
-      // Case 2: New Entity (first-time self-registration).
+      // Case 2: New Entity (self-registration).
       toast({ title: "Welcome!", description: "Please set up your company details to get started." });
       login('entity', { mobileNumber: data.mobileNumber, companyName: "New Company" });
     }
