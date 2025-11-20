@@ -29,7 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const entityLoginSchema = z.object({
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
-  password: z.string(), // Can be empty
+  password: z.string(), // Can be empty, validated in handler
 });
 
 const developerLoginSchema = z.object({
@@ -60,7 +60,7 @@ const LoginForm = ({ schema, onLogin, fields, isSubmitting, buttonText }) => {
               <FormItem>
                 <FormLabel>{field.label}</FormLabel>
                 <FormControl>
-                  <Input type={field.type} placeholder={field.placeholder} {...formField} />
+                  <Input type={field.type} placeholder={field.placeholder} {...formField} disabled={isSubmitting} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -86,7 +86,7 @@ export default function LoginPage() {
   const [entities, setEntities] = useState([]);
   const [isLoadingEntities, setIsLoadingEntities] = useState(true);
 
-  // Fetch all entities when the component mounts
+  // Fetch all entities when the component mounts to perform validation
   useEffect(() => {
     async function loadEntities() {
       setIsLoadingEntities(true);
@@ -96,10 +96,11 @@ export default function LoginPage() {
           const result = await response.json();
           setEntities(result.data || []);
         } else {
+          console.error("API Error: Failed to fetch entities list.");
           setEntities([]);
         }
       } catch (error) {
-        console.error("Failed to fetch entities on login page:", error);
+        console.error("Network Error: Failed to fetch entities on login page:", error);
         setEntities([]);
       } finally {
         setIsLoadingEntities(false);
@@ -114,22 +115,22 @@ export default function LoginPage() {
     const entity = entities.find((e) => e.mobileNumber === data.mobileNumber);
     
     if (entity) { // Case 1: Existing User
-      if (entity.isBlocked) {
-        toast({ variant: "destructive", title: "Account Blocked", description: "Your account has been blocked. Please contact support." });
-      } else if (entity.password) { // Case 1a: They have a password, so it must match
-        if (entity.password === data.password) {
-          toast({ title: "Login Successful", description: "Welcome back!" });
-          login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
-        } else {
-          toast({ variant: "destructive", title: "Login Failed", description: "Invalid mobile number or password." });
+        if (entity.isBlocked) {
+            toast({ variant: "destructive", title: "Account Blocked", description: "Your account has been blocked. Please contact support." });
+        } else if (entity.password) { // Case 1a: They have a password, so it must match
+            if (entity.password === data.password) {
+                toast({ title: "Login Successful", description: "Welcome back!" });
+                login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
+            } else {
+                toast({ variant: "destructive", title: "Login Failed", description: "Invalid mobile number or password." });
+            }
+        } else { // Case 1b: They exist but have no password. This is their first login to set it up.
+            toast({ title: "Welcome!", description: "Please set up your company password and details." });
+            login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
         }
-      } else { // Case 1b: They exist but have no password. This is their first login to set it up.
-        toast({ title: "Welcome!", description: "Please set up your company password and details." });
-        login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
-      }
     } else { // Case 2: New User (self-registration)
-      toast({ title: "Welcome!", description: "Please set up your company details to get started." });
-      login('entity', { mobileNumber: data.mobileNumber, companyName: "New Company" }); // Pass new user data
+        toast({ title: "Welcome!", description: "Please set up your company details to get started." });
+        login('entity', { mobileNumber: data.mobileNumber, companyName: "New Company" }); // Pass new user data
     }
     
     setIsSubmitting(false);
@@ -176,9 +177,9 @@ export default function LoginPage() {
                         onLogin={handleEntityLogin}
                         fields={[
                             { name: "mobileNumber", label: "Mobile Number", type: "tel", placeholder: "9876543210" },
-                            { name: "password", label: "Password", type: "password", placeholder: "••••••••" },
+                            { name: "password", label: "Password (optional for new users)", type: "password", placeholder: "••••••••" },
                         ]}
-                        isSubmitting={isSubmitting || isLoadingEntities}
+                        isSubmitting={isLoadingEntities || isSubmitting}
                         buttonText={isLoadingEntities ? "Loading..." : "Login as Entity"}
                     />
                 </CardContent>
@@ -210,5 +211,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
