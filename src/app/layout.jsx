@@ -52,8 +52,8 @@ const fetchAllEntities = async () => {
         console.error("Failed to fetch entities");
         return [];
     }
-    const data = await response.json();
-    return data.data || []; // <-- Return the 'data' property
+    const result = await response.json();
+    return result.data || [];
   } catch (error) {
     console.error("Error fetching entities:", error);
     return [];

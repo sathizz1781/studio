@@ -29,7 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const entityLoginSchema = z.object({
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
-  password: z.string(), // Password can be empty for first-time login
+  password: z.string(), // Can be empty
 });
 
 const developerLoginSchema = z.object({
@@ -81,49 +81,57 @@ const LoginForm = ({ schema, onLogin, fields, isSubmitting, buttonText }) => {
 };
 
 export default function LoginPage() {
-  const { login, entities: allEntities, fetchAllEntities } = useAppContext();
+  const { login } = useAppContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [entities, setEntities] = useState([]);
   const [isLoadingEntities, setIsLoadingEntities] = useState(true);
 
+  // Fetch all entities when the component mounts
   useEffect(() => {
     async function loadEntities() {
       setIsLoadingEntities(true);
-      const fetchedEntities = await fetchAllEntities();
-      setEntities(fetchedEntities);
-      setIsLoadingEntities(false);
+      try {
+        const response = await fetch('https://bend-mqjz.onrender.com/api/config/get');
+        if (response.ok) {
+          const result = await response.json();
+          setEntities(result.data || []);
+        } else {
+          setEntities([]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch entities on login page:", error);
+        setEntities([]);
+      } finally {
+        setIsLoadingEntities(false);
+      }
     }
     loadEntities();
-  }, [fetchAllEntities]);
+  }, []);
 
   const handleEntityLogin = async (data, toast) => {
     setIsSubmitting(true);
 
     const entity = entities.find((e) => e.mobileNumber === data.mobileNumber);
-
-    if (entity) {
-      // Case 1: Existing Entity found.
+    
+    if (entity) { // Case 1: Existing User
       if (entity.isBlocked) {
         toast({ variant: "destructive", title: "Account Blocked", description: "Your account has been blocked. Please contact support." });
-      } else if (entity.password) {
-        // Case 1a: They have a password. It must match.
+      } else if (entity.password) { // Case 1a: They have a password, so it must match
         if (entity.password === data.password) {
           toast({ title: "Login Successful", description: "Welcome back!" });
           login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
         } else {
           toast({ variant: "destructive", title: "Login Failed", description: "Invalid mobile number or password." });
         }
-      } else {
-        // Case 1b: They exist but have no password. This is their first login.
+      } else { // Case 1b: They exist but have no password. This is their first login to set it up.
         toast({ title: "Welcome!", description: "Please set up your company password and details." });
         login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
       }
-    } else {
-      // Case 2: New Entity (self-registration).
+    } else { // Case 2: New User (self-registration)
       toast({ title: "Welcome!", description: "Please set up your company details to get started." });
-      login('entity', { mobileNumber: data.mobileNumber, companyName: "New Company" });
+      login('entity', { mobileNumber: data.mobileNumber, companyName: "New Company" }); // Pass new user data
     }
-
+    
     setIsSubmitting(false);
   };
   
@@ -202,3 +210,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
