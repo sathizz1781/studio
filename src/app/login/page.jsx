@@ -102,35 +102,28 @@ export default function LoginPage() {
     const entity = entities.find((e) => e.mobileNumber === data.mobileNumber);
 
     if (entity) {
-      // Existing entity: check password
-      if (entity.password === data.password) {
-        if (entity.isBlocked) {
-          toast({
-            variant: "destructive",
-            title: "Account Blocked",
-            description: "Your account has been blocked. Please contact support.",
-          });
+      // Case 1: Existing Entity
+      if (entity.password) {
+        // Case 1a: They have a password set, so we must check it
+        if (entity.password === data.password) {
+          if (entity.isBlocked) {
+            toast({ variant: "destructive", title: "Account Blocked", description: "Your account has been blocked. Please contact support." });
+          } else {
+            toast({ title: "Login Successful", description: "Welcome back!" });
+            login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
+          }
         } else {
-          toast({
-            title: "Login Successful",
-            description: "Welcome back!",
-          });
-          login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
+          toast({ variant: "destructive", title: "Login Failed", description: "Invalid mobile number or password." });
         }
       } else {
-        toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: "Invalid mobile number or password.",
-        });
+        // Case 1b: They exist but have no password. This is their first login after creation by developer.
+        // Let them in with any password, but they will be forced to configure.
+        toast({ title: "Welcome!", description: "Please set up your company password and details." });
+        login('entity', { _id: entity._id, companyName: entity.companyName, mobileNumber: entity.mobileNumber });
       }
     } else {
-      // New entity: first-time login
-      toast({
-        title: "Welcome!",
-        description: "Please set up your company details and password.",
-      });
-      // Log in with a temporary session, user will be forced to configure
+      // Case 2: New Entity (first-time login, self-registration)
+      toast({ title: "Welcome!", description: "Please set up your company details and password." });
       login('entity', { mobileNumber: data.mobileNumber });
     }
 
