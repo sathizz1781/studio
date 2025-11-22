@@ -89,7 +89,7 @@ export default function CustomerPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   
-  const isReadOnly = user?.role === 'entity' && !config?.password;
+  const isReadOnly = false;
 
 
   const form = useForm({
@@ -248,15 +248,7 @@ export default function CustomerPage() {
 
   return (
     <div className="container mx-auto py-4">
-      {isReadOnly && (
-         <Alert variant="destructive" className="mb-6">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Account Setup Required</AlertTitle>
-            <AlertDescription>
-                Customer management is disabled until you set a password on the <a href="/config" className="font-bold underline">Configuration page</a>.
-            </AlertDescription>
-        </Alert>
-      )}
+      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div>
             <h1 className="text-3xl font-bold">Customers</h1>
@@ -480,7 +472,3 @@ export default function CustomerPage() {
     </div>
   );
 }
-
-    
-
-    
