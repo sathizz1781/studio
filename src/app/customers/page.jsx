@@ -176,7 +176,7 @@ export default function CustomerPage() {
     
     const payload = editingCustomer 
         ? { ...data } 
-        : { ...data, customerId: `CUST${10000 + (customers.length + 1)}`, wb_number };
+        : { ...data, customerId: `CUST${10000 + (customers.length + 1)}`, wb_number: wb_number };
         
     try {
       await axios[apiMethod](apiEndpoint, payload);
@@ -472,3 +472,5 @@ export default function CustomerPage() {
     </div>
   );
 }
+
+    
