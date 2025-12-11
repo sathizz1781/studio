@@ -54,10 +54,7 @@ export function ReportsTable() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedRows, setSelectedRows] = useState(new Set());
-  const [dateRange, setDateRange] = useState({
-    from: startOfDay(new Date()),
-    to: endOfDay(new Date()),
-  });
+  const [dateRange, setDateRange] = useState(null);
   const [vehicleNumberFilter, setVehicleNumberFilter] = useState("");
   const [partyNameFilter, setPartyNameFilter] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -80,6 +77,14 @@ export function ReportsTable() {
     }
   }, [wb_number, user?.role, entities, selectedWbNumber]);
 
+  // Set initial date range on client to avoid hydration mismatch
+  useEffect(() => {
+    setDateRange({
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    });
+  }, []);
+
   const fetchCustomers = useCallback(async () => {
     if (!selectedWbNumber) {
         setCustomers([]);
@@ -100,9 +105,8 @@ export function ReportsTable() {
   }, [selectedWbNumber]);
 
   const fetchRecords = useCallback(async () => {
-    if (!selectedWbNumber) {
+    if (!selectedWbNumber || !dateRange) { // Don't fetch if dependencies aren't ready
         setData([]);
-        setIsLoading(false);
         return;
     }
 
@@ -147,11 +151,14 @@ export function ReportsTable() {
   }, [dateRange, vehicleNumberFilter, partyNameFilter, selectedCustomerId, toast, selectedWbNumber]);
 
   useEffect(() => {
-    fetchRecords();
+    // This effect now depends on dateRange, which is set on mount.
+    if(dateRange){
+      fetchRecords();
+    }
     if(selectedWbNumber) {
       fetchCustomers();
     }
-  }, [fetchRecords, fetchCustomers, selectedWbNumber]);
+  }, [fetchRecords, fetchCustomers, selectedWbNumber, dateRange]);
   
   const handleUpdatePayment = async () => {
     if (selectedRows.size === 0) {
@@ -493,5 +500,3 @@ export function ReportsTable() {
     </div>
   );
 }
-
-    
