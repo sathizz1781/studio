@@ -108,7 +108,7 @@ const formSchema = z.object({
   whatsappNumber: z.string().regex(/^\d{10,15}$/, {
     message: "Please enter a valid 10 to 15 digit phone number.",
   }).optional().or(z.literal('')),
-  paymentStatus: z.enum(["Paid", "Credit", "Online"], {
+  paymentStatus: z.enum(["Paid", "Credit"], {
     required_error: "You need to select a payment status.",
   }),
   customerId: z.string().optional(),
@@ -734,12 +734,6 @@ const BillContent = ({
                         </FormControl>
                         <FormLabel className="font-normal">{translations.weighbridge_form.credit}</FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="Online" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Online</FormLabel>
-                      </FormItem>
                     </RadioGroup>
                   </FormControl>
                   <FormMessage />
@@ -1267,7 +1261,7 @@ export function WeighbridgeForm() {
       material: latestValues.materialName,
       party: latestValues.partyName,
       charges: latestValues.charges || 0,
-      paidStatus: latestValues.paymentStatus === "Paid" || latestValues.paymentStatus === "Online",
+      paidStatus: latestValues.paymentStatus === "Paid",
       firstWeight: latestValues.firstWeight,
       secondWeight: latestValues.secondWeight,
       netWeight: netWeight,
@@ -1522,5 +1516,3 @@ Thank you!
     </div>
   );
 }
-
-    
