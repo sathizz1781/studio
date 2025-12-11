@@ -240,7 +240,7 @@ function LayoutContent({ children }) {
   if (!user && pathname !== '/login') {
      return (
         <html lang="en" suppressHydrationWarning>
-            <body className={cn("min-h-screen bg-background font-body antialiased", fontInter.variable)}>
+            <body suppressHydrationWarning={true} className={cn("min-h-screen bg-background font-body antialiased", fontInter.variable)}>
                 {children}
                 <Toaster />
             </body>
@@ -251,7 +251,7 @@ function LayoutContent({ children }) {
   if (!user && pathname === '/login') {
       return (
         <html lang="en" suppressHydrationWarning>
-            <body className={cn("min-h-screen bg-background font-body antialiased", fontInter.variable)}>
+            <body suppressHydrationWarning={true} className={cn("min-h-screen bg-background font-body antialiased", fontInter.variable)}>
                 {children}
                 <Toaster />
             </body>
