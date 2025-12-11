@@ -26,6 +26,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, LogIn } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRouter } from "next/navigation";
+
 
 const entityLoginSchema = z.object({
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
@@ -83,6 +85,7 @@ const LoginForm = ({ schema, onLogin, fields, isSubmitting, buttonText }) => {
 export default function LoginPage() {
   const { login } = useAppContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
   const handleEntityLogin = async (data, toast) => {
     setIsSubmitting(true);
@@ -91,25 +94,39 @@ export default function LoginPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                mobileNumber: data.mobileNumber,
+                phoneNumber: data.mobileNumber,
                 password: data.password,
             }),
         });
 
         const result = await response.json();
 
+        if (response.status === 401 || response.status === 403) {
+             throw new Error(result.message || "Authentication failed.");
+        }
+        
         if (!response.ok) {
-            // If the user needs to complete their profile (e.g., no password set)
-            if (response.status === 403 && result.redirect_to_config) {
+            throw new Error(result.message || "An unknown error occurred.");
+        }
+
+        if (result.success) {
+            if (result.message === "New User") {
                 toast({ title: "Welcome!", description: "Please complete your company setup." });
-                login('entity', { mobileNumber: data.mobileNumber, companyName: "New Company" });
-            } else {
-                 throw new Error(result.message || "Invalid mobile number or password.");
+                // Log in with minimal data, the user will be forced to the config page
+                login('entity', { mobileNumber: data.mobileNumber });
+                router.push("/config");
+            } else if (result.message === "Login successful") {
+                // Fetch full config for existing user
+                 const configResponse = await fetch(`https://bend-mqjz.onrender.com/api/config/get/${data.mobileNumber}`);
+                 if (!configResponse.ok) {
+                    throw new Error("Could not fetch user profile after login.");
+                 }
+                 const configData = await configResponse.json();
+                 toast({ title: "Login Successful", description: "Welcome back!" });
+                 login('entity', configData.data); // Login with full entity object
             }
         } else {
-            // Successful login
-            toast({ title: "Login Successful", description: "Welcome back!" });
-            login('entity', result.data); // API returns the full entity object
+            throw new Error(result.message || "Login failed due to an unknown reason.");
         }
 
     } catch (error) {
@@ -155,7 +172,7 @@ export default function LoginPage() {
                 <CardHeader>
                   <CardTitle className="text-2xl">Entity Login</CardTitle>
                   <CardDescription>
-                    Enter your mobile number and password to access your weighbridge.
+                    Enter your mobile number to get started. Password is only required for existing accounts.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
