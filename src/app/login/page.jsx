@@ -85,7 +85,6 @@ const LoginForm = ({ schema, onLogin, fields, isSubmitting, buttonText }) => {
 export default function LoginPage() {
   const { login } = useAppContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const router = useRouter();
 
   const handleEntityLogin = async (data, toast) => {
     setIsSubmitting(true);
@@ -101,27 +100,13 @@ export default function LoginPage() {
 
         const result = await response.json();
         
-        if (!response.ok) {
+        if (!result.success) {
              throw new Error(result.message || "Authentication failed.");
         }
 
-        if (result.success) {
-            if (result.message === "New User") {
-                toast({ title: "Welcome!", description: "Please complete your company setup." });
-                login('entity', { mobileNumber: data.mobileNumber });
-                router.push("/config");
-            } else if (result.message === "Login successful") {
-                 const configResponse = await fetch(`https://bend-mqjz.onrender.com/api/config/get/singleRecord/${data.mobileNumber}`);
-                 if (!configResponse.ok) {
-                    throw new Error("Could not fetch user profile after login.");
-                 }
-                 const configData = await configResponse.json();
-                 toast({ title: "Login Successful", description: "Welcome back!" });
-                 login('entity', configData.data); 
-            }
-        } else {
-            throw new Error(result.message || "Login failed due to an unknown reason.");
-        }
+        // The 'login' function in context will handle fetching data and routing
+        await login('entity', { mobileNumber: data.mobileNumber });
+        toast({ title: result.message, description: "Welcome!" });
 
     } catch (error) {
         toast({
@@ -134,14 +119,14 @@ export default function LoginPage() {
     }
   };
   
-  const handleDeveloperLogin = (data, toast) => {
+  const handleDeveloperLogin = async (data, toast) => {
     setIsSubmitting(true);
     if (data.username === "developer" && data.password === "devpassword") {
       toast({
         title: "Developer Login Successful",
         description: "Welcome, developer!",
       });
-      login('developer');
+      await login('developer', {});
     } else {
       toast({
         variant: "destructive",
@@ -174,7 +159,7 @@ export default function LoginPage() {
                         onLogin={handleEntityLogin}
                         fields={[
                             { name: "mobileNumber", label: "Mobile Number", type: "tel", placeholder: "9876543210" },
-                            { name: "password", label: "Password (optional)", type: "password", placeholder: "••••••••" },
+                            { name: "password", label: "Password (optional for new users)", type: "password", placeholder: "••••••••" },
                         ]}
                         isSubmitting={isSubmitting}
                         buttonText="Login as Entity"

@@ -44,10 +44,7 @@ export const useAppContext = () => useContext(AppContext);
 // Function to fetch all entities
 const fetchAllEntities = async () => {
   try {
-    const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-    });
+    const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get`);
     if (!response.ok) {
         console.error("Failed to fetch entities");
         return [];
@@ -78,19 +75,23 @@ const AppProvider = ({ children }) => {
     setLanguage(storedLang);
     
     const initializeData = async () => {
-        const storedUser = JSON.parse(localStorage.getItem("user"));
+        const storedUserJSON = localStorage.getItem("user");
+        const storedUser = storedUserJSON ? JSON.parse(storedUserJSON) : null;
         
         if (storedUser) {
-            setUser(storedUser);
+            setUser(storedUser); // Set user state immediately
             if (storedUser.role === 'developer') {
                  const allEntities = await fetchAllEntities();
                  setEntities(allEntities);
             } else if (storedUser.role === 'entity' && storedUser.mobileNumber) {
                  try {
-                    const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get/${storedUser.mobileNumber}`);
+                    const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get/singleRecord/${storedUser.mobileNumber}`);
                     if (response.ok) {
                         const result = await response.json();
                         setConfig(result.data || {});
+                    } else {
+                        // If config fails to load, maybe the user needs to complete it
+                         if (pathname !== '/config') router.push('/config');
                     }
                  } catch (error) {
                     console.error("Failed to fetch entity config on load:", error);
@@ -118,21 +119,38 @@ const AppProvider = ({ children }) => {
     localStorage.setItem("language", language);
   }, [language]);
   
-  const login = async (role, userData = {}) => {
-    // For entity, userData is the full config object.
-    // For developer, userData is empty.
+  const login = async (role, userData) => {
     const sessionData = { role, ...userData };
     localStorage.setItem("user", JSON.stringify(sessionData));
     setUser(sessionData);
 
-    if (role === 'entity') {
-        setConfig(userData);
-    } else if (role === 'developer') {
+    if (role === 'developer') {
         const allEntities = await fetchAllEntities();
         setEntities(allEntities);
+        router.push("/");
+    } else if (role === 'entity') {
+        // After login, fetch the full config to populate the context
+        try {
+            const configResponse = await fetch(`https://bend-mqjz.onrender.com/api/config/get/singleRecord/${userData.mobileNumber}`);
+            const configResult = await configResponse.json();
+            if (configResponse.ok && configResult.data) {
+                setConfig(configResult.data);
+                // If they have a password, they are existing. Go to Biller.
+                if (configResult.data.password) {
+                   router.push("/");
+                } else {
+                   router.push("/config");
+                }
+            } else {
+                // New user or incomplete config, go to config page
+                setConfig({ mobileNumber: userData.mobileNumber });
+                router.push("/config");
+            }
+        } catch (error) {
+            console.error("Error fetching config post-login:", error);
+            router.push("/login"); // Fallback
+        }
     }
-
-    router.push("/");
   };
 
   const logout = () => {
@@ -158,8 +176,8 @@ const AppProvider = ({ children }) => {
 
   const saveConfig = (newConfig) => {
      setConfig(prev => ({...prev, ...newConfig}));
-     if (user && user.role === 'entity') {
-        const entityToUpdate = entities.find(e => e.mobileNumber === user.mobileNumber);
+     if (user && user.role === 'developer') {
+        const entityToUpdate = entities.find(e => e.mobileNumber === newConfig.mobileNumber);
         if (entityToUpdate) {
             updateEntity(entityToUpdate._id, newConfig);
         }
@@ -219,7 +237,7 @@ function LayoutContent({ children }) {
   const navLinks = user?.role === 'developer' ? developerNavLinks : user?.role === 'entity' ? entityNavLinks : baseNavLinks;
 
 
-  if (!user) {
+  if (!user && pathname !== '/login') {
      return (
         <html lang="en" suppressHydrationWarning>
             <body className={cn("min-h-screen bg-background font-body antialiased", fontInter.variable)}>
@@ -229,6 +247,18 @@ function LayoutContent({ children }) {
         </html>
      );
   }
+  
+  if (!user && pathname === '/login') {
+      return (
+        <html lang="en" suppressHydrationWarning>
+            <body className={cn("min-h-screen bg-background font-body antialiased", fontInter.variable)}>
+                {children}
+                <Toaster />
+            </body>
+        </html>
+     );
+  }
+  
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -351,5 +381,3 @@ function LayoutContent({ children }) {
     </html>
   );
 }
-
-    

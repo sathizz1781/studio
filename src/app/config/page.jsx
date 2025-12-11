@@ -72,7 +72,7 @@ const SubscriptionReminder = ({ subscriptionEndDate }) => {
 export default function ConfigPage() {
   const { user, config, saveConfig, wb_number, logout } = useAppContext();
   const { toast } = useToast();
-  const [isPasswordEditable, setIsPasswordEditable] = useState(!config.password);
+  const [isPasswordEditable, setIsPasswordEditable] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(configSchema),
@@ -82,31 +82,39 @@ export default function ConfigPage() {
   const { formState: { isSubmitting }, reset } = form;
 
   useEffect(() => {
-    if (user?.role === 'entity') {
-        reset(config);
-        // New users have no password, so the field should be editable.
-        // Existing users must click to edit.
-        setIsPasswordEditable(!config.password);
-    }
-  }, [config, reset, user]);
+     // Always reset form when config from context changes.
+     // This ensures it populates on initial load after login.
+    reset(config);
+    // New users have no password, so the field should be editable.
+    // Existing users must click to edit.
+    setIsPasswordEditable(!config.password);
+  }, [config, reset]);
 
   const onSubmit = async (data) => {
+    const mobileNumber = user?.mobileNumber;
+    if (!mobileNumber) {
+        toast({ variant: "destructive", title: "Error", description: "User phone number not found."});
+        return;
+    }
+
     const dataToSave = {
         companyName: data.companyName,
         upiId: data.upiId,
         email: data.email,
         serialHost: data.serialHost,
-        mobileNumber: wb_number, // The non-editable phone number
+        mobileNumber: mobileNumber, 
     };
 
-    if (data.password) {
+    // Only include the password if the user is editing it and has entered a value
+    if (isPasswordEditable && data.password) {
         dataToSave.password = data.password;
     }
     
+    // An existing config will have an _id property.
     const isUpdating = !!config._id;
     
     const apiEndpoint = isUpdating 
-        ? `https://bend-mqjz.onrender.com/api/config/update/${wb_number}`
+        ? `https://bend-mqjz.onrender.com/api/config/update/${mobileNumber}`
         : "https://bend-mqjz.onrender.com/api/config/create";
         
     const apiMethod = isUpdating ? 'PUT' : 'POST';
@@ -125,29 +133,29 @@ export default function ConfigPage() {
 
       const responseData = await saveResponse.json();
       const finalData = responseData.data || dataToSave;
-      // Ensure the returned password (if any) is part of the final saved config
-      if (dataToSave.password) {
-        finalData.password = dataToSave.password;
-      }
+      
+      // Update local context with new data
       saveConfig(finalData); 
       
-      if (data.password && !isUpdating) {
+      if (isPasswordEditable && data.password && !isUpdating) {
          toast({
             title: "Configuration Saved",
             description: "Your settings have been saved. You can now start creating bills.",
         });
-      } else if (data.password && isUpdating) {
+      } else if (isPasswordEditable && data.password && isUpdating) {
         toast({
             title: "Password Changed",
             description: "You have been logged out for security. Please log in again with your new password.",
         });
         logout(); // Logout the user
+        return;
       } else {
         toast({
             title: "Configuration Updated",
             description: "Your settings have been updated successfully.",
         });
       }
+      
       // After a successful save, if a password was set, make the field non-editable.
       if (finalData.password) {
         setIsPasswordEditable(false);
@@ -194,7 +202,7 @@ export default function ConfigPage() {
                   <Label>Phone Number</Label>
                   <div className="flex items-center gap-2 p-3 bg-muted rounded-lg text-foreground">
                     <Phone className="h-5 w-5 text-primary" />
-                    <span>{wb_number || 'Loading...'}</span>
+                    <span>{user?.mobileNumber || 'Loading...'}</span>
                   </div>
                    <p className="text-xs text-muted-foreground">This is your unique identifier and cannot be changed.</p>
                </div>
@@ -251,7 +259,10 @@ export default function ConfigPage() {
                         <Input 
                             type="password" 
                             placeholder={isPasswordEditable ? "Enter new password" : "••••••••"} 
-                            {...field} 
+                            {...field}
+                            // Clear the value when it becomes non-editable to not hold password in form state
+                            onChange={(e) => isPasswordEditable ? field.onChange(e.target.value) : field.onChange("")}
+                            value={isPasswordEditable ? field.value : ""}
                             disabled={!isPasswordEditable}
                         />
                       </FormControl>
