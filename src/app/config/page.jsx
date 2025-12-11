@@ -26,8 +26,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, AlertCircle, CalendarClock, Phone } from "lucide-react";
-import { useEffect } from "react";
+import { Loader2, Save, AlertCircle, CalendarClock, Phone, Edit } from "lucide-react";
+import { useEffect, useState } from "react";
 import { differenceInDays, parseISO, format } from "date-fns";
 
 const configSchema = z.object({
@@ -72,6 +72,7 @@ const SubscriptionReminder = ({ subscriptionEndDate }) => {
 export default function ConfigPage() {
   const { user, config, saveConfig, wb_number, logout } = useAppContext();
   const { toast } = useToast();
+  const [isPasswordEditable, setIsPasswordEditable] = useState(!config.password);
 
   const form = useForm({
     resolver: zodResolver(configSchema),
@@ -83,6 +84,9 @@ export default function ConfigPage() {
   useEffect(() => {
     if (user?.role === 'entity') {
         reset(config);
+        // New users have no password, so the field should be editable.
+        // Existing users must click to edit.
+        setIsPasswordEditable(!config.password);
     }
   }, [config, reset, user]);
 
@@ -120,7 +124,12 @@ export default function ConfigPage() {
       }
 
       const responseData = await saveResponse.json();
-      saveConfig(responseData.data || dataToSave); 
+      const finalData = responseData.data || dataToSave;
+      // Ensure the returned password (if any) is part of the final saved config
+      if (dataToSave.password) {
+        finalData.password = dataToSave.password;
+      }
+      saveConfig(finalData); 
       
       if (data.password && !isUpdating) {
          toast({
@@ -138,6 +147,10 @@ export default function ConfigPage() {
             title: "Configuration Updated",
             description: "Your settings have been updated successfully.",
         });
+      }
+      // After a successful save, if a password was set, make the field non-editable.
+      if (finalData.password) {
+        setIsPasswordEditable(false);
       }
 
     } catch (error) {
@@ -181,7 +194,7 @@ export default function ConfigPage() {
                   <Label>Phone Number</Label>
                   <div className="flex items-center gap-2 p-3 bg-muted rounded-lg text-foreground">
                     <Phone className="h-5 w-5 text-primary" />
-                    <span>{wb_number}</span>
+                    <span>{wb_number || 'Loading...'}</span>
                   </div>
                    <p className="text-xs text-muted-foreground">This is your unique identifier and cannot be changed.</p>
                </div>
@@ -230,12 +243,31 @@ export default function ConfigPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>New Password (Optional)</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="Leave blank to keep current password" {...field} />
-                    </FormControl>
+                    <FormLabel>
+                      {config.password ? 'Password' : 'Set a Password'}
+                    </FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Input 
+                            type="password" 
+                            placeholder={isPasswordEditable ? "Enter new password" : "••••••••"} 
+                            {...field} 
+                            disabled={!isPasswordEditable}
+                        />
+                      </FormControl>
+                      {config.password && !isPasswordEditable && (
+                        <Button type="button" variant="outline" size="icon" onClick={() => setIsPasswordEditable(true)}>
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                      <FormMessage />
-                     <p className="text-xs text-muted-foreground">Set a password to secure your account. If you change it, you will be logged out.</p>
+                     <p className="text-xs text-muted-foreground">
+                        {config.password 
+                            ? 'Click the edit icon to change your password. You will be logged out after changing it.'
+                            : 'Set a password to secure your account. This is required to create bills.'
+                        }
+                     </p>
                   </FormItem>
                 )}
               />
@@ -270,5 +302,3 @@ export default function ConfigPage() {
     </div>
   );
 }
-
-    

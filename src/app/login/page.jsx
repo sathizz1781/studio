@@ -111,7 +111,7 @@ export default function LoginPage() {
                 login('entity', { mobileNumber: data.mobileNumber });
                 router.push("/config");
             } else if (result.message === "Login successful") {
-                 const configResponse = await fetch(`https://bend-mqjz.onrender.com/api/config/get/${data.mobileNumber}`);
+                 const configResponse = await fetch(`https://bend-mqjz.onrender.com/api/config/get/singleRecord/${data.mobileNumber}`);
                  if (!configResponse.ok) {
                     throw new Error("Could not fetch user profile after login.");
                  }
@@ -208,5 +208,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
