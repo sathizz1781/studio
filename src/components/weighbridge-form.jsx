@@ -99,9 +99,11 @@ const formSchema = z.object({
     .optional(),
   firstWeight: z.coerce
     .number({ invalid_type_error: "Please enter a valid number." })
+    .int("Weight must be a whole number.")
     .nonnegative("Weight must be a positive number."),
   secondWeight: z.coerce
     .number({ invalid_type_error: "Please enter a valid number." })
+    .int("Weight must be a whole number.")
     .nonnegative("Weight must be a positive number."),
   whatsappNumber: z.string().regex(/^\d{10,15}$/, {
     message: "Please enter a valid 10 to 15 digit phone number.",
@@ -658,7 +660,7 @@ const BillContent = ({
               <FormControl>
                 <Input
                   type="number"
-                  step="0.01"
+                  step="1"
                   placeholder="e.g., 5000"
                   {...field}
                   disabled={isFormDisabled}
@@ -680,7 +682,7 @@ const BillContent = ({
               <FormControl>
                 <Input
                   type="number"
-                  step="0.01"
+                  step="1"
                   placeholder="e.g., 2000"
                   {...field}
                   disabled={isFormDisabled}
@@ -982,7 +984,7 @@ export function WeighbridgeForm() {
     const fw = Number(firstWeight) || 0;
     const sw = Number(secondWeight) || 0;
     const newNetWeight = Math.abs(fw - sw);
-    setNetWeight(parseFloat(newNetWeight.toFixed(3)));
+    setNetWeight(parseFloat(newNetWeight.toFixed(0)));
   }, [firstWeight, secondWeight]);
   
   useEffect(() => {
