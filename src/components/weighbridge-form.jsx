@@ -425,7 +425,7 @@ const BillContent = ({
           </div>
       )}
       
-      {isFormDisabled && (
+      {isFormDisabled && selectedWbNumber && (
         <Alert variant="destructive" className="mb-6">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Account Setup Required</AlertTitle>
@@ -848,7 +848,7 @@ export function WeighbridgeForm() {
   const [customers, setCustomers] = useState([]);
   const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
   const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   // For developer entity selection
   const [selectedWbNumber, setSelectedWbNumber] = useState(wb_number);
@@ -904,11 +904,7 @@ export function WeighbridgeForm() {
     const fetchNewSerialNumber = useCallback(async () => {
       if (!currentWbNumber) return;
         try {
-            const response = await fetch(`https://bend-mqjz.onrender.com/api/wb/getlastbill/${currentWbNumber}`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-              
-            });
+            const response = await fetch(`https://bend-mqjz.onrender.com/api/wb/getlastbill/${currentWbNumber}`);
             if (!response.ok) throw new Error('Failed to fetch serial');
             const data = await response.json();
             const lastSerialNumber = data?.data?.sl_no;
@@ -924,12 +920,13 @@ export function WeighbridgeForm() {
 
   // Effect for developer role to set initial selected entity
   useEffect(() => {
+    setIsClient(true);
     if (user?.role === 'developer' && entities.length > 0 && !selectedWbNumber) {
         setSelectedWbNumber(entities[0].mobileNumber);
     } else if (user?.role === 'entity') {
         setSelectedWbNumber(wb_number);
     }
-  }, [user, entities, wb_number, selectedWbNumber]);
+  }, [user?.role, entities, wb_number, selectedWbNumber]);
   
   // Effect to update the active config when selection changes
   useEffect(() => {
@@ -939,18 +936,19 @@ export function WeighbridgeForm() {
       } else {
           setActiveEntityConfig(config);
       }
-  }, [selectedWbNumber, entities, user, config]);
+  }, [selectedWbNumber, entities, user?.role, config]);
 
+  // Effect to initialize or re-initialize the form when the current wb_number changes.
   useEffect(() => {
-    setIsClient(true);
     const initializeForm = async () => {
       if (!currentWbNumber) {
-        setIsInitializing(false);
+        // If there's no entity to work with, clear customers and don't initialize
+        setCustomers([]);
         return;
       };
 
       setIsInitializing(true);
-      handleReset(); // Clear form before initializing
+      await handleReset(); // Clear form before initializing for a new entity
       try {
         const customerPromise = fetch(`https://bend-mqjz.onrender.com/api/user/userlist/${currentWbNumber}`)
           .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch customers'))
@@ -975,8 +973,10 @@ export function WeighbridgeForm() {
       }
     };
 
-    initializeForm();
-  }, [currentWbNumber, setInitialDateTime, toast]);
+    if (isClient) {
+      initializeForm();
+    }
+  }, [currentWbNumber, isClient]);
 
   useEffect(() => {
     const fw = Number(firstWeight) || 0;
@@ -986,8 +986,9 @@ export function WeighbridgeForm() {
   }, [firstWeight, secondWeight]);
   
   useEffect(() => {
-    const upiID = activeEntityConfig?.upiId || "default@upi";
-    const businessName = activeEntityConfig?.companyName || "My Company";
+    if (!activeEntityConfig) return;
+    const upiID = activeEntityConfig.upiId || "default@upi";
+    const businessName = activeEntityConfig.companyName || "My Company";
     const defaultUpiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&cu=INR`;
 
     const numericCharges = Number(charges);
@@ -1102,6 +1103,8 @@ export function WeighbridgeForm() {
 
   const handleReset = useCallback(async () => {
     reset({
+      serialNumber: "",
+      dateTime: "",
       vehicleNumber: "",
       partyName: "",
       materialName: "",
@@ -1116,13 +1119,7 @@ export function WeighbridgeForm() {
     setPreviousWeights(null);
     setSelectedCustomerForDisplay(null);
     setChargeExtremes(null);
-    if (isClient && currentWbNumber) {
-       setIsInitializing(true);
-       await fetchNewSerialNumber();
-       setInitialDateTime();
-       setIsInitializing(false);
-    }
-  }, [reset, isClient, fetchNewSerialNumber, setInitialDateTime, currentWbNumber]);
+  }, [reset]);
 
   const findBill = async () => {
     if (!isClient || !reprintSerial) return;
@@ -1348,7 +1345,12 @@ Thank you!
 
   const handleTouchEnd = () => {
     if (isRefreshing) {
-      handleReset();
+      const reinitialize = async () => {
+          await handleReset();
+          await fetchNewSerialNumber();
+          setInitialDateTime();
+      }
+      reinitialize();
       toast({ title: "Refreshed", description: "New bill ready." });
     }
     setIsRefreshing(false);
@@ -1374,13 +1376,11 @@ Thank you!
       className="relative"
     >
       <Card className="w-full max-w-4xl printable-card shadow-2xl">
-        {(isInitializing || (isClient && !currentWbNumber)) && (
+        {isInitializing && (
              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
                 <div className="text-center">
                     <Loader2 className="h-10 w-10 text-primary animate-spin mx-auto" />
-                    <p className="mt-2 text-muted-foreground">
-                        {isClient && !currentWbNumber ? (user?.role === 'developer' ? "Please select an entity." : "Waiting for entity login...") : "Initializing..."}
-                    </p>
+                    <p className="mt-2 text-muted-foreground">Initializing for selected entity...</p>
                 </div>
              </div>
         )}
@@ -1392,7 +1392,8 @@ Thank you!
             {isClient && <LiveClock />}
           </CardTitle>
           <CardDescription>
-            {user?.role === 'developer' ? 'Select an entity to create a bill on their behalf.' : translations.weighbridge_form.description}
+            {user?.role === 'developer' && entities.length > 0 ? 'Select an entity to create a bill on their behalf.' : translations.weighbridge_form.description}
+            {user?.role === 'developer' && entities.length === 0 && 'No entities found to bill for.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1422,7 +1423,7 @@ Thank you!
                     qrCodeUrl={qrCodeUrl}
                     setIsShareLocationOpen={setIsShareLocationOpen}
                     translations={translations}
-                    isFormDisabled={isFormDisabled}
+                    isFormDisabled={isFormDisabled || !currentWbNumber}
                     user={user}
                     entities={entities}
                     selectedWbNumber={selectedWbNumber}
@@ -1442,7 +1443,7 @@ Thank you!
                     </Link>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                        <Button type="button" variant="outline" className="w-full sm:w-auto">
+                        <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={!currentWbNumber}>
                             <RefreshCcw className="mr-2 h-4 w-4" />
                             {translations.weighbridge_form.reprint_bill}
                         </Button>
@@ -1513,4 +1514,6 @@ Thank you!
   );
 }
     
+    
+
     
