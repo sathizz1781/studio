@@ -35,6 +35,7 @@ import {
   Loader2,
   Search,
   CreditCard,
+  Users,
 } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ import * as XLSX from "xlsx";
 export function ReportsTable() {
   const { user, entities, wb_number, config } = useAppContext();
   const [data, setData] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedRows, setSelectedRows] = useState(new Set());
@@ -58,6 +60,7 @@ export function ReportsTable() {
   });
   const [vehicleNumberFilter, setVehicleNumberFilter] = useState("");
   const [partyNameFilter, setPartyNameFilter] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const { toast } = useToast();
   
   const [selectedWbNumber, setSelectedWbNumber] = useState(wb_number || "");
@@ -77,6 +80,25 @@ export function ReportsTable() {
     }
   }, [wb_number, user?.role, entities, selectedWbNumber]);
 
+  const fetchCustomers = useCallback(async () => {
+    if (!selectedWbNumber) {
+        setCustomers([]);
+        return;
+    }
+    try {
+      const response = await fetch(`https://bend-mqjz.onrender.com/api/user/userlist/${selectedWbNumber}`);
+      if(response.ok) {
+        const result = await response.json();
+        setCustomers(result.users || []);
+      } else {
+        setCustomers([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch customers for filter:", error);
+      setCustomers([]);
+    }
+  }, [selectedWbNumber]);
+
   const fetchRecords = useCallback(async () => {
     if (!selectedWbNumber) {
         setData([]);
@@ -92,13 +114,10 @@ export function ReportsTable() {
         wb_number: selectedWbNumber,
       };
 
-      if (vehicleNumberFilter) {
-        query.vehicleNo = vehicleNumberFilter;
-      }
-      
-      if (partyNameFilter) {
-        query.partyName = partyNameFilter;
-      }
+      if (vehicleNumberFilter) query.vehicleNo = vehicleNumberFilter;
+      if (partyNameFilter) query.partyName = partyNameFilter;
+      if (selectedCustomerId) query.customerId = selectedCustomerId;
+
 
       const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getrecords", {
           method: 'POST',
@@ -125,11 +144,14 @@ export function ReportsTable() {
     } finally {
       setIsLoading(false);
     }
-  }, [dateRange, vehicleNumberFilter, partyNameFilter, toast, selectedWbNumber]);
+  }, [dateRange, vehicleNumberFilter, partyNameFilter, selectedCustomerId, toast, selectedWbNumber]);
 
   useEffect(() => {
     fetchRecords();
-  }, [fetchRecords]);
+    if(selectedWbNumber) {
+      fetchCustomers();
+    }
+  }, [fetchRecords, fetchCustomers, selectedWbNumber]);
   
   const handleUpdatePayment = async () => {
     if (selectedRows.size === 0) {
@@ -293,7 +315,7 @@ export function ReportsTable() {
                 id="date"
                 variant={"outline"}
                 className={cn(
-                  "w-full md:w-[300px] justify-start text-left font-normal",
+                  "w-full md:w-auto md:min-w-[260px] justify-start text-left font-normal",
                   !dateRange && "text-muted-foreground"
                 )}
               >
@@ -328,7 +350,7 @@ export function ReportsTable() {
             <Input
               type="search"
               placeholder="Filter by vehicle..."
-              className="pl-8 w-full md:w-[250px]"
+              className="pl-8 w-full md:w-auto"
               value={vehicleNumberFilter}
               onChange={(e) => setVehicleNumberFilter(e.target.value.toUpperCase())}
             />
@@ -338,11 +360,29 @@ export function ReportsTable() {
             <Input
               type="search"
               placeholder="Filter by party name..."
-              className="pl-8 w-full md:w-[250px]"
+              className="pl-8 w-full md:w-auto"
               value={partyNameFilter}
               onChange={(e) => setPartyNameFilter(e.target.value)}
             />
           </div>
+           {customers && customers.length > 0 && (
+                <div className="w-full md:w-auto md:min-w-[200px]">
+                    <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
+                        <SelectTrigger>
+                             <Users className="mr-2 h-4 w-4" />
+                            <SelectValue placeholder="Filter by customer..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                             <SelectItem value="">All Customers</SelectItem>
+                            {customers.map(customer => (
+                                <SelectItem key={customer.customerId} value={customer.customerId}>
+                                    {customer.companyName}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto flex-shrink-0">
           <Button onClick={handleExportPDF} variant="outline" className="w-full" disabled={data.length === 0}>
@@ -453,6 +493,5 @@ export function ReportsTable() {
     </div>
   );
 }
-
 
     
