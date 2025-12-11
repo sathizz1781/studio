@@ -235,7 +235,7 @@ export function ReportsTable() {
             item.second_weight,
             item.net_weight,
             item.charges,
-            isPaid ? "Paid" : "Credit",
+            item.paid_status ? "Paid" : "Credit",
         ];
       }),
       startY: 22,
@@ -258,7 +258,7 @@ export function ReportsTable() {
             "Second Weight": item.second_weight,
             "Net Weight": item.net_weight,
             Charges: item.charges,
-            "Paid Status": isPaid ? "Paid" : "Credit",
+            "Paid Status": item.paid_status ? "Paid" : "Credit",
             "WhatsApp No": item.whatsapp,
         };
     })
@@ -402,7 +402,12 @@ export function ReportsTable() {
               </TableRow>
             ) : data.length > 0 ? (
               data.map((item) => {
-                const isPaid = item.paid_status !== false;
+                const getStatus = () => {
+                  if (item.paid_status === false) return { variant: "destructive", text: "Credit" };
+                  if (item.paid_status === true) return { variant: "secondary", text: "Paid" };
+                  return { variant: "default", text: item.paid_status }; // For "Online" or others
+                };
+                const status = getStatus();
                 return (
                 <TableRow key={item._id} data-state={selectedRows.has(item.sl_no) && "selected"}>
                   <TableCell>
@@ -410,7 +415,7 @@ export function ReportsTable() {
                         checked={selectedRows.has(item.sl_no)}
                         onCheckedChange={() => handleRowSelect(item.sl_no)}
                         aria-label={`Select row ${item.sl_no}`}
-                        disabled={isPaid || isReadOnly}
+                        disabled={item.paid_status !== false || isReadOnly}
                       />
                   </TableCell>
                   <TableCell className="font-medium">{item.sl_no}</TableCell>
@@ -424,8 +429,8 @@ export function ReportsTable() {
                   <TableCell>{item.net_weight}</TableCell>
                   <TableCell>{item.charges}</TableCell>
                   <TableCell>
-                     <Badge variant={isPaid ? "secondary" : "destructive"}>
-                        {isPaid ? "Paid" : "Credit"}
+                     <Badge variant={status.variant}>
+                        {status.text}
                      </Badge>
                   </TableCell>
                 </TableRow>

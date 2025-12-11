@@ -99,7 +99,7 @@ const formSchema = z.object({
   whatsappNumber: z.string().regex(/^\d{10,15}$/, {
     message: "Please enter a valid 10 to 15 digit phone number.",
   }).optional().or(z.literal('')),
-  paymentStatus: z.enum(["Paid", "Credit"], {
+  paymentStatus: z.enum(["Paid", "Credit", "Online"], {
     required_error: "You need to select a payment status.",
   }),
   customerId: z.string().optional(),
@@ -703,6 +703,12 @@ const BillContent = ({
                         </FormControl>
                         <FormLabel className="font-normal">{translations.weighbridge_form.credit}</FormLabel>
                       </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="Online" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Online</FormLabel>
+                      </FormItem>
                     </RadioGroup>
                   </FormControl>
                   <FormMessage />
@@ -980,7 +986,7 @@ export function WeighbridgeForm() {
             <head>
                 <title>Print</title>
                 <style>
-                    @page { size: 10in 7in; margin: 0.25in; }
+                    @page { size: 10.5in 6in; margin: 0.25in; }
                     body { font-family: sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
                     .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
                     .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 9px; }
@@ -1218,7 +1224,7 @@ export function WeighbridgeForm() {
       material: latestValues.materialName,
       party: latestValues.partyName,
       charges: latestValues.charges || 0,
-      paidStatus: latestValues.paymentStatus === "Paid",
+      paidStatus: latestValues.paymentStatus === "Paid" || latestValues.paymentStatus === "Online",
       firstWeight: latestValues.firstWeight,
       secondWeight: latestValues.secondWeight,
       netWeight: netWeight,
@@ -1457,7 +1463,5 @@ Thank you!
     </div>
   );
 }
-
-    
 
     
