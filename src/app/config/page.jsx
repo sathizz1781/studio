@@ -92,19 +92,18 @@ export default function ConfigPage() {
         upiId: data.upiId,
         email: data.email,
         serialHost: data.serialHost,
-        phoneNumber: wb_number, // The non-editable phone number
+        mobileNumber: wb_number, // The non-editable phone number
     };
 
     if (data.password) {
         dataToSave.password = data.password;
     }
     
-    // Check if config has an _id, which means it's an existing record from MongoDB
     const isUpdating = !!config._id;
     
     const apiEndpoint = isUpdating 
         ? `https://bend-mqjz.onrender.com/api/config/update/${wb_number}`
-        : "https://bend-mqjz.onrender.com/api/config/post";
+        : "https://bend-mqjz.onrender.com/api/config/create";
         
     const apiMethod = isUpdating ? 'PUT' : 'POST';
 
@@ -120,9 +119,15 @@ export default function ConfigPage() {
         throw new Error(errorData.message || "Failed to save configuration to the server.");
       }
 
-      saveConfig(dataToSave); // This updates the local state and localStorage
+      const responseData = await saveResponse.json();
+      saveConfig(responseData.data || dataToSave); 
       
-      if (data.password) {
+      if (data.password && !isUpdating) {
+         toast({
+            title: "Configuration Saved",
+            description: "Your settings have been saved. You can now start creating bills.",
+        });
+      } else if (data.password && isUpdating) {
         toast({
             title: "Password Changed",
             description: "You have been logged out for security. Please log in again with your new password.",
@@ -130,7 +135,7 @@ export default function ConfigPage() {
         logout(); // Logout the user
       } else {
         toast({
-            title: "Configuration Saved",
+            title: "Configuration Updated",
             description: "Your settings have been updated successfully.",
         });
       }
@@ -229,7 +234,8 @@ export default function ConfigPage() {
                     <FormControl>
                       <Input type="password" placeholder="Leave blank to keep current password" {...field} />
                     </FormControl>
-                    <FormMessage />
+                     <FormMessage />
+                     <p className="text-xs text-muted-foreground">Set a password to secure your account. If you change it, you will be logged out.</p>
                   </FormItem>
                 )}
               />
@@ -264,3 +270,5 @@ export default function ConfigPage() {
     </div>
   );
 }
+
+    

@@ -119,20 +119,14 @@ const AppProvider = ({ children }) => {
   }, [language]);
   
   const login = async (role, userData = {}) => {
+    // For entity, userData is the full config object.
+    // For developer, userData is empty.
     const sessionData = { role, ...userData };
     localStorage.setItem("user", JSON.stringify(sessionData));
     setUser(sessionData);
 
-    if (role === 'entity' && userData.mobileNumber) {
-        try {
-            const response = await fetch(`https://bend-mqjz.onrender.com/api/config/get/${userData.mobileNumber}`);
-            if (response.ok) {
-                const result = await response.json();
-                setConfig(result.data || {});
-            }
-        } catch (error) {
-            console.error("Error fetching remote config on login:", error);
-        }
+    if (role === 'entity') {
+        setConfig(userData);
     } else if (role === 'developer') {
         const allEntities = await fetchAllEntities();
         setEntities(allEntities);
@@ -163,6 +157,7 @@ const AppProvider = ({ children }) => {
   };
 
   const saveConfig = (newConfig) => {
+     setConfig(prev => ({...prev, ...newConfig}));
      if (user && user.role === 'entity') {
         const entityToUpdate = entities.find(e => e.mobileNumber === user.mobileNumber);
         if (entityToUpdate) {

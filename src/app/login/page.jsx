@@ -100,30 +100,24 @@ export default function LoginPage() {
         });
 
         const result = await response.json();
-
-        if (response.status === 401 || response.status === 403) {
-             throw new Error(result.message || "Authentication failed.");
-        }
         
         if (!response.ok) {
-            throw new Error(result.message || "An unknown error occurred.");
+             throw new Error(result.message || "Authentication failed.");
         }
 
         if (result.success) {
             if (result.message === "New User") {
                 toast({ title: "Welcome!", description: "Please complete your company setup." });
-                // Log in with minimal data, the user will be forced to the config page
                 login('entity', { mobileNumber: data.mobileNumber });
                 router.push("/config");
             } else if (result.message === "Login successful") {
-                // Fetch full config for existing user
                  const configResponse = await fetch(`https://bend-mqjz.onrender.com/api/config/get/${data.mobileNumber}`);
                  if (!configResponse.ok) {
                     throw new Error("Could not fetch user profile after login.");
                  }
                  const configData = await configResponse.json();
                  toast({ title: "Login Successful", description: "Welcome back!" });
-                 login('entity', configData.data); // Login with full entity object
+                 login('entity', configData.data); 
             }
         } else {
             throw new Error(result.message || "Login failed due to an unknown reason.");
@@ -142,7 +136,6 @@ export default function LoginPage() {
   
   const handleDeveloperLogin = (data, toast) => {
     setIsSubmitting(true);
-    // Hardcoded credentials for founder/developer
     if (data.username === "developer" && data.password === "devpassword") {
       toast({
         title: "Developer Login Successful",
@@ -215,3 +208,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
