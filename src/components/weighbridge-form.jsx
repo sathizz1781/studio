@@ -1322,7 +1322,12 @@ Thank you!
       }
       
       toast(toastMessage);
-      handleReset(); 
+      const reinitialize = async () => {
+          await handleReset();
+          await fetchNewSerialNumber();
+          setInitialDateTime();
+      }
+      reinitialize();
 
     } catch (error) {
       console.error("Failed to save or send bill:", error);
@@ -1376,11 +1381,13 @@ Thank you!
       className="relative"
     >
       <Card className="w-full max-w-4xl printable-card shadow-2xl">
-        {isInitializing && (
+        {(isInitializing || (isClient && !currentWbNumber && user?.role === 'developer' && entities.length === 0)) && (
              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
                 <div className="text-center">
                     <Loader2 className="h-10 w-10 text-primary animate-spin mx-auto" />
-                    <p className="mt-2 text-muted-foreground">Initializing for selected entity...</p>
+                    <p className="mt-2 text-muted-foreground">
+                       {isInitializing ? 'Initializing for selected entity...' : 'Waiting for entity selection...'}
+                    </p>
                 </div>
              </div>
         )}
@@ -1393,7 +1400,7 @@ Thank you!
           </CardTitle>
           <CardDescription>
             {user?.role === 'developer' && entities.length > 0 ? 'Select an entity to create a bill on their behalf.' : translations.weighbridge_form.description}
-            {user?.role === 'developer' && entities.length === 0 && 'No entities found to bill for.'}
+            {user?.role === 'developer' && entities.length === 0 && 'No entities found. Please add entities via the subscription page.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1513,7 +1520,5 @@ Thank you!
     </div>
   );
 }
-    
-    
 
     

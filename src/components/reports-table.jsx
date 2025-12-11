@@ -61,7 +61,10 @@ export function ReportsTable() {
   const { toast } = useToast();
   
   const [selectedWbNumber, setSelectedWbNumber] = useState(wb_number || "");
-  const isReadOnly = user?.role === 'entity' && !config?.password;
+  const activeEntityConfig = user?.role === 'developer'
+      ? entities.find(e => e.mobileNumber === selectedWbNumber)
+      : config;
+  const isReadOnly = user?.role === 'entity' ? !config?.password : !activeEntityConfig?.password;
 
 
   useEffect(() => {
@@ -75,8 +78,7 @@ export function ReportsTable() {
   }, [wb_number, user?.role, entities, selectedWbNumber]);
 
   const fetchRecords = useCallback(async () => {
-    const numberToFetch = user?.role === 'developer' ? selectedWbNumber : wb_number;
-    if (!numberToFetch) {
+    if (!selectedWbNumber) {
         setData([]);
         setIsLoading(false);
         return;
@@ -87,7 +89,7 @@ export function ReportsTable() {
       const query = {
         startDate: dateRange?.from ? format(dateRange.from, "dd/MM/yyyy") : null,
         endDate: dateRange?.to ? format(dateRange.to, "dd/MM/yyyy") : null,
-        wb_number: numberToFetch,
+        wb_number: selectedWbNumber,
       };
 
       if (vehicleNumberFilter) {
@@ -123,14 +125,13 @@ export function ReportsTable() {
     } finally {
       setIsLoading(false);
     }
-  }, [dateRange, vehicleNumberFilter, partyNameFilter, toast, user?.role, selectedWbNumber, wb_number]);
+  }, [dateRange, vehicleNumberFilter, partyNameFilter, toast, selectedWbNumber]);
 
   useEffect(() => {
     fetchRecords();
   }, [fetchRecords]);
   
   const handleUpdatePayment = async () => {
-    const numberToUpdate = user?.role === 'developer' ? selectedWbNumber : wb_number;
     if (selectedRows.size === 0) {
       toast({
         variant: "destructive",
@@ -145,7 +146,7 @@ export function ReportsTable() {
       const response = await fetch("https://bend-mqjz.onrender.com/api/wb/updatepaymentstatus", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sl_nos: Array.from(selectedRows), wb_number: numberToUpdate }),
+        body: JSON.stringify({ sl_nos: Array.from(selectedRows), wb_number: selectedWbNumber }),
       });
       
       if (!response.ok) {
@@ -200,10 +201,7 @@ export function ReportsTable() {
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
-    const currentEntity = user?.role === 'developer' 
-        ? entities?.find(e => e.mobileNumber === selectedWbNumber)
-        : config;
-    const entityName = currentEntity?.companyName || 'Report';
+    const entityName = activeEntityConfig?.companyName || 'Report';
 
     doc.text(`${entityName} - Weighbridge Report`, 14, 16);
     doc.autoTable({
@@ -455,5 +453,6 @@ export function ReportsTable() {
     </div>
   );
 }
+
 
     
