@@ -105,6 +105,25 @@ export function ReportsChart() {
                         setChartData(processedData);
                         break;
                     
+                    case 'daywise':
+                        startDate = subDays(today, 29);
+                        records = await fetchChartData(startDate, today, selectedWbNumber);
+                         processedData = Array.from({ length: 30 }, (_, i) => {
+                           const day = subDays(today, i);
+                           return { name: format(day, "MMM d"), vehicles: 0, charges: 0 };
+                        }).reverse();
+                        records.forEach(record => {
+                           const recordDate = new Date(record.date.split('/').reverse().join('-'));
+                           const formattedDate = format(recordDate, "MMM d");
+                           const dayData = processedData.find(d => d.name === formattedDate);
+                           if (dayData) {
+                               dayData.vehicles += 1;
+                               dayData.charges += Number(record.charges) || 0;
+                           }
+                       });
+                       setChartData(processedData);
+                       break;
+
                     case 'weekly':
                         startDate = startOfWeek(subWeeks(today, 3));
                         records = await fetchChartData(startDate, today, selectedWbNumber);
@@ -215,6 +234,7 @@ export function ReportsChart() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="daily">Daily (Last 7 Days)</SelectItem>
+                                    <SelectItem value="daywise">Day-wise (Last 30 Days)</SelectItem>
                                     <SelectItem value="weekly">Weekly (Last 4 Weeks)</SelectItem>
                                     <SelectItem value="monthly">Monthly (Last 6 Months)</SelectItem>
                                     <SelectItem value="yearly">Yearly (Last 3 Years)</SelectItem>
@@ -271,5 +291,3 @@ export function ReportsChart() {
         </Card>
     );
 }
-
-    
