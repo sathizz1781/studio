@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { format, subDays } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths } from "date-fns";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -17,7 +17,7 @@ import { Loader2 } from "lucide-react";
 import { useAppContext } from "@/app/layout";
 
 async function fetchChartData(startDate, endDate, wb_number) {
-    if (!wb_number) return []; // Don't fetch if no wb_number is provided
+    if (!wb_number || !startDate || !endDate) return [];
     const query = {
         startDate: format(startDate, "dd/MM/yyyy"),
         endDate: format(endDate, "dd/MM/yyyy"),
@@ -44,12 +44,12 @@ export function ReportsChart() {
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
     const [selectedWbNumber, setSelectedWbNumber] = useState(wb_number || "");
+    const [rangeType, setRangeType] = useState("daily");
 
     useEffect(() => {
         if(user?.role === 'entity' && wb_number) {
             setSelectedWbNumber(wb_number);
         } else if (user?.role === 'developer' && entities && entities.length > 0) {
-            // Default to first entity for developer if none is selected
             if (!selectedWbNumber) {
                 setSelectedWbNumber(entities[0].mobileNumber);
             }
@@ -67,19 +67,33 @@ export function ReportsChart() {
             setIsLoading(true);
             try {
                 const today = new Date();
-                const yesterday = subDays(today, 1);
+                let currentRange, previousRange, labels;
 
-                const todayDataPromise = fetchChartData(today, today, selectedWbNumber);
-                const yesterdayDataPromise = fetchChartData(yesterday, yesterday, selectedWbNumber);
+                if (rangeType === 'daily') {
+                    currentRange = { start: today, end: today };
+                    previousRange = { start: subDays(today, 1), end: subDays(today, 1) };
+                    labels = { current: "Current Day", previous: "Previous Day" };
+                } else if (rangeType === 'weekly') {
+                    currentRange = { start: startOfWeek(today), end: endOfWeek(today) };
+                    previousRange = { start: startOfWeek(subWeeks(today, 1)), end: endOfWeek(subWeeks(today, 1)) };
+                    labels = { current: "Current Week", previous: "Previous Week" };
+                } else { // monthly
+                    currentRange = { start: startOfMonth(today), end: endOfMonth(today) };
+                    previousRange = { start: startOfMonth(subMonths(today, 1)), end: endOfMonth(subMonths(today, 1)) };
+                    labels = { current: "Current Month", previous: "Previous Month" };
+                }
+
+                const currentDataPromise = fetchChartData(currentRange.start, currentRange.end, selectedWbNumber);
+                const previousDataPromise = fetchChartData(previousRange.start, previousRange.end, selectedWbNumber);
                 
-                const [todayRecords, yesterdayRecords] = await Promise.all([todayDataPromise, yesterdayDataPromise]);
+                const [currentRecords, previousRecords] = await Promise.all([currentDataPromise, previousDataPromise]);
                 
-                const todayCharges = todayRecords.reduce((sum, record) => sum + (Number(record.charges) || 0), 0);
-                const yesterdayCharges = yesterdayRecords.reduce((sum, record) => sum + (Number(record.charges) || 0), 0);
+                const currentCharges = currentRecords.reduce((sum, record) => sum + (Number(record.charges) || 0), 0);
+                const previousCharges = previousRecords.reduce((sum, record) => sum + (Number(record.charges) || 0), 0);
 
                 setChartData([
-                    { name: "Previous Day", vehicles: yesterdayRecords.length, charges: yesterdayCharges, fill: "var(--color-secondary)" },
-                    { name: "Current Day", vehicles: todayRecords.length, charges: todayCharges, fill: "var(--color-primary)" },
+                    { name: labels.previous, vehicles: previousRecords.length, charges: previousCharges },
+                    { name: labels.current, vehicles: currentRecords.length, charges: currentCharges },
                 ]);
 
             } catch (error) {
@@ -95,15 +109,15 @@ export function ReportsChart() {
             }
         };
         getChartData();
-    }, [toast, selectedWbNumber]);
+    }, [toast, selectedWbNumber, rangeType]);
     
     const CustomTooltip = ({ active, payload, label }) => {
       if (active && payload && payload.length) {
         return (
           <div className="bg-background border p-2 rounded-lg shadow-lg">
             <p className="font-bold">{label}</p>
-            <p className="text-sm text-blue-500">{`Vehicles: ${payload[0].value}`}</p>
-            <p className="text-sm text-green-500">{`Charges: ₹${payload[1].value.toLocaleString()}`}</p>
+            <p className="text-sm" style={{ color: "hsl(var(--chart-1))" }}>{`Vehicles: ${payload[0].value}`}</p>
+            <p className="text-sm" style={{ color: "hsl(var(--chart-2))" }}>{`Charges: ₹${payload[1].value.toLocaleString()}`}</p>
           </div>
         );
       }
@@ -114,27 +128,41 @@ export function ReportsChart() {
     return (
         <Card className="mt-6">
             <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
-                        <CardTitle>Daily Activity</CardTitle>
-                        <CardDescription>Comparison of the last two days of activity.</CardDescription>
+                        <CardTitle>Activity Overview</CardTitle>
+                        <CardDescription>A comparison of weighbridge activity.</CardDescription>
                     </div>
-                     {user?.role === 'developer' && entities && entities.length > 0 && (
-                        <div className="mt-4 sm:mt-0 w-full sm:w-auto sm:min-w-[200px]">
-                            <Select onValueChange={setSelectedWbNumber} value={selectedWbNumber}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select an entity..." />
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <div className="w-full sm:w-auto">
+                            <Select onValueChange={setRangeType} value={rangeType}>
+                                <SelectTrigger className="w-full sm:w-[180px]">
+                                    <SelectValue placeholder="Select a range" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {entities.map(entity => (
-                                        <SelectItem key={entity._id} value={entity.mobileNumber}>
-                                            {entity.companyName}
-                                        </SelectItem>
-                                    ))}
+                                    <SelectItem value="daily">Daily Comparison</SelectItem>
+                                    <SelectItem value="weekly">Weekly Comparison</SelectItem>
+                                    <SelectItem value="monthly">Monthly Comparison</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
-                    )}
+                        {user?.role === 'developer' && entities && entities.length > 0 && (
+                            <div className="w-full sm:w-auto sm:min-w-[200px]">
+                                <Select onValueChange={setSelectedWbNumber} value={selectedWbNumber}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select an entity..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {entities.map(entity => (
+                                            <SelectItem key={entity._id} value={entity.mobileNumber}>
+                                                {entity.companyName}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -154,12 +182,12 @@ export function ReportsChart() {
                             <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="name" />
-                                <YAxis yAxisId="left" orientation="left" stroke="#8884d8" label={{ value: 'Vehicles', angle: -90, position: 'insideLeft' }}/>
-                                <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Charges (₹)', angle: -90, position: 'insideRight' }}/>
+                                <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" label={{ value: 'Vehicles', angle: -90, position: 'insideLeft' }}/>
+                                <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" label={{ value: 'Charges (₹)', angle: -90, position: 'insideRight' }}/>
                                 <Tooltip content={<CustomTooltip />} />
                                 <Legend />
-                                <Bar yAxisId="left" dataKey="vehicles" fill="#8884d8" name="Vehicles"/>
-                                <Bar yAxisId="right" dataKey="charges" fill="#82ca9d" name="Charges (₹)" />
+                                <Bar yAxisId="left" dataKey="vehicles" fill="hsl(var(--chart-1))" name="Vehicles"/>
+                                <Bar yAxisId="right" dataKey="charges" fill="hsl(var(--chart-2))" name="Charges (₹)" />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -168,5 +196,3 @@ export function ReportsChart() {
         </Card>
     );
 }
-
-    
