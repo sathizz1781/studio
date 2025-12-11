@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Popover,
   PopoverContent,
@@ -66,7 +67,9 @@ import {
   Share2,
   TrendingUp,
   TrendingDown,
-  Search
+  Search,
+  AlertTriangle,
+  Settings
 } from "lucide-react";
 import { SerialDataComponent } from "./serial-data";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -96,7 +99,7 @@ const formSchema = z.object({
   whatsappNumber: z.string().regex(/^\d{10,15}$/, {
     message: "Please enter a valid 10 to 15 digit phone number.",
   }).optional().or(z.literal('')),
-  paymentStatus: z.enum(["Paid", "Credit"], {
+  paymentStatus: z.enum(["Paid", "Credit", "Online"], {
     required_error: "You need to select a payment status.",
   }),
   customerId: z.string().optional(),
@@ -298,7 +301,7 @@ const CustomerListContent = ({ customers, onCustomerSelect, selectedCustomerId, 
 };
 
 
-const CustomerSelector = ({ customers, selectedCustomerForDisplay, onCustomerSelect, translations }) => {
+const CustomerSelector = ({ customers, selectedCustomerForDisplay, onCustomerSelect, translations, isDisabled }) => {
     const isMobile = useIsMobile();
     const [isOpen, setIsOpen] = useState(false);
 
@@ -316,6 +319,7 @@ const CustomerSelector = ({ customers, selectedCustomerForDisplay, onCustomerSel
                         <Button
                             variant="outline"
                             className="w-full justify-between"
+                            disabled={isDisabled}
                         >
                             {selectedCustomerForDisplay ? selectedCustomerForDisplay.companyName : translations.weighbridge_form.select_customer}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -343,6 +347,7 @@ const CustomerSelector = ({ customers, selectedCustomerForDisplay, onCustomerSel
                         variant="outline"
                         role="combobox"
                         className="w-full justify-between"
+                        disabled={isDisabled}
                     >
                         {selectedCustomerForDisplay ? selectedCustomerForDisplay.companyName : translations.weighbridge_form.select_customer}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -385,11 +390,26 @@ const BillContent = ({
   qrCodeUrl,
   setIsShareLocationOpen,
   translations,
+  isFormDisabled,
 }) => {
   const { control } = form;
 
   return (
     <>
+      {isFormDisabled && (
+        <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Account Setup Required</AlertTitle>
+            <AlertDescription>
+                Your account is not fully set up. Please go to the{" "}
+                <Link href="/config" className="font-bold underline">
+                   Configuration page
+                </Link>{" "}
+                to set your password and complete your profile.
+            </AlertDescription>
+        </Alert>
+      )}
+
       <div className="mb-6">
         <Card>
             <CardHeader className="p-3 sm:p-4">
@@ -414,6 +434,7 @@ const BillContent = ({
                 setInitialDateTime();
               }
             }}
+            disabled={isFormDisabled}
           />
         </div>
 
@@ -426,7 +447,7 @@ const BillContent = ({
                     <FormLabel className="flex items-center gap-2"><Hash className="h-5 w-5 text-primary" /> {translations.weighbridge_form.serial_number}</FormLabel>
                     <FormControl>
                         {isManualMode ? (
-                            <Input {...field} />
+                            <Input {...field} disabled={isFormDisabled}/>
                         ) : (
                             <p className="p-3 bg-muted rounded-lg text-lg font-bold text-foreground">{field.value}</p>
                         )}
@@ -443,7 +464,7 @@ const BillContent = ({
                     <FormLabel className="flex items-center gap-2"><Clock className="h-5 w-5 text-primary" /> {translations.weighbridge_form.date_time}</FormLabel>
                      <FormControl>
                         {isManualMode ? (
-                            <Input {...field} />
+                            <Input {...field} disabled={isFormDisabled} />
                         ) : (
                              <p className="p-3 bg-muted rounded-lg text-sm text-foreground">{field.value}</p>
                         )}
@@ -459,6 +480,7 @@ const BillContent = ({
             selectedCustomerForDisplay={selectedCustomerForDisplay} 
             onCustomerSelect={handleCustomerSelect}
             translations={translations}
+            isDisabled={isFormDisabled}
         />
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-6 mb-6">
@@ -480,6 +502,7 @@ const BillContent = ({
                               {...field}
                               onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                               onBlur={handleVehicleBlur}
+                              disabled={isFormDisabled}
                             />
                              {isLoadingVehicle && (
                                 <div className="absolute right-2 flex items-center pr-3 pointer-events-none">
@@ -524,7 +547,7 @@ const BillContent = ({
                 {translations.weighbridge_form.party_name}
               </FormLabel>
               <FormControl>
-                <Input placeholder="e.g., John Doe" {...field} />
+                <Input placeholder="e.g., John Doe" {...field} disabled={isFormDisabled} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -540,7 +563,7 @@ const BillContent = ({
                 {translations.weighbridge_form.material_name}
               </FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Sand, Gravel" {...field} />
+                <Input placeholder="e.g., Sand, Gravel" {...field} disabled={isFormDisabled} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -559,7 +582,7 @@ const BillContent = ({
                  <Popover open={!!chargeExtremes} onOpenChange={(isOpen) => !isOpen && setChargeExtremes(null)}>
                     <PopoverTrigger asChild>
                         <div className="relative flex items-center">
-                            <Input type="number" placeholder="e.g., 250" {...field} />
+                            <Input type="number" placeholder="e.g., 250" {...field} disabled={isFormDisabled} />
                         </div>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-4" onOpenAutoFocus={(e) => e.preventDefault()}>
@@ -609,6 +632,7 @@ const BillContent = ({
                   step="0.01"
                   placeholder="e.g., 5000"
                   {...field}
+                  disabled={isFormDisabled}
                 />
               </FormControl>
               <FormMessage />
@@ -630,6 +654,7 @@ const BillContent = ({
                   step="0.01"
                   placeholder="e.g., 2000"
                   {...field}
+                  disabled={isFormDisabled}
                 />
               </FormControl>
               <FormMessage />
@@ -664,6 +689,7 @@ const BillContent = ({
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                       className="flex items-center space-x-4"
+                      disabled={isFormDisabled}
                     >
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
@@ -676,6 +702,12 @@ const BillContent = ({
                           <RadioGroupItem value="Credit" />
                         </FormControl>
                         <FormLabel className="font-normal">{translations.weighbridge_form.credit}</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="Online" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Online</FormLabel>
                       </FormItem>
                     </RadioGroup>
                   </FormControl>
@@ -693,7 +725,7 @@ const BillContent = ({
                     {translations.weighbridge_form.whatsapp_number}
                     </FormLabel>
                     <FormControl>
-                    <Input placeholder="e.g., 9876543210" {...field} />
+                    <Input placeholder="e.g., 9876543210" {...field} disabled={isFormDisabled} />
                     </FormControl>
                     <FormMessage />
                 </FormItem>
@@ -722,7 +754,7 @@ const BillContent = ({
              {selectedCustomerForDisplay && selectedCustomerForDisplay.latitude && selectedCustomerForDisplay.longitude && (
                 <div className="no-print space-y-2">
                      <GoogleMapView latitude={selectedCustomerForDisplay.latitude} longitude={selectedCustomerForDisplay.longitude} translations={translations} />
-                     <Button variant="outline" size="sm" className="w-full" onClick={() => setIsShareLocationOpen(true)}>
+                     <Button variant="outline" size="sm" className="w-full" onClick={() => setIsShareLocationOpen(true)} disabled={isFormDisabled}>
                         <Share2 className="mr-2 h-3 w-3" />
                         {translations.weighbridge_form.share_location}
                      </Button>
@@ -771,7 +803,7 @@ const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config, handl
 };
 
 export function WeighbridgeForm() {
-  const { translations, config, wb_number } = useAppContext();
+  const { user, translations, config, wb_number } = useAppContext();
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
@@ -793,6 +825,7 @@ export function WeighbridgeForm() {
   const PULL_THRESHOLD = 70;
 
   const serialDataRef = useRef({ weight: 0 });
+  const isFormDisabled = user?.role === 'entity' && !config?.password;
 
   const { toast } = useToast();
 
@@ -953,7 +986,7 @@ export function WeighbridgeForm() {
             <head>
                 <title>Print</title>
                 <style>
-                    @page { size: 10in 7in; margin: 0.25in; }
+                    @page { size: 10.5in 6in; margin: 0.25in; }
                     body { font-family: sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
                     .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
                     .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 9px; }
@@ -1157,6 +1190,15 @@ export function WeighbridgeForm() {
       return;
     }
 
+    if (isFormDisabled) {
+      toast({
+        variant: "destructive",
+        title: "Account Incomplete",
+        description: "Please set your password on the Configuration page before creating a bill."
+      });
+      return;
+    }
+
     const now = new Date();
     const currentDateTime = now.toLocaleString("en-IN", {
         hour12: true,
@@ -1182,7 +1224,7 @@ export function WeighbridgeForm() {
       material: latestValues.materialName,
       party: latestValues.partyName,
       charges: latestValues.charges || 0,
-      paidStatus: latestValues.paymentStatus === "Paid",
+      paidStatus: latestValues.paymentStatus === "Paid" || latestValues.paymentStatus === "Online",
       firstWeight: latestValues.firstWeight,
       secondWeight: latestValues.secondWeight,
       netWeight: netWeight,
@@ -1336,6 +1378,7 @@ Thank you!
                     qrCodeUrl={qrCodeUrl}
                     setIsShareLocationOpen={setIsShareLocationOpen}
                     translations={translations}
+                    isFormDisabled={isFormDisabled}
                    />
                 </div>
                 <div className="print-only" id="print-section">
@@ -1389,7 +1432,7 @@ Thank you!
                         color: "hsl(var(--accent-foreground))",
                         }}
                         className="w-full sm:w-auto"
-                        disabled={isInitializing || !wb_number}
+                        disabled={isInitializing || !wb_number || isFormDisabled}
                     >
                         <Printer className="mr-2 h-4 w-4" />
                         {translations.weighbridge_form.send_print}

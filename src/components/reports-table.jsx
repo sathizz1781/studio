@@ -223,7 +223,6 @@ export function ReportsTable() {
         ],
       ],
       body: data.map((item) => {
-        const isPaid = item.paid_status !== false;
         return [
             item.sl_no,
             item.date,
@@ -246,7 +245,6 @@ export function ReportsTable() {
   const handleExportExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
       data.map((item) => {
-        const isPaid = item.paid_status !== false;
         return {
             "Serial No": item.sl_no,
             Date: item.date,
@@ -402,12 +400,12 @@ export function ReportsTable() {
               </TableRow>
             ) : data.length > 0 ? (
               data.map((item) => {
-                const getStatus = () => {
-                  if (item.paid_status === false) return { variant: "destructive", text: "Credit" };
-                  if (item.paid_status === true) return { variant: "secondary", text: "Paid" };
-                  return { variant: "default", text: item.paid_status }; // For "Online" or others
+                const isPaid = item.paid_status === true || item.paid_status === 'Paid' || item.paid_status === 'Online';
+                const status = {
+                    variant: isPaid ? 'secondary' : 'destructive',
+                    text: isPaid ? 'Paid' : 'Credit'
                 };
-                const status = getStatus();
+                
                 return (
                 <TableRow key={item._id} data-state={selectedRows.has(item.sl_no) && "selected"}>
                   <TableCell>
@@ -415,7 +413,7 @@ export function ReportsTable() {
                         checked={selectedRows.has(item.sl_no)}
                         onCheckedChange={() => handleRowSelect(item.sl_no)}
                         aria-label={`Select row ${item.sl_no}`}
-                        disabled={item.paid_status !== false || isReadOnly}
+                        disabled={isPaid || isReadOnly}
                       />
                   </TableCell>
                   <TableCell className="font-medium">{item.sl_no}</TableCell>
