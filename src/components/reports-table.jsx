@@ -293,6 +293,14 @@ export function ReportsTable() {
     XLSX.writeFile(workbook, "weighbridge-report.xlsx");
   };
   
+  const handleCustomerFilterChange = (value) => {
+    if (value === "all") {
+      setSelectedCustomerId("");
+    } else {
+      setSelectedCustomerId(value);
+    }
+  };
+
   const unPaidRecords = data.filter(item => item.paid_status === false).length;
 
 
@@ -374,13 +382,13 @@ export function ReportsTable() {
           </div>
            {customers && customers.length > 0 && (
                 <div className="w-full md:w-auto md:min-w-[200px]">
-                    <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
+                    <Select onValueChange={handleCustomerFilterChange} value={selectedCustomerId || 'all'}>
                         <SelectTrigger>
                              <Users className="mr-2 h-4 w-4" />
                             <SelectValue placeholder="Filter by customer..." />
                         </SelectTrigger>
                         <SelectContent>
-                             <SelectItem value="">All Customers</SelectItem>
+                             <SelectItem value="all">All Customers</SelectItem>
                             {customers.map(customer => (
                                 <SelectItem key={customer.customerId} value={customer.customerId}>
                                     {customer.companyName}
