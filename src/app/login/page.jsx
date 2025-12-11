@@ -29,7 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const entityLoginSchema = z.object({
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
-  password: z.string().min(1, "Password is required"), 
+  password: z.string().optional(), 
 });
 
 const developerLoginSchema = z.object({
@@ -87,7 +87,7 @@ export default function LoginPage() {
   const handleEntityLogin = async (data, toast) => {
     setIsSubmitting(true);
     try {
-        const response = await fetch('https://bend-mqjz.onrender.com/api/auth/login', {
+        const response = await fetch('https://bend-mqjz.onrender.com/api/config/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -164,7 +164,7 @@ export default function LoginPage() {
                         onLogin={handleEntityLogin}
                         fields={[
                             { name: "mobileNumber", label: "Mobile Number", type: "tel", placeholder: "9876543210" },
-                            { name: "password", label: "Password", type: "password", placeholder: "••••••••" },
+                            { name: "password", label: "Password (optional)", type: "password", placeholder: "••••••••" },
                         ]}
                         isSubmitting={isSubmitting}
                         buttonText="Login as Entity"
