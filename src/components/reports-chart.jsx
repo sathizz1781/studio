@@ -1,8 +1,7 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, startOfYear, endOfYear, subYears } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -82,126 +81,51 @@ export function ReportsChart() {
             setIsLoading(true);
             try {
                 const today = new Date();
-                let startDate, records, processedData;
+                let startDate, endDate, records, prevStartDate, prevEndDate, prevRecords;
 
                 switch (rangeType) {
                     case 'daily':
-                        startDate = subDays(today, 6);
-                        records = await fetchChartData(startDate, today, selectedWbNumber);
-                        processedData = Array.from({ length: 7 }, (_, i) => {
-                           const day = subDays(today, i);
-                           return { name: format(day, "MMM d"), vehicles: 0, charges: 0 };
-                        }).reverse();
-
-                        records.forEach(record => {
-                            const recordDate = new Date(record.date.split('/').reverse().join('-'));
-                            const formattedDate = format(recordDate, "MMM d");
-                            const dayData = processedData.find(d => d.name === formattedDate);
-                            if (dayData) {
-                                dayData.vehicles += 1;
-                                dayData.charges += Number(record.charges) || 0;
-                            }
-                        });
-                        setChartData(processedData);
+                        startDate = subDays(today, 0); // Today
+                        endDate = today;
+                        prevStartDate = subDays(today, 1); // Yesterday
+                        prevEndDate = subDays(today, 1);
                         break;
-                    
-                    case 'daywise':
-                        startDate = subDays(today, 29);
-                        records = await fetchChartData(startDate, today, selectedWbNumber);
-                         processedData = Array.from({ length: 30 }, (_, i) => {
-                           const day = subDays(today, i);
-                           return { name: format(day, "MMM d"), vehicles: 0, charges: 0 };
-                        }).reverse();
-                        records.forEach(record => {
-                           const recordDate = new Date(record.date.split('/').reverse().join('-'));
-                           const formattedDate = format(recordDate, "MMM d");
-                           const dayData = processedData.find(d => d.name === formattedDate);
-                           if (dayData) {
-                               dayData.vehicles += 1;
-                               dayData.charges += Number(record.charges) || 0;
-                           }
-                       });
-                       setChartData(processedData);
-                       break;
-
                     case 'weekly':
-                        startDate = startOfWeek(subWeeks(today, 3));
-                        records = await fetchChartData(startDate, today, selectedWbNumber);
-                        processedData = Array.from({ length: 4 }, (_, i) => {
-                            const weekStart = startOfWeek(subWeeks(today, i));
-                            return { 
-                                name: `Week ${format(weekStart, 'w')}`, 
-                                start: weekStart, 
-                                end: endOfWeek(subWeeks(today, i)),
-                                vehicles: 0, 
-                                charges: 0 
-                            };
-                        }).reverse();
-
-                        records.forEach(record => {
-                            const recordDate = new Date(record.date.split('/').reverse().join('-'));
-                            const weekData = processedData.find(w => recordDate >= w.start && recordDate <= w.end);
-                            if (weekData) {
-                                weekData.vehicles += 1;
-                                weekData.charges += Number(record.charges) || 0;
-                            }
-                        });
-                        setChartData(processedData);
+                        startDate = startOfWeek(today);
+                        endDate = endOfWeek(today);
+                        prevStartDate = startOfWeek(subDays(today, 7));
+                        prevEndDate = endOfWeek(subDays(today, 7));
                         break;
-
                     case 'monthly':
-                        startDate = startOfMonth(subMonths(today, 5));
-                        records = await fetchChartData(startDate, today, selectedWbNumber);
-                        processedData = Array.from({ length: 6 }, (_, i) => {
-                            const monthDate = subMonths(today, i);
-                            return {
-                                name: format(monthDate, "MMM yyyy"),
-                                month: monthDate.getMonth(),
-                                year: monthDate.getFullYear(),
-                                vehicles: 0,
-                                charges: 0
-                            };
-                        }).reverse();
-
-                        records.forEach(record => {
-                            const recordDate = new Date(record.date.split('/').reverse().join('-'));
-                            const monthData = processedData.find(m => m.month === recordDate.getMonth() && m.year === recordDate.getFullYear());
-                            if (monthData) {
-                                monthData.vehicles += 1;
-                                monthData.charges += Number(record.charges) || 0;
-                            }
-                        });
-                        setChartData(processedData);
+                        startDate = startOfMonth(today);
+                        endDate = endOfMonth(today);
+                        prevStartDate = startOfMonth(subDays(today, 30));
+                        prevEndDate = endOfMonth(subDays(today, 30));
                         break;
-
-                    case 'yearly':
-                        startDate = startOfYear(subYears(today, 2));
-                        records = await fetchChartData(startDate, today, selectedWbNumber);
-                        processedData = Array.from({ length: 3 }, (_, i) => {
-                            const yearDate = subYears(today, i);
-                            return {
-                                name: format(yearDate, "yyyy"),
-                                year: yearDate.getFullYear(),
-                                vehicles: 0,
-                                charges: 0
-                            };
-                        }).reverse();
-
-                        records.forEach(record => {
-                            const recordDate = new Date(record.date.split('/').reverse().join('-'));
-                            const yearData = processedData.find(y => y.year === recordDate.getFullYear());
-                            if (yearData) {
-                                yearData.vehicles += 1;
-                                yearData.charges += Number(record.charges) || 0;
-                            }
-                        });
-                        setChartData(processedData);
-                        break;
-                    
                     default:
                         setChartData([]);
+                        setIsLoading(false);
+                        return;
                 }
+                
+                [records, prevRecords] = await Promise.all([
+                    fetchChartData(startDate, endDate, selectedWbNumber),
+                    fetchChartData(prevStartDate, prevEndDate, selectedWbNumber)
+                ]);
 
+                const currentPeriodData = {
+                    name: rangeType === 'daily' ? 'Today' : rangeType === 'weekly' ? 'This Week' : 'This Month',
+                    vehicles: records.length,
+                    charges: records.reduce((acc, rec) => acc + (Number(rec.charges) || 0), 0)
+                };
+
+                const previousPeriodData = {
+                    name: rangeType === 'daily' ? 'Yesterday' : rangeType === 'weekly' ? 'Last Week' : 'Last Month',
+                    vehicles: prevRecords.length,
+                    charges: prevRecords.reduce((acc, rec) => acc + (Number(rec.charges) || 0), 0)
+                };
+
+                setChartData([currentPeriodData, previousPeriodData]);
 
             } catch (error) {
                 console.error("Failed to load chart data:", error);
@@ -224,20 +148,18 @@ export function ReportsChart() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                         <CardTitle>Activity Overview</CardTitle>
-                        <CardDescription>A trend of weighbridge activity.</CardDescription>
+                        <CardDescription>A comparison of weighbridge activity.</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        <div className="w-full sm:w-[220px]">
-                            <Select onValueChange={setRangeType} value={rangeType}>
+                        <div className="w-full sm:w-[200px]">
+                            <Select onValueChange={setRangeType} defaultValue="daily">
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a range" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="daily">Daily (Last 7 Days)</SelectItem>
-                                    <SelectItem value="daywise">Day-wise (Last 30 Days)</SelectItem>
-                                    <SelectItem value="weekly">Weekly (Last 4 Weeks)</SelectItem>
-                                    <SelectItem value="monthly">Monthly (Last 6 Months)</SelectItem>
-                                    <SelectItem value="yearly">Yearly (Last 3 Years)</SelectItem>
+                                    <SelectItem value="daily">Daily Comparison</SelectItem>
+                                    <SelectItem value="weekly">Weekly Comparison</SelectItem>
+                                    <SelectItem value="monthly">Monthly Comparison</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -274,15 +196,15 @@ export function ReportsChart() {
                 ) : (
                     <div className="h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
-                           <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="name" />
-                                <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" label={{ value: 'Vehicles', angle: -90, position: 'insideLeft' }}/>
-                                <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" label={{ value: 'Charges (₹)', angle: -90, position: 'insideRight' }}/>
+                                <YAxis yAxisId="left" orientation="left" stroke="#8884d8" label={{ value: 'Vehicles', angle: -90, position: 'insideLeft' }}/>
+                                <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Charges (₹)', angle: -90, position: 'insideRight' }}/>
                                 <Tooltip content={<CustomTooltip />} />
                                 <Legend />
-                                <Bar yAxisId="left" dataKey="vehicles" fill="hsl(var(--chart-1))" name="Vehicles"/>
-                                <Bar yAxisId="right" dataKey="charges" fill="hsl(var(--chart-2))" name="Charges (₹)" />
+                                <Bar yAxisId="left" dataKey="vehicles" fill="#8884d8" name="Vehicles"/>
+                                <Bar yAxisId="right" dataKey="charges" fill="#82ca9d" name="Charges (₹)" />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
