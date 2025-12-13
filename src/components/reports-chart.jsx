@@ -2,8 +2,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getISOWeek, getMonth, getYear, subMonths, subYears, startOfYear, endOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval } from "date-fns";
-import { Line, LineChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getISOWeek, getMonth, getYear, subMonths, subYears, startOfYear, endOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval, isWithinInterval } from "date-fns";
+import { Line, Bar, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Select,
@@ -51,35 +51,18 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const ChartComponent = ({ data, rangeType }) => {
-    const isComparison = rangeType === 'yearly';
-
-    if (isComparison) {
-        return (
-             <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" />
-                <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Bar yAxisId="left" dataKey="vehicles" fill="hsl(var(--chart-1))" name="Vehicles" />
-                <Bar yAxisId="right" dataKey="charges" fill="hsl(var(--chart-2))" name="Charges (₹)" />
-            </BarChart>
-        )
-    }
-
+const ChartComponent = ({ data }) => {
     return (
-        <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+        <ComposedChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
             <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" />
             <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
-            <Line yAxisId="left" type="monotone" dataKey="vehicles" stroke="hsl(var(--chart-1))" name="Vehicles" />
+            <Bar yAxisId="left" dataKey="vehicles" fill="hsl(var(--chart-1))" name="Vehicles" />
             <Line yAxisId="right" type="monotone" dataKey="charges" stroke="hsl(var(--chart-2))" name="Charges (₹)" />
-        </LineChart>
+        </ComposedChart>
     );
 };
 
@@ -129,28 +112,27 @@ export function ReportsChart() {
                 let processedData = [];
 
                 switch (rangeType) {
-                    case 'daily': // Last 7 days
-                        startDate = subDays(today, 6);
-                        endDate = today;
+                    case 'daily': // This week's days
+                        startDate = startOfWeek(today, { weekStartsOn: 1 });
+                        endDate = endOfWeek(today, { weekStartsOn: 1 });
                         const recordsDaily = await fetchChartData(startDate, endDate, selectedWbNumber);
                         const days = eachDayOfInterval({ start: startDate, end: endDate });
                         processedData = days.map(day => {
-                            const dayStr = format(day, 'yyyy-MM-dd');
                             const dayRecords = recordsDaily.filter(r => {
                                 const recordDate = parseApiDate(r.date);
-                                return recordDate && format(recordDate, 'yyyy-MM-dd') === dayStr;
+                                return recordDate && format(recordDate, 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
                             });
                             return {
-                                name: format(day, 'dd MMM'),
+                                name: format(day, 'EEE'),
                                 vehicles: dayRecords.length,
                                 charges: dayRecords.reduce((acc, rec) => acc + (Number(rec.charges) || 0), 0)
                             };
                         });
                         break;
                     
-                    case 'weekly': // Last 4 weeks
-                        startDate = startOfWeek(subDays(today, 27), { weekStartsOn: 1 });
-                        endDate = endOfWeek(today, { weekStartsOn: 1 });
+                    case 'weekly': // This month's weeks
+                        startDate = startOfMonth(today);
+                        endDate = endOfMonth(today);
                         const recordsWeekly = await fetchChartData(startDate, endDate, selectedWbNumber);
                         const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 });
                         
@@ -158,19 +140,19 @@ export function ReportsChart() {
                             const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
                             const weekRecords = recordsWeekly.filter(r => {
                                 const recordDate = parseApiDate(r.date);
-                                return recordDate && recordDate >= weekStart && recordDate <= weekEnd;
+                                return recordDate && isWithinInterval(recordDate, { start: weekStart, end: weekEnd });
                             });
                             return {
                                 name: `Week ${getISOWeek(weekStart)}`,
                                 vehicles: weekRecords.length,
                                 charges: weekRecords.reduce((acc, rec) => acc + (Number(rec.charges) || 0), 0)
                             };
-                        }).slice(-4);
+                        });
                         break;
 
-                    case 'monthly': // Last 6 months
-                        startDate = startOfMonth(subMonths(today, 5));
-                        endDate = endOfMonth(today);
+                    case 'monthly': // This year's months
+                        startDate = startOfYear(today);
+                        endDate = endOfYear(today);
                         const recordsMonthly = await fetchChartData(startDate, endDate, selectedWbNumber);
                         const months = eachMonthOfInterval({ start: startDate, end: endDate });
                         
@@ -180,7 +162,7 @@ export function ReportsChart() {
                                 return recordDate && getYear(recordDate) === getYear(monthStart) && getMonth(recordDate) === getMonth(monthStart);
                             });
                              return {
-                                name: format(monthStart, 'MMM yyyy'),
+                                name: format(monthStart, 'MMM'),
                                 vehicles: monthRecords.length,
                                 charges: monthRecords.reduce((acc, rec) => acc + (Number(rec.charges) || 0), 0)
                             };
@@ -242,9 +224,9 @@ export function ReportsChart() {
                                     <SelectValue placeholder="Select a range" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="daily">Last 7 Days</SelectItem>
-                                    <SelectItem value="weekly">Last 4 Weeks</SelectItem>
-                                    <SelectItem value="monthly">Last 6 Months</SelectItem>
+                                    <SelectItem value="daily">This Week (Daily)</SelectItem>
+                                    <SelectItem value="weekly">This Month (Weekly)</SelectItem>
+                                    <SelectItem value="monthly">This Year (Monthly)</SelectItem>
                                     <SelectItem value="yearly">Last 3 Years</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -286,7 +268,7 @@ export function ReportsChart() {
                 ) : (
                     <div className="h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
-                           <ChartComponent data={chartData} rangeType={rangeType} />
+                           <ChartComponent data={chartData} />
                         </ResponsiveContainer>
                     </div>
                 )}
