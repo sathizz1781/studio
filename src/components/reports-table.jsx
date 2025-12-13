@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -453,7 +452,7 @@ export function ReportsTable() {
               </TableRow>
             ) : data.length > 0 ? (
               data.map((item) => {
-                const isPaid = item.paid_status === true || item.paid_status === 'Paid' || item.paid_status === 'Online';
+                const isPaid = item.paid_status === true;
                 const status = {
                     variant: isPaid ? 'secondary' : 'destructive',
                     text: isPaid ? 'Paid' : 'Credit'

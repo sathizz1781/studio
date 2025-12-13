@@ -77,6 +77,7 @@ import { cn } from "@/lib/utils";
 import { useAppContext } from "@/app/layout";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "./ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 
 const formSchema = z.object({
@@ -98,7 +99,7 @@ const formSchema = z.object({
   whatsappNumber: z.string().regex(/^\d{10,15}$/, {
     message: "Please enter a valid 10 to 15 digit phone number.",
   }).optional().or(z.literal('')),
-  paymentStatus: z.enum(["Paid", "Credit", "Online"], {
+  paymentStatus: z.enum(["Paid", "Credit"], {
     required_error: "You need to select a payment status.",
   }),
   customerId: z.string().optional(),
@@ -390,12 +391,16 @@ const BillContent = ({
   setIsShareLocationOpen,
   translations,
   isFormDisabled,
+  selectedWbNumber, // For developer view
+  onWbNumberChange, // For developer view
+  allEntities, // For developer view
+  isDeveloper, // For developer view
 }) => {
   const { control } = form;
 
   return (
     <>
-      {isFormDisabled && (
+      {isFormDisabled && !isDeveloper && (
         <Alert variant="destructive" className="mb-6">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Account Setup Required</AlertTitle>
@@ -408,6 +413,25 @@ const BillContent = ({
             </AlertDescription>
         </Alert>
       )}
+
+     {isDeveloper && (
+         <div className="mb-6 space-y-2">
+            <Label htmlFor="entity-select">Select Entity to Bill For</Label>
+             <Select onValueChange={onWbNumberChange} value={selectedWbNumber || ""}>
+                <SelectTrigger id="entity-select" className="w-full md:w-1/2">
+                    <SelectValue placeholder="Select an entity..." />
+                </SelectTrigger>
+                <SelectContent>
+                    {allEntities.map(entity => (
+                        <SelectItem key={entity.mobileNumber} value={entity.mobileNumber}>
+                            {entity.companyName} ({entity.mobileNumber})
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+         </div>
+     )}
+
 
       <div className="mb-6">
         <Card>
@@ -702,12 +726,6 @@ const BillContent = ({
                         </FormControl>
                         <FormLabel className="font-normal">{translations.weighbridge_form.credit}</FormLabel>
                       </FormItem>
-                      <FormItem className="flex items-center space-x-2 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="Online" />
-                        </FormControl>
-                        <FormLabel className="font-normal">Online</FormLabel>
-                      </FormItem>
                     </RadioGroup>
                   </FormControl>
                   <FormMessage />
@@ -802,7 +820,7 @@ const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config, handl
 };
 
 export function WeighbridgeForm() {
-  const { user, translations, config, wb_number } = useAppContext();
+  const { user, translations, config, wb_number, entities } = useAppContext();
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
@@ -819,12 +837,22 @@ export function WeighbridgeForm() {
   const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
   const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+
+  // Developer state
+  const isDeveloper = user?.role === 'developer';
+  const [selectedWbNumber, setSelectedWbNumber] = useState(wb_number);
+  const activeWbNumber = isDeveloper ? selectedWbNumber : wb_number;
+
+  const activeConfig = isDeveloper 
+    ? entities.find(e => e.mobileNumber === selectedWbNumber) || {} 
+    : config;
   
   const touchStartY = useRef(0);
   const PULL_THRESHOLD = 70;
 
   const serialDataRef = useRef({ weight: 0 });
-  const isFormDisabled = user?.role === 'entity' && !config?.password;
+  
+  const isFormDisabled = isDeveloper ? !selectedWbNumber : !config?.password;
 
   const { toast } = useToast();
 
@@ -866,13 +894,9 @@ export function WeighbridgeForm() {
   }, [setValue]);
 
     const fetchNewSerialNumber = useCallback(async () => {
-      if (!wb_number) return;
+      if (!activeWbNumber) return;
         try {
-            const response = await fetch(`https://bend-mqjz.onrender.com/api/wb/getlastbill/${wb_number}`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-              
-            });
+            const response = await fetch(`https://bend-mqjz.onrender.com/api/wb/getlastbill/${activeWbNumber}`);
             if (!response.ok) throw new Error('Failed to fetch serial');
             const data = await response.json();
             const lastSerialNumber = data?.data?.sl_no;
@@ -884,35 +908,40 @@ export function WeighbridgeForm() {
             console.error("Error fetching last bill:", error);
             setValue("serialNumber", "1");
         }
-    }, [setValue, wb_number]);
+    }, [setValue, activeWbNumber]);
   
+  const fetchCustomers = useCallback(async () => {
+      if (!activeWbNumber) return;
+      try {
+          const response = await fetch(`https://bend-mqjz.onrender.com/api/user/userlist/${activeWbNumber}`);
+          const data = await response.json();
+          setCustomers(data.users || []);
+      } catch (error) {
+          console.error("Failed to fetch customers:", error);
+          setCustomers([]);
+      }
+  }, [activeWbNumber]);
+
   useEffect(() => {
     setIsClient(true);
+    if (!isDeveloper && wb_number) {
+        setSelectedWbNumber(wb_number);
+    }
+  }, [isDeveloper, wb_number]);
+
+  useEffect(() => {
     const initializeForm = async () => {
-      if (!wb_number) {
-        if(config.mobileNumber) { // Check if config is available but wb_number isn't yet
-          // Wait for next render cycle
-        } else if (!isInitializing) {
-           // To avoid multiple toasts.
-        }
+      if (!activeWbNumber) {
+        setIsInitializing(isDeveloper); // Only show loader for dev if no entity selected
         return;
       };
 
       setIsInitializing(true);
       try {
-        const customerPromise = fetch(`https://bend-mqjz.onrender.com/api/user/userlist/${wb_number}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          
-        })
-          .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch customers'))
-          .then(data => setCustomers(data.users || []))
-          .catch(error => {
-            console.error("Failed to fetch customers:", error);
-            setCustomers([]);
-          });
-        
-        await Promise.all([fetchNewSerialNumber(), customerPromise]);
+        await Promise.all([
+          fetchNewSerialNumber(),
+          fetchCustomers()
+        ]);
         setInitialDateTime();
 
       } catch (error) {
@@ -928,7 +957,7 @@ export function WeighbridgeForm() {
     };
 
     initializeForm();
-  }, [fetchNewSerialNumber, setInitialDateTime, toast, wb_number, config.mobileNumber]);
+  }, [fetchNewSerialNumber, setInitialDateTime, toast, activeWbNumber, fetchCustomers]);
 
   useEffect(() => {
     const fw = Number(firstWeight) || 0;
@@ -938,8 +967,8 @@ export function WeighbridgeForm() {
   }, [firstWeight, secondWeight]);
   
   useEffect(() => {
-    const upiID = config.upiId || "default@upi";
-    const businessName = config.companyName || "My Company";
+    const upiID = activeConfig.upiId || "default@upi";
+    const businessName = activeConfig.companyName || "My Company";
     const defaultUpiURL = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(businessName)}&cu=INR`;
 
     const numericCharges = Number(charges);
@@ -951,7 +980,7 @@ export function WeighbridgeForm() {
         const defaultQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(defaultUpiURL)}&size=128x128&margin=0`;
         setQrCodeUrl(defaultQrCodeUrl);
     }
-  }, [charges, config]);
+  }, [charges, activeConfig]);
 
  const performPrint = (billData) => {
     const printFrame = document.createElement('iframe');
@@ -1068,18 +1097,20 @@ export function WeighbridgeForm() {
     setPreviousWeights(null);
     setSelectedCustomerForDisplay(null);
     setChargeExtremes(null);
+    setCustomers([]);
     if (isClient) {
        setIsInitializing(true);
        await fetchNewSerialNumber();
+       await fetchCustomers();
        setInitialDateTime();
        setIsInitializing(false);
     }
-  }, [reset, isClient, fetchNewSerialNumber, setInitialDateTime]);
+  }, [reset, isClient, fetchNewSerialNumber, setInitialDateTime, fetchCustomers]);
 
   const findBill = async () => {
     if (!isClient || !reprintSerial) return;
-    if (!wb_number) {
-        toast({ variant: "destructive", title: "Error", description: "Entity not identified. Please re-login." });
+    if (!activeWbNumber) {
+        toast({ variant: "destructive", title: "Error", description: "Entity not identified. Please select an entity." });
         return;
     }
     setIsLoadingReprint(true);
@@ -1089,7 +1120,7 @@ export function WeighbridgeForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ sl_no: Number(reprintSerial), wb_number }),
+        body: JSON.stringify({ sl_no: Number(reprintSerial), wb_number: activeWbNumber }),
       });
       
       if (!response.ok) {
@@ -1119,7 +1150,7 @@ export function WeighbridgeForm() {
   
   const handleVehicleBlur = async (e) => {
     const vehicleNo = e.target.value;
-    if (!vehicleNo || vehicleNo.length < 4 || !wb_number) {
+    if (!vehicleNo || vehicleNo.length < 4 || !activeWbNumber) {
       setPreviousWeights(null);
       setChargeExtremes(null);
       return;
@@ -1132,12 +1163,9 @@ export function WeighbridgeForm() {
             fetch("https://bend-mqjz.onrender.com/api/wb/getprevweightofvehicle", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ vehicleNo, wb_number }),
+                body: JSON.stringify({ vehicleNo, wb_number: activeWbNumber }),
             }),
-            fetch(`https://bend-mqjz.onrender.com/api/wb/getchargeextremes/${vehicleNo}/${wb_number}`, {
-              method: 'GET',
-              headers: { 'Content-Type': 'application/json' },
-            })
+            fetch(`https://bend-mqjz.onrender.com/api/wb/getchargeextremes/${vehicleNo}/${activeWbNumber}`)
         ]);
 
         if (weightsResponse.ok) {
@@ -1184,8 +1212,8 @@ export function WeighbridgeForm() {
   }
 
   async function onSubmit(values) {
-    if (!wb_number) {
-      toast({ variant: "destructive", title: "Save Error", description: "Cannot save bill. Entity identifier is missing. Please re-login." });
+    if (!activeWbNumber) {
+      toast({ variant: "destructive", title: "Save Error", description: "Cannot save bill. Entity identifier is missing. Please select an entity." });
       return;
     }
 
@@ -1223,13 +1251,13 @@ export function WeighbridgeForm() {
       material: latestValues.materialName,
       party: latestValues.partyName,
       charges: latestValues.charges || 0,
-      paidStatus: latestValues.paymentStatus === "Paid" || latestValues.paymentStatus === "Online",
+      paidStatus: latestValues.paymentStatus === "Paid",
       firstWeight: latestValues.firstWeight,
       secondWeight: latestValues.secondWeight,
       netWeight: netWeight,
       whatsappNumber: latestValues.whatsappNumber || "",
       customerId: latestValues.customerId || "",
-      wb_number: wb_number,
+      wb_number: activeWbNumber,
     };
 
     try {
@@ -1320,6 +1348,11 @@ Thank you!
           if(customer.vehicleNumber) setValue("vehicleNumber", customer.vehicleNumber);
       }
   };
+
+  const handleWbNumberChange = (newWbNumber) => {
+    setSelectedWbNumber(newWbNumber);
+    handleReset();
+  };
   
   return (
     <div
@@ -1329,12 +1362,12 @@ Thank you!
       className="relative"
     >
       <Card className="w-full max-w-4xl printable-card shadow-2xl">
-        {(isInitializing || (isClient && !wb_number)) && (
+        {(isInitializing || (isClient && !activeWbNumber)) && (
              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
                 <div className="text-center">
                     <Loader2 className="h-10 w-10 text-primary animate-spin mx-auto" />
                     <p className="mt-2 text-muted-foreground">
-                        {isClient && !wb_number ? "Waiting for entity login..." : "Initializing..."}
+                        {isDeveloper && !activeWbNumber ? "Please select an entity" : isInitializing ? "Initializing..." : "Waiting for login..."}
                     </p>
                 </div>
              </div>
@@ -1342,7 +1375,7 @@ Thank you!
         <CardHeader className="no-print">
           <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold text-primary flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Scale /> {config.companyName || translations.weighbridge_form.title}
+              <Scale /> {activeConfig.companyName || translations.weighbridge_form.title}
             </div>
             {isClient && <LiveClock />}
           </CardTitle>
@@ -1378,6 +1411,10 @@ Thank you!
                     setIsShareLocationOpen={setIsShareLocationOpen}
                     translations={translations}
                     isFormDisabled={isFormDisabled}
+                    isDeveloper={isDeveloper}
+                    selectedWbNumber={selectedWbNumber}
+                    onWbNumberChange={handleWbNumberChange}
+                    allEntities={entities}
                    />
                 </div>
                 <div className="print-only" id="print-section">
@@ -1392,7 +1429,7 @@ Thank you!
                     </Link>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                        <Button type="button" variant="outline" className="w-full sm:w-auto">
+                        <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={isFormDisabled}>
                             <RefreshCcw className="mr-2 h-4 w-4" />
                             {translations.weighbridge_form.reprint_bill}
                         </Button>
@@ -1431,7 +1468,7 @@ Thank you!
                         color: "hsl(var(--accent-foreground))",
                         }}
                         className="w-full sm:w-auto"
-                        disabled={isInitializing || !wb_number || isFormDisabled}
+                        disabled={isInitializing || !activeWbNumber || isFormDisabled}
                     >
                         <Printer className="mr-2 h-4 w-4" />
                         {translations.weighbridge_form.send_print}
@@ -1446,7 +1483,7 @@ Thank you!
         onOpenChange={setIsReprintDialogOpen} 
         reprintData={reprintData} 
         toast={toast} 
-        config={config} 
+        config={activeConfig} 
         handleReprintPrint={handleReprintPrint}
         translations={translations} 
       />
