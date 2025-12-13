@@ -1,9 +1,8 @@
-
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getISOWeek, getMonth, getYear, subYears, startOfYear, endOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval, isWithinInterval, addDays, parse } from "date-fns";
-import { Line, Bar, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import React, { useState, useEffect, useCallback } from "react";
+import { format, subDays } from "date-fns";
+import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Select,
@@ -16,11 +15,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useAppContext } from "@/app/layout";
 
-async function fetchChartData(startDate, endDate, wb_number) {
-    if (!wb_number || !startDate || !endDate) return [];
+async function fetchRecordsForDay(date, wb_number) {
+    if (!wb_number || !date) return [];
     const query = {
-        startDate: format(startDate, "dd/MM/yyyy"),
-        endDate: format(endDate, "dd/MM/yyyy"),
+        startDate: format(date, "dd/MM/yyyy"),
+        endDate: format(date, "dd/MM/yyyy"),
         wb_number,
     };
 
@@ -31,7 +30,7 @@ async function fetchChartData(startDate, endDate, wb_number) {
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to fetch data for range: ${query.startDate} - ${query.endDate}`);
+        throw new Error(`Failed to fetch data for date: ${query.startDate}`);
     }
 
     const result = await response.json();
@@ -51,28 +50,12 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const ChartComponent = ({ data }) => {
-    return (
-        <ComposedChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" />
-            <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
-            <Bar yAxisId="left" dataKey="vehicles" fill="hsl(var(--chart-1))" name="Vehicles" />
-            <Line yAxisId="right" type="monotone" dataKey="charges" stroke="hsl(var(--chart-2))" name="Charges (₹)" />
-        </ComposedChart>
-    );
-};
-
 export function ReportsChart() {
     const { user, entities, wb_number } = useAppContext();
     const [chartData, setChartData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
     const [selectedWbNumber, setSelectedWbNumber] = useState(wb_number || "");
-    const [rangeType, setRangeType] = useState("daily");
 
     useEffect(() => {
         if(user?.role === 'entity' && wb_number) {
@@ -83,17 +66,6 @@ export function ReportsChart() {
             }
         }
     }, [wb_number, user?.role, entities, selectedWbNumber]);
-
-    // Helper function to parse 'dd/MM/yyyy' dates from the API
-    const parseApiDate = (dateString) => {
-      if (!dateString) return null;
-      try {
-        return parse(dateString, 'dd/MM/yyyy', new Date());
-      } catch (e) {
-        console.error("Failed to parse date:", dateString, e);
-        return null;
-      }
-    };
     
     useEffect(() => {
         const getChartData = async () => {
@@ -106,118 +78,28 @@ export function ReportsChart() {
             setIsLoading(true);
             try {
                 const today = new Date();
-                let startDate, endDate;
-                let dataProcessor;
+                const yesterday = subDays(today, 1);
 
-                switch (rangeType) {
-                    case 'daily':
-                        startDate = startOfWeek(today, { weekStartsOn: 1 });
-                        endDate = endOfWeek(today, { weekStartsOn: 1 });
-                        dataProcessor = (records) => {
-                            const dailyData = new Map();
-                            eachDayOfInterval({ start: startDate, end: endDate }).forEach(day => {
-                                const key = format(day, 'yyyy-MM-dd');
-                                dailyData.set(key, { name: format(day, 'EEE'), vehicles: 0, charges: 0 });
-                            });
-                            
-                            records.forEach(r => {
-                                const recordDate = parseApiDate(r.date);
-                                if (recordDate && isWithinInterval(recordDate, { start: startDate, end: endDate })) {
-                                    const key = format(recordDate, 'yyyy-MM-dd');
-                                    if (dailyData.has(key)) {
-                                        const current = dailyData.get(key);
-                                        current.vehicles += 1;
-                                        current.charges += Number(r.charges) || 0;
-                                    }
-                                }
-                            });
-                            return Array.from(dailyData.values());
-                        };
-                        break;
-                    
-                    case 'weekly':
-                        startDate = startOfMonth(today);
-                        endDate = endOfMonth(today);
-                        dataProcessor = (records) => {
-                            const weeklyData = new Map();
-                            eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 }).forEach(weekStart => {
-                                const weekKey = getISOWeek(weekStart);
-                                weeklyData.set(weekKey, { name: `Week ${weekKey}`, vehicles: 0, charges: 0 });
-                            });
+                const [todayRecords, yesterdayRecords] = await Promise.all([
+                    fetchRecordsForDay(today, selectedWbNumber),
+                    fetchRecordsForDay(yesterday, selectedWbNumber),
+                ]);
 
-                            records.forEach(r => {
-                                const recordDate = parseApiDate(r.date);
-                                if (recordDate && isWithinInterval(recordDate, { start: startDate, end: endDate })) {
-                                    const weekKey = getISOWeek(recordDate);
-                                     if (weeklyData.has(weekKey)) {
-                                        const current = weeklyData.get(weekKey);
-                                        current.vehicles += 1;
-                                        current.charges += Number(r.charges) || 0;
-                                    }
-                                }
-                            });
-                            return Array.from(weeklyData.values());
-                        };
-                        break;
+                const processRecords = (records) => {
+                    return records.reduce((acc, record) => {
+                        acc.vehicles += 1;
+                        acc.charges += Number(record.charges) || 0;
+                        return acc;
+                    }, { vehicles: 0, charges: 0 });
+                };
 
-                    case 'monthly':
-                        startDate = startOfYear(today);
-                        endDate = endOfYear(today);
-                        dataProcessor = (records) => {
-                            const monthlyData = new Map();
-                            eachMonthOfInterval({ start: startDate, end: endDate }).forEach(monthStart => {
-                                 const monthKey = getMonth(monthStart);
-                                 monthlyData.set(monthKey, { name: format(monthStart, 'MMM'), vehicles: 0, charges: 0 });
-                            });
+                const todayData = processRecords(todayRecords);
+                const yesterdayData = processRecords(yesterdayRecords);
 
-                            records.forEach(r => {
-                                const recordDate = parseApiDate(r.date);
-                                if (recordDate && getYear(recordDate) === getYear(today)) {
-                                    const monthKey = getMonth(recordDate);
-                                    if(monthlyData.has(monthKey)){
-                                        const current = monthlyData.get(monthKey);
-                                        current.vehicles += 1;
-                                        current.charges += Number(r.charges) || 0;
-                                    }
-                                }
-                            });
-                            return Array.from(monthlyData.values());
-                        };
-                        break;
-                    
-                    case 'yearly':
-                        startDate = startOfYear(subYears(today, 2));
-                        endDate = endOfYear(today);
-                        dataProcessor = (records) => {
-                            const yearlyData = new Map();
-                             eachYearOfInterval({ start: startDate, end: endDate }).forEach(yearStart => {
-                                const yearKey = getYear(yearStart);
-                                yearlyData.set(yearKey, { name: format(yearStart, 'yyyy'), vehicles: 0, charges: 0 });
-                            });
-                            records.forEach(r => {
-                                const recordDate = parseApiDate(r.date);
-                                if (recordDate && isWithinInterval(recordDate, { start: startDate, end: endDate })) {
-                                    const yearKey = getYear(recordDate);
-                                    if(yearlyData.has(yearKey)){
-                                        const current = yearlyData.get(yearKey);
-                                        current.vehicles += 1;
-                                        current.charges += Number(r.charges) || 0;
-                                    }
-                                }
-                            });
-                            return Array.from(yearlyData.values());
-                        };
-                        break;
-                    
-                    default:
-                       startDate = today;
-                       endDate = today;
-                       dataProcessor = () => [];
-                }
-
-                const allRecords = await fetchChartData(startDate, endDate, selectedWbNumber);
-                const processedData = dataProcessor(allRecords);
-                setChartData(processedData);
+                setChartData([
+                    { name: 'Today', vehicles: todayData.vehicles, charges: todayData.charges },
+                    { name: 'Yesterday', vehicles: yesterdayData.vehicles, charges: yesterdayData.charges },
+                ]);
 
             } catch (error) {
                 console.error("Failed to load chart data:", error);
@@ -233,7 +115,7 @@ export function ReportsChart() {
         };
 
         getChartData();
-    }, [toast, selectedWbNumber, rangeType]);
+    }, [toast, selectedWbNumber]);
     
     return (
         <Card className="mt-6">
@@ -241,19 +123,16 @@ export function ReportsChart() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                         <CardTitle>Activity Overview</CardTitle>
-                        <CardDescription>A summary of weighbridge activity over time.</CardDescription>
+                        <CardDescription>A comparison of weighbridge activity.</CardDescription>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <div className="w-full sm:w-[220px]">
-                            <Select onValueChange={setRangeType} defaultValue="daily">
+                           <Select defaultValue="daily" disabled>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select a range" />
+                                    <SelectValue placeholder="Daily Comparison" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="daily">This Week (Daily)</SelectItem>
-                                    <SelectItem value="weekly">This Month (Weekly)</SelectItem>
-                                    <SelectItem value="monthly">This Year (Monthly)</SelectItem>
-                                    <SelectItem value="yearly">Last 3 Years</SelectItem>
+                                    <SelectItem value="daily">Daily Comparison</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -289,12 +168,21 @@ export function ReportsChart() {
                     </div>
                 ) : chartData.length === 0 ? (
                      <div className="h-[400px] w-full flex items-center justify-center">
-                        <p className="text-muted-foreground">No records found for the selected period.</p>
+                        <p className="text-muted-foreground">No records found for today or yesterday.</p>
                     </div>
                 ) : (
                     <div className="h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
-                           <ChartComponent data={chartData} />
+                           <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" label={{ value: 'Vehicles', angle: -90, position: 'insideLeft' }}/>
+                                <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" label={{ value: 'Charges (₹)', angle: -90, position: 'insideRight' }}/>
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend verticalAlign="bottom" wrapperStyle={{ paddingBottom: '10px' }} />
+                                <Bar yAxisId="left" dataKey="vehicles" fill="hsl(var(--chart-1))" name="Vehicles" />
+                                <Bar yAxisId="right" dataKey="charges" fill="hsl(var(--chart-2))" name="Charges (₹)" />
+                           </BarChart>
                         </ResponsiveContainer>
                     </div>
                 )}
