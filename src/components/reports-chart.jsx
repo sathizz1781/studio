@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getISOWeek, getMonth, getYear, subMonths, subYears, startOfYear, endOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval, isWithinInterval } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getISOWeek, getMonth, getYear, subMonths, subYears, startOfYear, endOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval, isWithinInterval, addDays } from "date-fns";
 import { Line, Bar, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -276,3 +276,5 @@ export function ReportsChart() {
         </Card>
     );
 }
+
+    
