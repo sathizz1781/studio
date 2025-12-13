@@ -276,5 +276,3 @@ export function ReportsChart() {
         </Card>
     );
 }
-
-    
