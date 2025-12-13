@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getISOWeek, getMonth, getYear, subMonths, subYears, startOfYear, endOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval, isWithinInterval, addDays, parse } from "date-fns";
+import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, getISOWeek, getMonth, getYear, subYears, startOfYear, endOfYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachYearOfInterval, isWithinInterval, addDays, parse } from "date-fns";
 import { Line, Bar, ComposedChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -66,7 +66,6 @@ const ChartComponent = ({ data }) => {
     );
 };
 
-
 export function ReportsChart() {
     const { user, entities, wb_number } = useAppContext();
     const [chartData, setChartData] = useState([]);
@@ -87,9 +86,11 @@ export function ReportsChart() {
 
     // Helper function to parse 'dd/MM/yyyy' dates from the API
     const parseApiDate = (dateString) => {
+      if (!dateString) return null;
       try {
         return parse(dateString, 'dd/MM/yyyy', new Date());
       } catch (e) {
+        console.error("Failed to parse date:", dateString, e);
         return null;
       }
     };
@@ -114,13 +115,14 @@ export function ReportsChart() {
                         endDate = endOfWeek(today, { weekStartsOn: 1 });
                         dataProcessor = (records) => {
                             const dailyData = new Map();
-                            const days = eachDayOfInterval({ start: startDate, end: endDate });
-                            days.forEach(day => {
-                                dailyData.set(format(day, 'yyyy-MM-dd'), { name: format(day, 'EEE'), vehicles: 0, charges: 0 });
+                            eachDayOfInterval({ start: startDate, end: endDate }).forEach(day => {
+                                const key = format(day, 'yyyy-MM-dd');
+                                dailyData.set(key, { name: format(day, 'EEE'), vehicles: 0, charges: 0 });
                             });
+                            
                             records.forEach(r => {
                                 const recordDate = parseApiDate(r.date);
-                                if (recordDate) {
+                                if (recordDate && isWithinInterval(recordDate, { start: startDate, end: endDate })) {
                                     const key = format(recordDate, 'yyyy-MM-dd');
                                     if (dailyData.has(key)) {
                                         const current = dailyData.get(key);
@@ -138,11 +140,10 @@ export function ReportsChart() {
                         endDate = endOfMonth(today);
                         dataProcessor = (records) => {
                             const weeklyData = new Map();
-                             const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 });
-                             weeks.forEach(weekStart => {
-                                 const weekKey = getISOWeek(weekStart);
-                                 weeklyData.set(weekKey, { name: `Week ${weekKey}`, vehicles: 0, charges: 0 });
-                             });
+                            eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 }).forEach(weekStart => {
+                                const weekKey = getISOWeek(weekStart);
+                                weeklyData.set(weekKey, { name: `Week ${weekKey}`, vehicles: 0, charges: 0 });
+                            });
 
                             records.forEach(r => {
                                 const recordDate = parseApiDate(r.date);
@@ -164,11 +165,10 @@ export function ReportsChart() {
                         endDate = endOfYear(today);
                         dataProcessor = (records) => {
                             const monthlyData = new Map();
-                            const months = eachMonthOfInterval({ start: startDate, end: endDate });
-                             months.forEach(monthStart => {
+                            eachMonthOfInterval({ start: startDate, end: endDate }).forEach(monthStart => {
                                  const monthKey = getMonth(monthStart);
                                  monthlyData.set(monthKey, { name: format(monthStart, 'MMM'), vehicles: 0, charges: 0 });
-                             });
+                            });
 
                             records.forEach(r => {
                                 const recordDate = parseApiDate(r.date);
@@ -190,14 +190,13 @@ export function ReportsChart() {
                         endDate = endOfYear(today);
                         dataProcessor = (records) => {
                             const yearlyData = new Map();
-                            const years = eachYearOfInterval({ start: startDate, end: endDate });
-                            years.forEach(yearStart => {
+                             eachYearOfInterval({ start: startDate, end: endDate }).forEach(yearStart => {
                                 const yearKey = getYear(yearStart);
                                 yearlyData.set(yearKey, { name: format(yearStart, 'yyyy'), vehicles: 0, charges: 0 });
                             });
                             records.forEach(r => {
                                 const recordDate = parseApiDate(r.date);
-                                if (recordDate) {
+                                if (recordDate && isWithinInterval(recordDate, { start: startDate, end: endDate })) {
                                     const yearKey = getYear(recordDate);
                                     if(yearlyData.has(yearKey)){
                                         const current = yearlyData.get(yearKey);
@@ -211,6 +210,8 @@ export function ReportsChart() {
                         break;
                     
                     default:
+                       startDate = today;
+                       endDate = today;
                        dataProcessor = () => [];
                 }
 
