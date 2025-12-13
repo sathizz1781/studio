@@ -966,16 +966,16 @@ export function WeighbridgeForm() {
         `<div>
           <table style="font-size: 10px; width: 100%; border-collapse: collapse;">
             <tbody>
-              <tr><td style="padding: 1px; text-align: right;">${billData.sl_no}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${date}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${time}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.vehicle_no}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.party_name}</td></tr>
-              <tr><td style="padding: 1px, padding-bottom: 2px; text-align: right;">${billData.material_name}</td></tr>
-              <tr><td style="padding: 1px, padding-bottom: 2px; text-align: right;">${billData.charges}</td></tr>
-              <tr><td style="padding: 1px; padding-top: 2px; text-align: right;">${billData.first_weight}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.second_weight}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.net_weight}</td></tr>
+              <tr><td style="padding: 1px; margin-bottom:3px; text-align: center;">${billData.sl_no}</td></tr>
+              <tr><td style="padding: 1px; margin-bottom:3px; text-align: center;">${date}</td></tr>
+              <tr><td style="padding: 1px; margin-bottom:3px; text-align: center;">${time}</td></tr>
+              <tr><td style="padding: 1px; margin-bottom:3px; text-align: center;">${billData.vehicle_no}</td></tr>
+              <tr><td style="padding: 1px; margin-bottom:3px; text-align: center;">${billData.party_name}</td></tr>
+              <tr><td style="padding: 1px, margin-bottom:3px; padding-bottom: 2px; text-align: center;">${billData.material_name}</td></tr>
+              <tr><td style="padding: 1px, margin-bottom:3px; padding-bottom: 2px; text-align: center;">${billData.charges}</td></tr>
+              <tr><td style="padding: 1px; margin-bottom:3px; padding-top: 2px; text-align: center;">${billData.first_weight}</td></tr>
+              <tr><td style="padding: 1px; margin-bottom:3px; text-align: center;">${billData.second_weight}</td></tr>
+              <tr><td style="padding: 1px; margin-bottom:3px; text-align: center;">${billData.net_weight}</td></tr>
             </tbody>
           </table>
         </div>`
