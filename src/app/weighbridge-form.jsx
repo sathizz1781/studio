@@ -226,16 +226,16 @@ const PrintableBill = React.forwardRef(({ billData }, ref) => {
     <div>
       <table style={{ fontSize: '10px', width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
-          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{sl_no}</td></tr>
-          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{date}</td></tr>
-          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{time}</td></tr>
-          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{vehicle_no}</td></tr>
-          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{party_name}</td></tr>
-          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{material_name}</td></tr>
-          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{charges}</td></tr>
-          <tr><td style={{ padding: '1px', paddingTop: '2px', textAlign: 'right' }}>{first_weight}</td></tr>
-          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{second_weight}</td></tr>
-          <tr><td style={{ padding: '1px', textAlign: 'right' }}>{net_weight}</td></tr>
+          <tr><td style={{marginBottom:"3px", padding: '1px', textAlign: 'right' }}>{sl_no}</td></tr>
+          <tr><td style={{ marginBottom:"3px",padding: '1px', textAlign: 'right' }}>{date}</td></tr>
+          <tr><td style={{ marginBottom:"3px",padding: '1px', textAlign: 'right' }}>{time}</td></tr>
+          <tr><td style={{ marginBottom:"3px",padding: '1px', textAlign: 'right' }}>{vehicle_no}</td></tr>
+          <tr><td style={{ marginBottom:"3px",padding: '1px', textAlign: 'right' }}>{party_name}</td></tr>
+          <tr><td style={{ marginBottom:"3px",padding: '1px', textAlign: 'right' }}>{material_name}</td></tr>
+          <tr><td style={{ marginBottom:"3px",padding: '1px', textAlign: 'right' }}>{charges}</td></tr>
+          <tr><td style={{ marginBottom:"3px",padding: '1px', paddingTop: '2px', textAlign: 'right' }}>{first_weight}</td></tr>
+          <tr><td style={{ marginBottom:"3px",padding: '1px', textAlign: 'right' }}>{second_weight}</td></tr>
+          <tr><td style={{ marginBottom:"3px",padding: '1px', textAlign: 'right' }}>{net_weight}</td></tr>
         </tbody>
       </table>
     </div>
