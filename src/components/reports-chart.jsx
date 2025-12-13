@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { format, subDays } from "date-fns";
-import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { format, subDays, startOfWeek, startOfMonth, startOfYear, parse, getWeek, getYear } from "date-fns";
+import { ComposedChart, Bar, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Select,
@@ -10,40 +10,23 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useAppContext } from "@/app/layout";
 
-async function fetchRecordsForDay(date, wb_number) {
-    if (!wb_number || !date) return [];
-    const query = {
-        startDate: format(date, "dd/MM/yyyy"),
-        endDate: format(date, "dd/MM/yyyy"),
-        wb_number,
-    };
-
-    const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getrecords", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(query)
-    });
-
-    if (!response.ok) {
-        throw new Error(`Failed to fetch data for date: ${query.startDate}`);
-    }
-
-    const result = await response.json();
-    return result.records || [];
-}
+// Helper to parse dd/MM/yyyy dates safely
+const parseDateString = (dateString) => {
+  return parse(dateString, "dd/MM/yyyy", new Date());
+};
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-background border p-2 rounded-lg shadow-lg">
+      <div className="bg-background border p-2 rounded-lg shadow-lg text-xs">
         <p className="font-bold">{label}</p>
-        <p className="text-sm" style={{ color: "hsl(var(--chart-1))" }}>{`Vehicles: ${payload[0].value}`}</p>
-        <p className="text-sm" style={{ color: "hsl(var(--chart-2))" }}>{`Charges: ₹${(payload[1].value || 0).toLocaleString()}`}</p>
+        <p className="text-sm" style={{ color: "hsl(var(--chart-1))" }}>{`Vehicles: ${payload.find(p => p.dataKey === 'vehicles')?.value || 0}`}</p>
+        <p className="text-sm" style={{ color: "hsl(var(--chart-2))" }}>{`Charges: ₹${(payload.find(p => p.dataKey === 'charges')?.value || 0).toLocaleString()}`}</p>
       </div>
     );
   }
@@ -54,6 +37,7 @@ export function ReportsChart() {
     const { user, entities, wb_number } = useAppContext();
     const [chartData, setChartData] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [view, setView] = useState("daily");
     const { toast } = useToast();
     const [selectedWbNumber, setSelectedWbNumber] = useState(wb_number || "");
 
@@ -76,30 +60,109 @@ export function ReportsChart() {
             }
 
             setIsLoading(true);
+            const today = new Date();
+            let startDate;
+            let endDate = today;
+
+            switch (view) {
+                case "daily":
+                    startDate = subDays(today, 6);
+                    break;
+                case "weekly":
+                    startDate = subDays(startOfWeek(today), 21); // Start of week, 3 weeks ago
+                    break;
+                case "monthly":
+                    startDate = startOfYear(today);
+                    break;
+                case "yearly":
+                    startDate = startOfYear(subDays(today, 365 * 2));
+                    break;
+                default:
+                    startDate = subDays(today, 6);
+            }
+
             try {
-                const today = new Date();
-                const yesterday = subDays(today, 1);
-
-                const [todayRecords, yesterdayRecords] = await Promise.all([
-                    fetchRecordsForDay(today, selectedWbNumber),
-                    fetchRecordsForDay(yesterday, selectedWbNumber),
-                ]);
-
-                const processRecords = (records) => {
-                    return records.reduce((acc, record) => {
-                        acc.vehicles += 1;
-                        acc.charges += Number(record.charges) || 0;
-                        return acc;
-                    }, { vehicles: 0, charges: 0 });
+                const query = {
+                    startDate: format(startDate, "dd/MM/yyyy"),
+                    endDate: format(endDate, "dd/MM/yyyy"),
+                    wb_number: selectedWbNumber,
                 };
+                const response = await fetch("https://bend-mqjz.onrender.com/api/wb/getrecords", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(query)
+                });
+                if (!response.ok) throw new Error("Failed to fetch records");
+                const result = await response.json();
+                const records = result.records || [];
 
-                const todayData = processRecords(todayRecords);
-                const yesterdayData = processRecords(yesterdayRecords);
+                const dataMap = new Map();
 
-                setChartData([
-                    { name: 'Today', vehicles: todayData.vehicles, charges: todayData.charges },
-                    { name: 'Yesterday', vehicles: yesterdayData.vehicles, charges: yesterdayData.charges },
-                ]);
+                if (view === "daily") {
+                    for (let i = 0; i < 7; i++) {
+                        const date = subDays(today, i);
+                        const key = format(date, "yyyy-MM-dd");
+                        dataMap.set(key, { name: format(date, "MMM d"), vehicles: 0, charges: 0 });
+                    }
+                    records.forEach(rec => {
+                        const date = parseDateString(rec.date);
+                        const key = format(date, "yyyy-MM-dd");
+                        if (dataMap.has(key)) {
+                            const entry = dataMap.get(key);
+                            entry.vehicles += 1;
+                            entry.charges += Number(rec.charges) || 0;
+                        }
+                    });
+                } else if (view === "weekly") {
+                    for (let i = 0; i < 4; i++) {
+                        const weekStartDate = subDays(startOfWeek(today), i * 7);
+                        const key = `${getYear(weekStartDate)}-${getWeek(weekStartDate, { weekStartsOn: 1 })}`;
+                        dataMap.set(key, { name: `Week ${getWeek(weekStartDate, { weekStartsOn: 1 })}`, vehicles: 0, charges: 0, date: weekStartDate });
+                    }
+                    records.forEach(rec => {
+                        const date = parseDateString(rec.date);
+                        const key = `${getYear(date)}-${getWeek(date, { weekStartsOn: 1 })}`;
+                         if (dataMap.has(key)) {
+                            const entry = dataMap.get(key);
+                            entry.vehicles += 1;
+                            entry.charges += Number(rec.charges) || 0;
+                        }
+                    });
+                } else if (view === "monthly") {
+                    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    for (let i = 0; i < 12; i++) {
+                       dataMap.set(i, { name: monthNames[i], vehicles: 0, charges: 0 });
+                    }
+                     records.forEach(rec => {
+                        const month = parseDateString(rec.date).getMonth();
+                        if (dataMap.has(month)) {
+                            const entry = dataMap.get(month);
+                            entry.vehicles += 1;
+                            entry.charges += Number(rec.charges) || 0;
+                        }
+                    });
+                } else if (view === "yearly") {
+                    for (let i = 0; i < 3; i++) {
+                       const year = getYear(today) - i;
+                       dataMap.set(year, { name: year.toString(), vehicles: 0, charges: 0 });
+                    }
+                    records.forEach(rec => {
+                        const year = parseDateString(rec.date).getFullYear();
+                        if (dataMap.has(year)) {
+                            const entry = dataMap.get(year);
+                            entry.vehicles += 1;
+                            entry.charges += Number(rec.charges) || 0;
+                        }
+                    });
+                }
+                
+                let processedData = Array.from(dataMap.values());
+
+                // Sort data chronologically where applicable
+                if (view === 'daily') processedData.reverse();
+                if (view === 'weekly') processedData.sort((a,b) => a.date - b.date);
+
+                setChartData(processedData);
 
             } catch (error) {
                 console.error("Failed to load chart data:", error);
@@ -115,7 +178,7 @@ export function ReportsChart() {
         };
 
         getChartData();
-    }, [toast, selectedWbNumber]);
+    }, [toast, selectedWbNumber, view]);
     
     return (
         <Card className="mt-6">
@@ -127,12 +190,15 @@ export function ReportsChart() {
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <div className="w-full sm:w-[220px]">
-                           <Select defaultValue="daily" disabled>
+                           <Select value={view} onValueChange={setView}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Daily Comparison" />
+                                    <SelectValue placeholder="Select a view" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="daily">Daily Comparison</SelectItem>
+                                    <SelectItem value="daily">This Week (Daily)</SelectItem>
+                                    <SelectItem value="weekly">Last 4 Weeks</SelectItem>
+                                    <SelectItem value="monthly">This Year (Monthly)</SelectItem>
+                                    <SelectItem value="yearly">Last 3 Years</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -168,21 +234,21 @@ export function ReportsChart() {
                     </div>
                 ) : chartData.length === 0 ? (
                      <div className="h-[400px] w-full flex items-center justify-center">
-                        <p className="text-muted-foreground">No records found for today or yesterday.</p>
+                        <p className="text-muted-foreground">No records found for this period.</p>
                     </div>
                 ) : (
                     <div className="h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
-                           <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                           <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" label={{ value: 'Vehicles', angle: -90, position: 'insideLeft' }}/>
-                                <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" label={{ value: 'Charges (₹)', angle: -90, position: 'insideRight' }}/>
+                                <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis yAxisId="left" orientation="left" stroke="hsl(var(--chart-1))" fontSize={12} tickLine={false} axisLine={false} label={{ value: 'Vehicles', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}/>
+                                <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--chart-2))" fontSize={12} tickLine={false} axisLine={false} label={{ value: 'Charges (₹)', angle: 90, position: 'insideRight', style: { textAnchor: 'middle' } }}/>
                                 <Tooltip content={<CustomTooltip />} />
-                                <Legend verticalAlign="bottom" wrapperStyle={{ paddingBottom: '10px' }} />
-                                <Bar yAxisId="left" dataKey="vehicles" fill="hsl(var(--chart-1))" name="Vehicles" />
-                                <Bar yAxisId="right" dataKey="charges" fill="hsl(var(--chart-2))" name="Charges (₹)" />
-                           </BarChart>
+                                <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '10px' }} />
+                                <Bar yAxisId="left" dataKey="vehicles" fill="hsl(var(--chart-1))" name="Vehicles" barSize={20} />
+                                <Line yAxisId="right" type="monotone" dataKey="charges" stroke="hsl(var(--chart-2))" name="Charges (₹)" />
+                           </ComposedChart>
                         </ResponsiveContainer>
                     </div>
                 )}
