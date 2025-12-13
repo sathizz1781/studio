@@ -85,6 +85,7 @@ import { cn } from "@/lib/utils";
 import { useAppContext } from "@/app/layout";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "./ui/scroll-area";
+import { generateSpeech } from "@/ai/flows/text-to-speech.js";
 
 
 const formSchema = z.object({
@@ -829,7 +830,7 @@ const ReprintDialog = ({ isOpen, onOpenChange, reprintData, toast, config, handl
 };
 
 export function WeighbridgeForm() {
-  const { user, translations, config, wb_number, entities } = useAppContext();
+  const { user, language, translations, config, wb_number, entities } = useAppContext();
   const [netWeight, setNetWeight] = useState(0);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [isClient, setIsClient] = useState(false);
@@ -839,6 +840,7 @@ export function WeighbridgeForm() {
   const [chargeExtremes, setChargeExtremes] = useState(null);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const [isLoadingReprint, setIsLoadingReprint] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [reprintData, setReprintData] = useState(null);
   const [isReprintDialogOpen, setIsReprintDialogOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -1222,6 +1224,43 @@ export function WeighbridgeForm() {
     setChargeExtremes(null);
   }
 
+  const onFormError = async (errors) => {
+    if (isSpeaking) return;
+
+    const errorMessages = [
+      errors.serialNumber?.message,
+      errors.dateTime?.message,
+      errors.vehicleNumber?.message,
+      errors.partyName?.message,
+      errors.materialName?.message,
+    ].filter(Boolean); // Filter out any undefined messages
+
+    if (errorMessages.length > 0) {
+      const combinedMessage = `Please fix the following errors: ${errorMessages.join('. ')}.`;
+      
+      try {
+        setIsSpeaking(true);
+        const { audioDataUri } = await generateSpeech({ text: combinedMessage, language: language });
+        if (audioDataUri) {
+          const audio = new Audio(audioDataUri);
+          audio.play();
+          audio.onended = () => setIsSpeaking(false);
+        } else {
+          setIsSpeaking(false);
+        }
+      } catch (error) {
+        console.error("TTS Error:", error);
+        toast({
+          variant: "destructive",
+          title: "Audio Error",
+          description: "Could not generate voice feedback.",
+        });
+        setIsSpeaking(false);
+      }
+    }
+  };
+
+
   async function onSubmit(values) {
     if (!currentWbNumber) {
       toast({ variant: "destructive", title: "Save Error", description: "Cannot save bill. Entity identifier is missing. Please select an entity." });
@@ -1402,7 +1441,7 @@ Thank you!
         </CardHeader>
         <CardContent>
             <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
+            <form onSubmit={form.handleSubmit(onSubmit, onFormError)}>
                 <div className="no-print">
                    <BillContent
                     form={form}
@@ -1486,9 +1525,13 @@ Thank you!
                         color: "hsl(var(--accent-foreground))",
                         }}
                         className="w-full sm:w-auto"
-                        disabled={isInitializing || !currentWbNumber || isFormDisabled}
+                        disabled={isInitializing || !currentWbNumber || isFormDisabled || isSpeaking}
                     >
-                        <Printer className="mr-2 h-4 w-4" />
+                        {isSpeaking ? (
+                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                           <Printer className="mr-2 h-4 w-4" />
+                        )}
                         {translations.weighbridge_form.send_print}
                     </Button>
                 </CardFooter>
