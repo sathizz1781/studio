@@ -68,8 +68,11 @@ export function ReportsChart() {
                 case "daily":
                     startDate = subDays(today, 6);
                     break;
+                case "last30days":
+                    startDate = subDays(today, 29);
+                    break;
                 case "weekly":
-                    startDate = subDays(startOfWeek(today), 21); // Start of week, 3 weeks ago
+                    startDate = subDays(startOfWeek(today, { weekStartsOn: 1 }), 21); // Start of week, 4 weeks ago including current
                     break;
                 case "monthly":
                     startDate = startOfYear(today);
@@ -102,7 +105,22 @@ export function ReportsChart() {
                     for (let i = 0; i < 7; i++) {
                         const date = subDays(today, i);
                         const key = format(date, "yyyy-MM-dd");
-                        dataMap.set(key, { name: format(date, "MMM d"), vehicles: 0, charges: 0 });
+                        dataMap.set(key, { name: format(date, "MMM d"), vehicles: 0, charges: 0, date: date });
+                    }
+                    records.forEach(rec => {
+                        const date = parseDateString(rec.date);
+                        const key = format(date, "yyyy-MM-dd");
+                        if (dataMap.has(key)) {
+                            const entry = dataMap.get(key);
+                            entry.vehicles += 1;
+                            entry.charges += Number(rec.charges) || 0;
+                        }
+                    });
+                } else if (view === "last30days") {
+                    for (let i = 0; i < 30; i++) {
+                        const date = subDays(today, i);
+                        const key = format(date, "yyyy-MM-dd");
+                        dataMap.set(key, { name: format(date, "MMM d"), vehicles: 0, charges: 0, date: date });
                     }
                     records.forEach(rec => {
                         const date = parseDateString(rec.date);
@@ -115,11 +133,11 @@ export function ReportsChart() {
                     });
                 } else if (view === "weekly") {
                     for (let i = 0; i < 4; i++) {
-                        const weekStartDate = subDays(startOfWeek(today), i * 7);
+                        const weekStartDate = startOfWeek(subDays(today, i * 7), { weekStartsOn: 1 });
                         const key = `${getYear(weekStartDate)}-${getWeek(weekStartDate, { weekStartsOn: 1 })}`;
                         dataMap.set(key, { name: `Week ${getWeek(weekStartDate, { weekStartsOn: 1 })}`, vehicles: 0, charges: 0, date: weekStartDate });
                     }
-                    records.forEach(rec => {
+                     records.forEach(rec => {
                         const date = parseDateString(rec.date);
                         const key = `${getYear(date)}-${getWeek(date, { weekStartsOn: 1 })}`;
                          if (dataMap.has(key)) {
@@ -131,7 +149,7 @@ export function ReportsChart() {
                 } else if (view === "monthly") {
                     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                     for (let i = 0; i < 12; i++) {
-                       dataMap.set(i, { name: monthNames[i], vehicles: 0, charges: 0 });
+                       dataMap.set(i, { name: monthNames[i], vehicles: 0, charges: 0, month: i });
                     }
                      records.forEach(rec => {
                         const month = parseDateString(rec.date).getMonth();
@@ -144,7 +162,7 @@ export function ReportsChart() {
                 } else if (view === "yearly") {
                     for (let i = 0; i < 3; i++) {
                        const year = getYear(today) - i;
-                       dataMap.set(year, { name: year.toString(), vehicles: 0, charges: 0 });
+                       dataMap.set(year, { name: year.toString(), vehicles: 0, charges: 0, year: year });
                     }
                     records.forEach(rec => {
                         const year = parseDateString(rec.date).getFullYear();
@@ -158,9 +176,11 @@ export function ReportsChart() {
                 
                 let processedData = Array.from(dataMap.values());
 
-                // Sort data chronologically where applicable
-                if (view === 'daily') processedData.reverse();
+                if (view === 'daily' || view === 'last30days') processedData.sort((a,b) => a.date - b.date);
                 if (view === 'weekly') processedData.sort((a,b) => a.date - b.date);
+                if (view === 'monthly') processedData.sort((a,b) => a.month - b.month);
+                if (view === 'yearly') processedData.sort((a,b) => b.year - a.year);
+
 
                 setChartData(processedData);
 
@@ -196,6 +216,7 @@ export function ReportsChart() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="daily">This Week (Daily)</SelectItem>
+                                    <SelectItem value="last30days">Last 30 Days (Daily)</SelectItem>
                                     <SelectItem value="weekly">Last 4 Weeks</SelectItem>
                                     <SelectItem value="monthly">This Year (Monthly)</SelectItem>
                                     <SelectItem value="yearly">Last 3 Years</SelectItem>
