@@ -102,6 +102,18 @@ export function ReportsChart() {
         }
     }, [wb_number, user?.role, entities, selectedWbNumber]);
 
+    // Helper function to parse 'dd/MM/yyyy' dates from the API
+    const parseApiDate = (dateString) => {
+        if (!dateString) return null;
+        const parts = dateString.split('/');
+        if (parts.length === 3) {
+            const [day, month, year] = parts;
+            // new Date(year, monthIndex, day)
+            return new Date(Number(year), Number(month) - 1, Number(day));
+        }
+        return null; // Invalid format
+    };
+    
     useEffect(() => {
         const getChartData = async () => {
             if (!selectedWbNumber) {
@@ -123,7 +135,11 @@ export function ReportsChart() {
                         const recordsDaily = await fetchChartData(startDate, endDate, selectedWbNumber);
                         const days = eachDayOfInterval({ start: startDate, end: endDate });
                         processedData = days.map(day => {
-                            const dayRecords = recordsDaily.filter(r => format(parseApiDate(r.date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'));
+                            const dayStr = format(day, 'yyyy-MM-dd');
+                            const dayRecords = recordsDaily.filter(r => {
+                                const recordDate = parseApiDate(r.date);
+                                return recordDate && format(recordDate, 'yyyy-MM-dd') === dayStr;
+                            });
                             return {
                                 name: format(day, 'dd MMM'),
                                 vehicles: dayRecords.length,
@@ -133,15 +149,16 @@ export function ReportsChart() {
                         break;
                     
                     case 'weekly': // Last 4 weeks
-                        startDate = startOfWeek(subDays(today, 27)); // Start of the week 4 weeks ago
-                        endDate = endOfWeek(today);
+                        startDate = startOfWeek(subDays(today, 27), { weekStartsOn: 1 });
+                        endDate = endOfWeek(today, { weekStartsOn: 1 });
                         const recordsWeekly = await fetchChartData(startDate, endDate, selectedWbNumber);
                         const weeks = eachWeekOfInterval({ start: startDate, end: endDate }, { weekStartsOn: 1 });
+                        
                         processedData = weeks.map(weekStart => {
-                            const weekEnd = endOfWeek(weekStart);
+                            const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
                             const weekRecords = recordsWeekly.filter(r => {
                                 const recordDate = parseApiDate(r.date);
-                                return recordDate >= weekStart && recordDate <= weekEnd;
+                                return recordDate && recordDate >= weekStart && recordDate <= weekEnd;
                             });
                             return {
                                 name: `Week ${getISOWeek(weekStart)}`,
@@ -151,15 +168,16 @@ export function ReportsChart() {
                         }).slice(-4);
                         break;
 
-                    case 'monthly': // 12 months of current year
-                        startDate = startOfYear(today);
-                        endDate = endOfYear(today);
+                    case 'monthly': // Last 6 months
+                        startDate = startOfMonth(subMonths(today, 5));
+                        endDate = endOfMonth(today);
                         const recordsMonthly = await fetchChartData(startDate, endDate, selectedWbNumber);
                         const months = eachMonthOfInterval({ start: startDate, end: endDate });
+                        
                         processedData = months.map(monthStart => {
                             const monthRecords = recordsMonthly.filter(r => {
                                 const recordDate = parseApiDate(r.date);
-                                return getYear(recordDate) === getYear(monthStart) && getMonth(recordDate) === getMonth(monthStart);
+                                return recordDate && getYear(recordDate) === getYear(monthStart) && getMonth(recordDate) === getMonth(monthStart);
                             });
                              return {
                                 name: format(monthStart, 'MMM yyyy'),
@@ -175,7 +193,10 @@ export function ReportsChart() {
                         const recordsYearly = await fetchChartData(startDate, endDate, selectedWbNumber);
                         const years = eachYearOfInterval({ start: startDate, end: endDate });
                          processedData = years.map(yearStart => {
-                            const yearRecords = recordsYearly.filter(r => getYear(parseApiDate(r.date)) === getYear(yearStart));
+                            const yearRecords = recordsYearly.filter(r => {
+                               const recordDate = parseApiDate(r.date);
+                               return recordDate && getYear(recordDate) === getYear(yearStart);
+                            });
                             return {
                                 name: format(yearStart, 'yyyy'),
                                 vehicles: yearRecords.length,
@@ -203,11 +224,6 @@ export function ReportsChart() {
             }
         };
 
-        const parseApiDate = (dateString) => {
-            const [day, month, year] = dateString.split('/');
-            return new Date(`${year}-${month}-${day}`);
-        };
-
         getChartData();
     }, [toast, selectedWbNumber, rangeType]);
     
@@ -228,7 +244,7 @@ export function ReportsChart() {
                                 <SelectContent>
                                     <SelectItem value="daily">Last 7 Days</SelectItem>
                                     <SelectItem value="weekly">Last 4 Weeks</SelectItem>
-                                    <SelectItem value="monthly">This Year (Monthly)</SelectItem>
+                                    <SelectItem value="monthly">Last 6 Months</SelectItem>
                                     <SelectItem value="yearly">Last 3 Years</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -278,5 +294,3 @@ export function ReportsChart() {
         </Card>
     );
 }
-
-    
