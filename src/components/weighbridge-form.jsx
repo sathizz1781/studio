@@ -982,32 +982,51 @@ export function WeighbridgeForm() {
     }
   }, [charges, activeConfig]);
 
- const performPrint = (billData) => {
+  const formatWeightForOutput = (value) => {
+    return Number(value) === 0 || value === undefined || value === null || value === "" ? "" : value;
+  };
+
+  const formatNetWeightForOutput = (fw, sw, net) => {
+    if (Number(fw) === 0 || Number(sw) === 0) return "";
+    return net;
+  };
+
+  const performPrint = (billData) => {
     const printFrame = document.createElement('iframe');
     printFrame.style.display = 'none';
     document.body.appendChild(printFrame);
 
     const printDocument = printFrame.contentWindow.document;
     printDocument.open();
-    const [date, time] = billData.dateTime.split(', ');
-    const content = (
-        `<div>
-          <table style="font-size: 10px; width: 100%; border-collapse: collapse;">
-            <tbody>
-              <tr><td style="padding: 1px; text-align: right;">${billData.sl_no}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${date}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${time}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.vehicle_no}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.party_name}</td></tr>
-              <tr><td style="padding: 1px, padding-bottom: 2px; text-align: right;">${billData.material_name}</td></tr>
-              <tr><td style="padding: 1px, padding-bottom: 2px; text-align: right;">${billData.charges}</td></tr>
-              <tr><td style="padding: 1px; padding-top: 2px; text-align: right;">${billData.first_weight}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.second_weight}</td></tr>
-              <tr><td style="padding: 1px; text-align: right;">${billData.net_weight}</td></tr>
-            </tbody>
-          </table>
-        </div>`
-    );
+    const [date, time] = (billData.dateTime || "").split(', ');
+
+    const fw = formatWeightForOutput(billData.first_weight);
+    const sw = formatWeightForOutput(billData.second_weight);
+    const net = formatNetWeightForOutput(billData.first_weight, billData.second_weight, billData.net_weight);
+
+    // Add small spacer rows for line spacing between fields
+    const row = (value) => `
+      <tr><td style="padding:1px; text-align:right;">${value || ""}</td></tr>
+      <tr><td style="height:6px"></td></tr>
+    `;
+
+    const content = `
+      <div>
+        <table style="font-size: 10px; width: 100%; border-collapse: collapse;">
+          <tbody>
+            ${row(billData.sl_no)}
+            ${row(date)}
+            ${row(time)}
+            ${row(billData.vehicle_no)}
+            ${row(billData.party_name)}
+            ${row(billData.material_name)}
+            ${row(billData.charges)}
+            ${row(fw)}
+            ${row(sw)}
+            ${row(net)}
+          </tbody>
+        </table>
+      </div>`;
 
     printDocument.write(`
         <html>
@@ -1279,22 +1298,22 @@ export function WeighbridgeForm() {
         description: "The bill has been saved and printed.",
       };
 
-      if (latestValues.whatsappNumber) {
+            if (latestValues.whatsappNumber) {
         const message = `
-*WeighBridge Bill*
--------------------------
-*Serial No:* ${latestValues.serialNumber}
-*Date:* ${latestValues.dateTime}
-*Vehicle No:* ${latestValues.vehicleNumber.toUpperCase()}
-*Party Name:* ${latestValues.partyName}
-*Material:* ${latestValues.materialName}
-*Charges:* ₹${latestValues.charges || 0}
-*Payment:* ${latestValues.paymentStatus}
-*First Weight:* ${latestValues.firstWeight}
-*Second Weight:* ${latestValues.secondWeight}
-*Net Weight:* ${netWeight}
--------------------------
-Thank you!
+      *WeighBridge Bill*
+      -------------------------
+      *Serial No:* ${latestValues.serialNumber}
+      *Date:* ${latestValues.dateTime}
+      *Vehicle No:* ${latestValues.vehicleNumber.toUpperCase()}
+      *Party Name:* ${latestValues.partyName}
+      *Material:* ${latestValues.materialName}
+      *Charges:* ₹${latestValues.charges || 0}
+      *Payment:* ${latestValues.paymentStatus}
+      *First Weight:* ${formatWeightForOutput(latestValues.firstWeight)}
+      *Second Weight:* ${formatWeightForOutput(latestValues.secondWeight)}
+      *Net Weight:* ${formatNetWeightForOutput(latestValues.firstWeight, latestValues.secondWeight, netWeight)}
+      -------------------------
+      Thank you!
         `.trim();
 
         const encodedMessage = encodeURIComponent(message);
