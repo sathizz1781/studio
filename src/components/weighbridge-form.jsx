@@ -470,7 +470,8 @@ const BillContent = ({
                     <FormLabel className="flex items-center gap-2"><Hash className="h-5 w-5 text-primary" /> {translations.weighbridge_form.serial_number}</FormLabel>
                     <FormControl>
                         {isManualMode ? (
-                            <Input {...field} disabled={isFormDisabled}/>
+                          // In manual mode serial number should be visible but not editable
+                          <Input {...field} readOnly />
                         ) : (
                             <p className="p-3 bg-muted rounded-lg text-lg font-bold text-foreground">{field.value}</p>
                         )}

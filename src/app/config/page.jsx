@@ -114,8 +114,8 @@ export default function ConfigPage() {
     const isUpdating = !!config._id;
     
     const apiEndpoint = isUpdating 
-        ? `https://bend-mqjz.onrender.com/api/config/update/${mobileNumber}`
-        : "https://bend-mqjz.onrender.com/api/config/create";
+      ? `https://bend-mqjz.onrender.com/api/config/put/${mobileNumber}`
+      : "https://bend-mqjz.onrender.com/api/config/create";
         
     const apiMethod = isUpdating ? 'PUT' : 'POST';
 
@@ -126,13 +126,28 @@ export default function ConfigPage() {
         body: JSON.stringify(dataToSave),
       });
 
+      // Helper: try to parse JSON, fall back to plain text
+      const parseResponse = async (res) => {
+        const ct = res.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          return res.json();
+        }
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          return { message: text };
+        }
+      };
+
       if (!saveResponse.ok) {
-        const errorData = await saveResponse.json();
-        throw new Error(errorData.message || "Failed to save configuration to the server.");
+        const errorData = await parseResponse(saveResponse).catch(() => ({}));
+        const msg = (errorData && (errorData.message || errorData.error)) || `Server returned ${saveResponse.status}`;
+        throw new Error(msg);
       }
 
-      const responseData = await saveResponse.json();
-      const finalData = responseData.data || dataToSave;
+      const responseData = await parseResponse(saveResponse).catch(() => ({}));
+      const finalData = (responseData && responseData.data) || dataToSave;
       
       // Update local context with new data
       saveConfig(finalData); 
