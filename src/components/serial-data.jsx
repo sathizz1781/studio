@@ -1,53 +1,62 @@
 
+
 "use client";
 
-import React, { useState, useEffect, memo } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAppContext } from "@/app/layout";
 
-// Memoize the component to prevent re-renders when parent's state changes
-const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) {
+function SerialDataComponent({ serialDataRef }) {
   const [serialData, setSerialData] = useState("000000");
   const { config } = useAppContext();
+  const socketRef = useRef(null);
+
+  // Use a ref to always access the latest setter without closure issues
+  const setSerialDataRef = useRef(setSerialData);
+  useEffect(() => {
+    setSerialDataRef.current = setSerialData;
+  }, []);
+
+  // Handle socket data events with proper state access
+  const handleSocketData = useCallback((data) => {
+    console.log(data, "RECEIVED DATA");
+
+    let output = data.split("N+").pop().split(".").shift();
+    console.log(output, "PARSED OUTPUT");
+    const sanitizedOutput = output.replace(/\s/g, "");
+    console.log(sanitizedOutput, "SANITIZE");
+
+    if (sanitizedOutput.length === 6 && /^\d+$/.test(sanitizedOutput)) {
+      console.log(sanitizedOutput, "output set - calling setSerialData");
+      setSerialDataRef.current(sanitizedOutput);
+      
+      // Update ref immediately for external access without state delay
+      if (serialDataRef?.current) {
+        console.log(sanitizedOutput, "PASTING to ref");
+        serialDataRef.current.weight = Number(sanitizedOutput);
+      }
+    }
+  }, [serialDataRef]);
 
   useEffect(() => {
-    let socket;
-    
     // Fallback to localhost if no host is configured
     const host = config.serialHost ? `https://${config.serialHost}` : "https://localhost:4000";
 
     async function connectSocket() {
       const { io } = await import("socket.io-client"); // ⚡ dynamic import (client only)
   
-       socket = io(host, {
+      socketRef.current = io(host, {
         transports: ["websocket"],
         secure: true,
         rejectUnauthorized: false, // because it's self-signed
       });
   
-      socket.on("data", (data) => {
-        console.log(data, "RECEIVED DATA");
+      socketRef.current.on("data", handleSocketData);
   
-        let output = data.split("N+").pop().split(".").shift();
-        console.log(output, "PARSED OUTPUT");
-        const sanitizedOutput = output.replace(/\s/g, "");
-        console.log(sanitizedOutput,"SANITIZE");
-  
-        if (sanitizedOutput.length === 6 && /^\d+$/.test(sanitizedOutput)) {
-          setSerialData(sanitizedOutput);
-          console.log(sanitizedOutput,"output set");
-          // Update ref immediately for external access without state delay
-          if (serialDataRef?.current) {
-            console.log(sanitizedOutput,"PASTING");
-            serialDataRef.current.weight = Number(sanitizedOutput);
-          }
-        }
-      });
-  
-      socket.on("connect_error", (err) => {
+      socketRef.current.on("connect_error", (err) => {
         console.log(`connect_error due to ${err.message} on host ${host}`);
       });
 
-      socket.on('connect', () => {
+      socketRef.current.on('connect', () => {
         console.log(`Connected to serial data host: ${host}`);
       });
     }
@@ -55,10 +64,12 @@ const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) 
     connectSocket();
   
     return () => {
-      if (socket) socket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.off("data", handleSocketData);
+        socketRef.current.disconnect();
+      }
     };
-  }, [config.serialHost]);
-   // Dependency array is correct
+  }, [config.serialHost, handleSocketData]);
 
   return (
     <p
@@ -67,8 +78,9 @@ const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) 
       {serialData}
     </p>
   );
-});
+}
 
-export const SerialDataComponent = MemoizedSerialData;
-
+export default SerialDataComponent;
     
+
+
