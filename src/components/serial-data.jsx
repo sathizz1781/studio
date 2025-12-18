@@ -70,7 +70,7 @@ function SerialDataComponent({ serialDataRef }) {
       }
     };
   }, [config.serialHost, handleSocketData]);
-
+console.log(serialData,"SERIAL DATA ABOUT TO RENDER");
   return (
     <p
        className="w-full text-center font-mono font-bold tracking-[10px] md:tracking-[15px] text-4xl sm:text-5xl md:text-6xl lg:text-8xl p-2 rounded-lg border-4 md:border-8 border-primary bg-background text-foreground"
