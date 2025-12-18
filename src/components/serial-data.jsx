@@ -28,7 +28,7 @@ function SerialDataComponent({ serialDataRef }) {
     if (sanitizedOutput.length === 6 && /^\d+$/.test(sanitizedOutput)) {
       console.log(sanitizedOutput, "output set - calling setSerialData");
       setSerialDataRef.current(sanitizedOutput);
-      
+      console.log(serialDataRef)
       // Update ref immediately for external access without state delay
       if (serialDataRef?.current) {
         console.log(sanitizedOutput, "PASTING to ref");
