@@ -993,6 +993,7 @@ export function WeighbridgeForm() {
   };
 
   const performPrint = (billData) => {
+    const isMobile = useIsMobile();
     const printFrame = document.createElement('iframe');
     printFrame.style.display = 'none';
     document.body.appendChild(printFrame);
