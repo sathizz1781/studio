@@ -35,10 +35,10 @@ const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) 
         if (sanitizedOutput.length === 6 && /^\d+$/.test(sanitizedOutput)) {
           setSerialData(sanitizedOutput);
   console.log(sanitizedOutput,"output set");
-          if (serialDataRef?.current) {
+          // if (serialDataRef?.current) {
             console.log(sanitizedOutput,"PASTING");
             serialDataRef.current.weight = Number(sanitizedOutput);
-          }
+          // }
         }
       });
   
