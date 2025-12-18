@@ -1300,11 +1300,13 @@ export function WeighbridgeForm() {
       };
 
             if (latestValues.whatsappNumber) {
+              const [date, time] = latestValues.dateTime.split(', ');
         const message = `
-      *WeighBridge Bill*
+      *${activeConfig.companyName}*
       -------------------------
       *Serial No:* ${latestValues.serialNumber}
-      *Date:* ${latestValues.dateTime}
+      *Date:* ${date}
+      *Time:* ${time}
       *Vehicle No:* ${latestValues.vehicleNumber.toUpperCase()}
       *Party Name:* ${latestValues.partyName}
       *Material:* ${latestValues.materialName}
