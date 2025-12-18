@@ -1069,6 +1069,109 @@ export function WeighbridgeForm() {
             }
         }
     }, 250);
+
+    if (isMobile) {
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    alert("Please allow popups to print");
+    return;
+  }
+
+  const [date, time] = (billData.dateTime || "").split(", ");
+
+  const fw = billData.first_weight || "";
+  const sw = billData.second_weight || "";
+  const net = billData.net_weight || "";
+
+  const row = (value) => `
+    <tr>
+      <td style="padding:4px 0;text-align:right;font-size:10px;">
+        ${value ?? ""}
+      </td>
+    </tr>
+  `;
+
+  const singleCopy = `
+    <table style="width:100%;border-collapse:collapse;">
+      <tbody>
+        ${row(billData.sl_no)}
+        ${row(date)}
+        ${row(time)}
+        ${row(billData.vehicle_no)}
+        ${row(billData.party_name)}
+        ${row(billData.material_name)}
+        ${row(billData.charges)}
+        ${row(fw)}
+        ${row(sw)}
+        ${row(net)}
+      </tbody>
+    </table>
+  `;
+
+  printWindow.document.open();
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Print</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+          body {
+            margin: 0;
+            padding: 6px;
+            font-family: Arial, sans-serif;
+          }
+
+          .printable-section {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            width: 100%;
+            gap: 6px;
+          }
+
+          .print-copy {
+            flex: 1 1 33%;
+            border-right: 1px dashed #ccc;
+            padding-right: 6px;
+          }
+
+          .print-copy:last-child {
+            border-right: none;
+          }
+
+          @media print {
+            body {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="printable-section">
+          <div class="print-copy">${singleCopy}</div>
+          <div class="print-copy">${singleCopy}</div>
+          <div class="print-copy">${singleCopy}</div>
+        </div>
+
+        <script>
+          window.onload = function () {
+            setTimeout(function () {
+              window.focus();
+              window.print();
+            }, 600);
+          };
+        </script>
+      </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  return;
+}
+
   };
 
   const handlePrint = () => {
