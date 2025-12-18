@@ -30,15 +30,16 @@ const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) 
         let output = data.split("N+").pop().split(".").shift();
         console.log(output, "PARSED OUTPUT");
         const sanitizedOutput = output.replace(/\s/g, "");
-  console.log(sanitizedOutput,"SANITIZE");
+        console.log(sanitizedOutput,"SANITIZE");
   
         if (sanitizedOutput.length === 6 && /^\d+$/.test(sanitizedOutput)) {
           setSerialData(sanitizedOutput);
-  console.log(sanitizedOutput,"output set");
-          // if (serialDataRef?.current) {
+          console.log(sanitizedOutput,"output set");
+          // Update ref immediately for external access without state delay
+          if (serialDataRef?.current) {
             console.log(sanitizedOutput,"PASTING");
             serialDataRef.current.weight = Number(sanitizedOutput);
-          // }
+          }
         }
       });
   
@@ -56,7 +57,7 @@ const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) 
     return () => {
       if (socket) socket.disconnect();
     };
-  }, [serialDataRef, config.serialHost]);
+  }, [config.serialHost]);
    // Dependency array is correct
 
   return (
