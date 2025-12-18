@@ -28,12 +28,15 @@ const MemoizedSerialData = memo(function SerialDataComponent({ serialDataRef }) 
         console.log(data, "RECEIVED DATA");
   
         let output = data.split("N+").pop().split(".").shift();
+        console.log(output, "PARSED OUTPUT");
         const sanitizedOutput = output.replace(/\s/g, "");
+  console.log(sanitizedOutput,"SANITIZE");
   
         if (sanitizedOutput.length === 6 && /^\d+$/.test(sanitizedOutput)) {
           setSerialData(sanitizedOutput);
-  
+  console.log(sanitizedOutput,"output set");
           if (serialDataRef?.current) {
+            console.log(sanitizedOutput,"PASTING");
             serialDataRef.current.weight = Number(sanitizedOutput);
           }
         }
