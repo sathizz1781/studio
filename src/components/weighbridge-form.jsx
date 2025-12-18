@@ -1194,9 +1194,26 @@ export function WeighbridgeForm() {
                 setPreviousWeights(result.data);
             } else {
                setPreviousWeights(null);
+               // If no previous weights found, populate firstWeight with live serial weight
+               try {
+                 const live = serialDataRef?.current?.weight;
+                 if (live !== undefined && live !== null) {
+                   setValue("firstWeight", live);
+                 }
+               } catch (e) {
+                 console.error("Failed to set firstWeight from serialDataRef:", e);
+               }
             }
         } else {
            setPreviousWeights(null);
+           try {
+             const live = serialDataRef?.current?.weight;
+             if (live !== undefined && live !== null) {
+               setValue("firstWeight", live);
+             }
+           } catch (e) {
+             console.error("Failed to set firstWeight from serialDataRef:", e);
+           }
         }
 
         if (chargesResponse.ok) {
@@ -1221,8 +1238,14 @@ export function WeighbridgeForm() {
   
   const handleWeightSelection = (selectedWeight) => {
     const liveWeight = serialDataRef.current.weight;
-    setValue("firstWeight", Math.max(selectedWeight, liveWeight));
-    setValue("secondWeight", Math.min(selectedWeight, liveWeight));
+    if(selectedWeight!== liveWeight) {
+      setValue("firstWeight", Math.max(selectedWeight, liveWeight));
+       setValue("secondWeight", Math.min(selectedWeight, liveWeight));
+    }else{
+      setValue("firstWeight", Math.max(selectedWeight, liveWeight));
+      setValue("secondWeight", 0);
+    }
+    
     setPreviousWeights(null);
   };
 
