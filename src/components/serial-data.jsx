@@ -81,6 +81,8 @@ function SerialDataComponent({ serialDataRef }) {
 }
 
 export default SerialDataComponent;
+// Also provide a named export for existing imports
+export { SerialDataComponent };
     
 
 
