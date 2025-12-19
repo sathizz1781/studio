@@ -838,6 +838,7 @@ export function WeighbridgeForm() {
   const [selectedCustomerForDisplay, setSelectedCustomerForDisplay] = useState(null);
   const [isShareLocationOpen, setIsShareLocationOpen] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Developer state
   const isDeveloper = user?.role === 'developer';
@@ -1255,8 +1256,12 @@ export function WeighbridgeForm() {
   }
 
   async function onSubmit(values) {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     if (!activeWbNumber) {
       toast({ variant: "destructive", title: "Save Error", description: "Cannot save bill. Entity identifier is missing. Please select an entity." });
+      setIsSubmitting(false);
       return;
     }
 
@@ -1266,6 +1271,7 @@ export function WeighbridgeForm() {
         title: "Account Incomplete",
         description: "Please set your password on the Configuration page before creating a bill."
       });
+      setIsSubmitting(false);
       return;
     }
 
@@ -1358,6 +1364,8 @@ export function WeighbridgeForm() {
     } catch (error) {
       console.error("Failed to save or send bill:", error);
       toast({ variant: "destructive", title: "Error", description: `Could not save the bill. ${error.message}` });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -1513,10 +1521,14 @@ export function WeighbridgeForm() {
                         color: "hsl(var(--accent-foreground))",
                         }}
                         className="w-full sm:w-auto"
-                        disabled={isInitializing || !activeWbNumber || isFormDisabled}
+                        disabled={isInitializing || !activeWbNumber || isFormDisabled || isSubmitting}
                     >
-                        <Printer className="mr-2 h-4 w-4" />
-                        {translations.weighbridge_form.send_print}
+                        {isSubmitting ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Printer className="mr-2 h-4 w-4" />
+                        )}
+                        {isSubmitting ? translations.weighbridge_form.saving || "Saving..." : translations.weighbridge_form.send_print}
                     </Button>
                 </CardFooter>
             </form>
