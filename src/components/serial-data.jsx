@@ -151,6 +151,7 @@ function SerialDataComponent({ serialDataRef }) {
         transports: ["websocket"],
         secure: true,
         rejectUnauthorized: false,
+        path: "/api/serial",
       });
 
       socketRef.current.on("data", handleSocketData);
