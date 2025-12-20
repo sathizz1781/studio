@@ -86,44 +86,175 @@
     
 
 
+// "use client";
+
+// import React, { useState, useEffect, useRef, useCallback } from "react";
+// import { useAppContext } from "@/app/layout";
+
+// // 🔁 Toggle this flag for testing
+// const TEST_MODE = false; // set false in production
+
+// function SerialDataComponent({ serialDataRef }) {
+//   const [serialData, setSerialData] = useState("000000");
+//   const { config } = useAppContext();
+//   const socketRef = useRef(null);
+
+//   /**
+//    * Handle incoming socket / simulated data
+//    */
+//   const handleSocketData = useCallback(
+//     (data) => {
+//       console.log("📥 RAW DATA:", data);
+
+//       // 🔹 Parse device format
+//       const output =
+//         data?.split("N+")?.pop()?.split(".")?.shift() || "";
+
+//       const sanitizedOutput = output.replace(/\s/g, "");
+
+//       console.log("🧹 SANITIZED:", sanitizedOutput);
+
+//       // 🔹 Validate 6-digit numeric weight
+//       if (data.length === 6 && /^\d+$/.test(data)) {
+//         // ✅ Update UI (state drives rendering)
+//         setSerialData((prev) =>
+//           prev === data ? prev : data
+//         );
+
+//         // ✅ Update ref (for instant external access)
+//         if (serialDataRef?.current) {
+//           serialDataRef.current.weight = Number(data);
+//         }
+//       }
+//     },
+//     [serialDataRef]
+//   );
+
+//   /**
+//    * 🔌 REAL SOCKET CONNECTION (disabled in test mode)
+//    */
+//   useEffect(() => {
+//     if (TEST_MODE) return;
+//     console.log(config?.serialHost,"HOST");
+
+//     const host = config?.serialHost
+//       ? `https://${config.serialHost}`
+//       : "https://localhost:4000";
+
+//     let isMounted = true;
+
+//     async function connectSocket() {
+//       const { io } = await import("socket.io-client");
+//       if (!isMounted) return;
+
+//       socketRef.current = io(host, {
+//         transports: ["websocket"],
+//         secure: true,
+//         rejectUnauthorized: false,
+//       });
+
+//       socketRef.current.on("data", handleSocketData);
+
+//       socketRef.current.on("connect", () => {
+//         console.log("✅ Connected to serial host:", host);
+//       });
+
+//       socketRef.current.on("connect_error", (err) => {
+//         console.error("❌ Socket error:", err.message);
+//       });
+//     }
+
+//     connectSocket();
+
+//     return () => {
+//       isMounted = false;
+//       if (socketRef.current) {
+//         socketRef.current.off("data", handleSocketData);
+//         socketRef.current.disconnect();
+//       }
+//     };
+//   }, [config?.serialHost, handleSocketData]);
+
+//   /**
+//    * 🧪 TEST MODE – Fake socket data every 5 seconds
+//    */
+//   useEffect(() => {
+//     if (!TEST_MODE) return;
+
+//     console.log("🧪 TEST MODE ENABLED: Simulating socket data");
+
+//     const interval = setInterval(() => {
+//       const fakeWeight = String(
+//         Math.floor(100000 + Math.random() * 900000)
+//       );
+
+//       // Simulate real weighing machine format
+//       const fakeSocketData = fakeWeight;
+
+//       console.log("🧪 FAKE DATA:", fakeSocketData);
+
+//       handleSocketData(fakeSocketData);
+//     }, 5000);
+
+//     return () => clearInterval(interval);
+//   }, [handleSocketData]);
+
+//   /**
+//    * Debug render confirmation
+//    */
+//   useEffect(() => {
+//     console.log("🔁 UI RENDERED WITH:", serialData);
+//   }, [serialData]);
+
+//   return (
+//     <p
+//       className="w-full text-center font-mono font-bold tracking-[10px] md:tracking-[15px]
+//       text-4xl sm:text-5xl md:text-6xl lg:text-8xl
+//       p-2 rounded-lg border-4 md:border-8 border-primary
+//       bg-background text-foreground"
+//     >
+//       {serialData}
+//     </p>
+//   );
+// }
+
+// export default SerialDataComponent;
+// export { SerialDataComponent };
+
+
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAppContext } from "@/app/layout";
 
-// 🔁 Toggle this flag for testing
-const TEST_MODE = false; // set false in production
+// 🔁 Toggle for testing
+const TEST_MODE = false;
 
 function SerialDataComponent({ serialDataRef }) {
   const [serialData, setSerialData] = useState("000000");
   const { config } = useAppContext();
-  const socketRef = useRef(null);
 
   /**
-   * Handle incoming socket / simulated data
+   * Handle incoming data (REAL + TEST)
    */
   const handleSocketData = useCallback(
     (data) => {
       console.log("📥 RAW DATA:", data);
 
-      // 🔹 Parse device format
       const output =
         data?.split("N+")?.pop()?.split(".")?.shift() || "";
 
-      const sanitizedOutput = output.replace(/\s/g, "");
+      const sanitized = output.replace(/\s/g, "");
 
-      console.log("🧹 SANITIZED:", sanitizedOutput);
+      console.log("🧹 SANITIZED:", sanitized);
 
-      // 🔹 Validate 6-digit numeric weight
-      if (data.length === 6 && /^\d+$/.test(data)) {
-        // ✅ Update UI (state drives rendering)
+      if (sanitized.length === 6 && /^\d+$/.test(sanitized)) {
         setSerialData((prev) =>
-          prev === data ? prev : data
+          prev === sanitized ? prev : sanitized
         );
 
-        // ✅ Update ref (for instant external access)
         if (serialDataRef?.current) {
-          serialDataRef.current.weight = Number(data);
+          serialDataRef.current.weight = Number(sanitized);
         }
       }
     },
@@ -131,81 +262,54 @@ function SerialDataComponent({ serialDataRef }) {
   );
 
   /**
-   * 🔌 REAL SOCKET CONNECTION (disabled in test mode)
+   * 🔌 REAL-TIME SSE CONNECTION
    */
   useEffect(() => {
     if (TEST_MODE) return;
-    console.log(config?.serialHost,"HOST");
 
     const host = config?.serialHost
       ? `https://${config.serialHost}`
-      : "https://localhost:4000";
+      : window.location.origin;
 
-    let isMounted = true;
+    const es = new EventSource(`${host}/api/serial`);
 
-    async function connectSocket() {
-      const { io } = await import("socket.io-client");
-      if (!isMounted) return;
+    es.onmessage = (event) => {
+      try {
+        handleSocketData(JSON.parse(event.data));
+      } catch (err) {
+        console.error("❌ SSE parse error", err);
+      }
+    };
 
-      socketRef.current = io(host, {
-        transports: ["websocket"],
-        secure: true,
-        rejectUnauthorized: false,
-        path: "/api/serial",
-      });
+    es.onerror = (err) => {
+      console.error("❌ SSE connection error", err);
+    };
 
-      socketRef.current.on("data", handleSocketData);
-
-      socketRef.current.on("connect", () => {
-        console.log("✅ Connected to serial host:", host);
-      });
-
-      socketRef.current.on("connect_error", (err) => {
-        console.error("❌ Socket error:", err.message);
-      });
-    }
-
-    connectSocket();
+    console.log("✅ SSE connected:", `${host}/api/serial`);
 
     return () => {
-      isMounted = false;
-      if (socketRef.current) {
-        socketRef.current.off("data", handleSocketData);
-        socketRef.current.disconnect();
-      }
+      es.close();
+      console.log("🔌 SSE disconnected");
     };
   }, [config?.serialHost, handleSocketData]);
 
   /**
-   * 🧪 TEST MODE – Fake socket data every 5 seconds
+   * 🧪 TEST MODE – Fake data
    */
   useEffect(() => {
     if (!TEST_MODE) return;
 
-    console.log("🧪 TEST MODE ENABLED: Simulating socket data");
+    console.log("🧪 TEST MODE ENABLED");
 
     const interval = setInterval(() => {
-      const fakeWeight = String(
+      const fake = String(
         Math.floor(100000 + Math.random() * 900000)
       );
-
-      // Simulate real weighing machine format
-      const fakeSocketData = fakeWeight;
-
-      console.log("🧪 FAKE DATA:", fakeSocketData);
-
-      handleSocketData(fakeSocketData);
-    }, 5000);
+      handleSocketData(fake);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [handleSocketData]);
-
-  /**
-   * Debug render confirmation
-   */
-  useEffect(() => {
-    console.log("🔁 UI RENDERED WITH:", serialData);
-  }, [serialData]);
 
   return (
     <p
@@ -221,5 +325,3 @@ function SerialDataComponent({ serialDataRef }) {
 
 export default SerialDataComponent;
 export { SerialDataComponent };
-
-

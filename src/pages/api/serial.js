@@ -1,4 +1,4 @@
-import { Server } from "socket.io";
+let clients = [];
 
 export const config = {
   api: {
@@ -7,42 +7,40 @@ export const config = {
 };
 
 export default function handler(req, res) {
-  // Initialize Socket.IO once
-  if (!res.socket.server.io) {
-    console.log("Initializing Socket.IO...");
-
-    const io = new Server(res.socket.server, {
-      path: "/api/serial",
-      transports: ["websocket"],
-      cors: {
-        origin: "*", // or your Vercel domain
-      },
+  // 🔌 SSE connection (Browser)
+  if (req.method === "GET") {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
     });
 
-    res.socket.server.io = io;
+    clients.push(res);
+    console.log("✅ SSE client connected");
 
-    io.on("connection", (socket) => {
-      console.log("Frontend connected:", socket.id);
+    req.on("close", () => {
+      clients = clients.filter((c) => c !== res);
+      console.log("❌ SSE client disconnected");
     });
+
+    return;
   }
 
-  // Handle POST data from local machine
+  // 📡 Data from Electron / local app
   if (req.method === "POST") {
     const { value, secret } = req.body || {};
-
-    if (!value || !secret) {
-      return res.status(400).json({ message: "Invalid payload" });
-    }
 
     if (secret !== process.env.SERIAL_SECRET) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // Emit to all connected browsers
-    res.socket.server.io.emit("serial:data", value);
+    // Broadcast to all SSE clients
+    clients.forEach((client) => {
+      client.write(`data: ${JSON.stringify(value)}\n\n`);
+    });
 
-    return res.status(200).json({ message: "Data broadcasted" });
+    return res.status(200).json({ message: "Broadcasted" });
   }
 
-  res.status(200).end();
+  res.end();
 }
