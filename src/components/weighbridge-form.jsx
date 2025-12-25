@@ -1035,7 +1035,7 @@ export function WeighbridgeForm() {
             <head>
                 <title>Print</title>
                 <style>
-                    @page { size: 10.5in 6in; margin: 0.25in; }
+                    // @page { size: 10.5in 6in; margin: 0.25in; }
                     body { font-family: sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
                     .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
                     .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 9px; }
