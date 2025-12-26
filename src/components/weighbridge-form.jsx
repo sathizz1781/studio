@@ -836,7 +836,7 @@ const handlePasscodeSubmit = () => {
       {showPasscodeModal && (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
     <div className="bg-white p-4 rounded-md w-80">
-      <h3 className="text-sm font-semibold mb-2">
+      <h3 className="text-sm text-black font-semibold mb-2">
         Enter Passcode
       </h3>
 
@@ -850,7 +850,7 @@ const handlePasscodeSubmit = () => {
 
       <div className="flex justify-end gap-2">
         <button
-          className="px-3 py-1 text-sm border rounded"
+          className="px-3 py-1 text-sm text-black border rounded"
           onClick={() => {
             setShowPasscodeModal(false);
             setPasscode("");
