@@ -399,6 +399,30 @@ const BillContent = ({
   isDeveloper, // For developer view
 }) => {
   const { control } = form;
+const [showPasscodeModal, setShowPasscodeModal] = useState(false);
+const [passcode, setPasscode] = useState("");
+
+const handleManualToggle = (checked) => {
+  // Enabling manual mode → ask passcode
+  if (checked) {
+    setShowPasscodeModal(true);
+    return;
+  }
+
+  // Disabling manual mode → no passcode
+  setIsManualMode(false);
+  fetchNewSerialNumber();
+  setInitialDateTime();
+};
+const handlePasscodeSubmit = () => {
+  if (passcode === "12345") {
+    setIsManualMode(true);
+    setShowPasscodeModal(false);
+    setPasscode("");
+  } else {
+    alert("Invalid passcode");
+  }
+};
 
   return (
     <>
@@ -445,7 +469,7 @@ const BillContent = ({
             </CardContent>
         </Card>
       </div>
-       <div className="flex items-center justify-end space-x-2 mb-4">
+       {/* <div className="flex items-center justify-end space-x-2 mb-4">
           <Label htmlFor="manual-mode" className="flex items-center gap-2 text-sm">
             <Edit size={14} /> {translations.weighbridge_form.manual_entry}
           </Label>
@@ -461,7 +485,20 @@ const BillContent = ({
             }}
             disabled={isFormDisabled}
           />
-        </div>
+        </div> */}
+        <div className="flex items-center justify-end space-x-2 mb-4">
+  <Label htmlFor="manual-mode" className="flex items-center gap-2 text-sm">
+    <Edit size={14} /> {translations.weighbridge_form.manual_entry}
+  </Label>
+
+  <Switch
+    id="manual-mode"
+    checked={isManualMode}
+    onCheckedChange={handleManualToggle}
+    disabled={isFormDisabled}
+  />
+</div>
+
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <FormField
@@ -796,6 +833,43 @@ const BillContent = ({
              )}
         </div>
       </div>
+      {showPasscodeModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="bg-white p-4 rounded-md w-80">
+      <h3 className="text-sm font-semibold mb-2">
+        Enter Passcode
+      </h3>
+
+      <input
+        type="text"
+        className="w-full border rounded px-2 py-1 mb-3"
+        value={passcode}
+        onChange={(e) => setPasscode(e.target.value)}
+        autoFocus
+      />
+
+      <div className="flex justify-end gap-2">
+        <button
+          className="px-3 py-1 text-sm border rounded"
+          onClick={() => {
+            setShowPasscodeModal(false);
+            setPasscode("");
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          className="px-3 py-1 text-sm bg-blue-600 text-white rounded"
+          onClick={handlePasscodeSubmit}
+        >
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </>
   );
 };
@@ -1010,6 +1084,7 @@ export function WeighbridgeForm() {
   };
 
   const performPrint = (billData) => {
+    setIsManualMode(false); 
     const printFrame = document.createElement('iframe');
     printFrame.style.display = 'none';
     document.body.appendChild(printFrame);
