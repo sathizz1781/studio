@@ -744,7 +744,7 @@ const handlePasscodeSubmit = () => {
           <FormControl>
             <div
               aria-hidden
-              className="w-full text-right font-extrabold text-black text-5xl leading-none"
+              className="w-full text-right font-extrabold text-5xl leading-none"
               style={{ paddingTop: '0.2rem', paddingBottom: '0.2rem' }}
             >
               {netWeight}
