@@ -92,9 +92,11 @@ const formSchema = z.object({
     .optional(),
   firstWeight: z.coerce
     .number({ invalid_type_error: "Please enter a valid number." })
+    .int("Weight must be a whole number.")
     .nonnegative("Weight must be a positive number."),
   secondWeight: z.coerce
     .number({ invalid_type_error: "Please enter a valid number." })
+    .int("Weight must be a whole number.")
     .nonnegative("Weight must be a positive number."),
   whatsappNumber: z.string().regex(/^\d{10,15}$/, {
     message: "Please enter a valid 10 to 15 digit phone number.",
@@ -653,10 +655,16 @@ const BillContent = ({
               <FormControl>
                 <Input
                   type="number"
-                  step="0.01"
+                  step="1"
                   placeholder="e.g., 5000"
                   {...field}
                   disabled={isFormDisabled}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                      e.preventDefault();
+                    }
+                  }}
                 />
               </FormControl>
               <FormMessage />
@@ -675,10 +683,16 @@ const BillContent = ({
               <FormControl>
                 <Input
                   type="number"
-                  step="0.01"
+                  step="1"
                   placeholder="e.g., 2000"
                   {...field}
                   disabled={isFormDisabled}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                      e.preventDefault();
+                    }
+                  }}
                 />
               </FormControl>
               <FormMessage />
@@ -711,7 +725,7 @@ const BillContent = ({
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
                       className="flex items-center space-x-4"
                       disabled={isFormDisabled}
                     >
