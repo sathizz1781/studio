@@ -705,11 +705,13 @@ const BillContent = ({
             {translations.weighbridge_form.net_weight}
           </FormLabel>
           <FormControl>
-            <Input
-              value={netWeight}
-              disabled
-              className="font-bold text-primary"
-            />
+            <div
+              aria-hidden
+              className="w-full text-right font-extrabold text-black text-5xl leading-none"
+              style={{ paddingTop: '0.2rem', paddingBottom: '0.2rem' }}
+            >
+              {netWeight}
+            </div>
           </FormControl>
         </FormItem>
       </div>
@@ -1053,7 +1055,7 @@ export function WeighbridgeForm() {
                     body { font-family: sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
                     .printable-section { display: flex; flex-direction: row; justify-content: space-between; gap: 0.5rem; width: 100%; }
                     .printable-content-wrapper { flex: 1 1 32%; min-width: 0; padding: 0.5rem; font-size: 9px; }
-                    .printable-content-wrapper:first-child { margin-right: 0.5rem; }
+                    .printable-content-wrapper:first-child { margin-right: 1.2rem; }
                 </style>
             </head>
             <body>
