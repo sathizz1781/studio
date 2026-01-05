@@ -602,22 +602,6 @@ const handlePasscodeSubmit = () => {
         />
         <FormField
           control={control}
-          name="partyName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="flex items-center gap-2">
-                <User size={16} />
-                {translations.weighbridge_form.party_name}
-              </FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., John Doe" {...field} disabled={isFormDisabled} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={control}
           name="materialName"
           render={({ field }) => (
             <FormItem>
@@ -634,6 +618,23 @@ const handlePasscodeSubmit = () => {
         />
         <FormField
           control={control}
+          name="partyName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <User size={16} />
+                {translations.weighbridge_form.party_name}
+              </FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., John Doe" {...field} disabled={isFormDisabled} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={control}
           name="charges"
           render={({ field }) => (
             <FormItem>
@@ -645,10 +646,19 @@ const handlePasscodeSubmit = () => {
                  <Popover open={!!chargeExtremes} onOpenChange={(isOpen) => !isOpen && setChargeExtremes(null)}>
                     <PopoverTrigger asChild>
                         <div className="relative flex items-center">
-                            <Input type="number" placeholder="e.g., 250" {...field} disabled={isFormDisabled} />
+                            <Input 
+                            type="number" 
+                            placeholder="e.g., 250" {...field} 
+                            disabled={isFormDisabled} 
+                            onWheel={(e) => e.currentTarget.blur()}
+                            onKeyDown={(e) => {
+                                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                e.preventDefault();}}}
+                              />
+                            
                         </div>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-4" onOpenAutoFocus={(e) => e.preventDefault()}>
+                    {/* <PopoverContent className="w-auto p-4" onOpenAutoFocus={(e) => e.preventDefault()}>
                       {chargeExtremes && (
                         <div className="flex flex-col gap-3">
                             <p className="text-sm font-semibold">{translations.weighbridge_form.charge_suggestions}</p>
@@ -670,7 +680,7 @@ const handlePasscodeSubmit = () => {
                             )}
                         </div>
                       )}
-                    </PopoverContent>
+                    </PopoverContent> */}
                  </Popover>
               </FormControl>
               <FormMessage />
@@ -698,10 +708,13 @@ const handlePasscodeSubmit = () => {
                   disabled={isFormDisabled}
                   onWheel={(e) => e.currentTarget.blur()}
                   onKeyDown={(e) => {
-                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    if (e.key === "." ||
+      e.key === "," ||e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                       e.preventDefault();
                     }
                   }}
+                  inputMode="numeric"
+                  readOnly={!isManualMode}
                 />
               </FormControl>
               <FormMessage />
@@ -721,15 +734,18 @@ const handlePasscodeSubmit = () => {
                 <Input
                   type="number"
                   step="1"
+                  inputMode="numeric"
                   placeholder="e.g., 2000"
                   {...field}
                   disabled={isFormDisabled}
                   onWheel={(e) => e.currentTarget.blur()}
                   onKeyDown={(e) => {
-                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    if (e.key === "." ||
+      e.key === "," ||e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                       e.preventDefault();
                     }
                   }}
+                  readOnly={!isManualMode}
                 />
               </FormControl>
               <FormMessage />
