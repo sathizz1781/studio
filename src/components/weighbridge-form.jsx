@@ -745,7 +745,7 @@ const handlePasscodeSubmit = () => {
                       e.preventDefault();
                     }
                   }}
-                  readOnly={!isManualMode}
+                  // readOnly={!isManualMode}
                 />
               </FormControl>
               <FormMessage />
